@@ -1,3 +1,4 @@
+import { TriangleAlert } from 'lucide-react'
 import type { Decisions, GameState } from '../sim/types.ts'
 import { OPENINGS } from './labels.ts'
 
@@ -23,12 +24,16 @@ export function OpeningBriefing({ game, decisions, onDismiss }: { game: GameStat
   }
 
   return (
-    <div role="status" className="rounded-xl border border-yellow-300/70 bg-yellow-950/40 p-3 text-sm">
-      <p className="font-bold text-yellow-200">⚠ {opening.title}</p>
-      <p className="mt-1 text-slate-200">{opening.problem}</p>
-      <p className="mt-1 font-semibold text-yellow-100">
-        {fixed ? 'Good. Now press Advance sol ▶ and see what happens.' : opening.fix}
-      </p>
+    <div role="status" className="flex gap-3 rounded-2xl border border-yellow-300/70 bg-yellow-950/40 p-3 text-sm">
+      <TriangleAlert size={28} className="mt-0.5 shrink-0 text-yellow-300" aria-hidden />
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-yellow-300">Mission briefing</p>
+        <p className="text-base font-bold text-yellow-100">{opening.title}</p>
+        <p className="mt-1 text-slate-200">{opening.problem}</p>
+        <p className="mt-1 font-semibold text-yellow-100">
+          {fixed ? 'Good. Now press Advance sol ▶ and see what happens.' : opening.fix}
+        </p>
+      </div>
     </div>
   )
 }

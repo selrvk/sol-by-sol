@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { Apple, Droplet, Radiation, Users, Zap } from 'lucide-react'
+import { useMemo, type ReactNode } from 'react'
 import { advanceSol } from '../sim/advanceSol.ts'
 import { BALANCE } from '../sim/balance.ts'
 import { lifeSupportReserveKWh } from '../sim/forecast.ts'
@@ -65,12 +66,15 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
   const repairShifts = game.environment.busyShifts + game.environment.busyEvaShifts
   const lastRepairs = game.lastReport?.repairShifts ?? 0
   return (
-    <section aria-label="Resources" className="space-y-3">
+    <section aria-label="Mission status" className="space-y-2.5 rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
+      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-300">
+        <Users size={16} className="text-sky-300" aria-hidden /> Mission status
+      </h2>
       <Meter
         name="Power"
         forecast={isForecast}
         highlight={highlight === 'power'}
-        icon="⚡"
+        icon={<Badge tone="amber"><Zap size={20} fill="currentColor" /></Badge>}
         value={`${Math.round(r.storedPowerKWh)} kWh`}
         fill={r.storedPowerKWh / game.facilities.batteryCapacityKWh}
         delta={d?.storedPowerKWh}
@@ -88,7 +92,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       />
       <Meter
         name="Oxygen"
-        icon="🫁"
+        icon={<Badge tone="sky"><span className="text-sm font-bold">O₂</span></Badge>}
         value={`${Math.round(r.oxygenKg)} kg`}
         fill={r.oxygenKg / Math.max(start.oxygenKg, r.oxygenKg)}
         delta={d?.oxygenKg}
@@ -101,7 +105,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       />
       <Meter
         name="Water"
-        icon="💧"
+        icon={<Badge tone="blue"><Droplet size={20} fill="currentColor" /></Badge>}
         value={`${Math.round(r.waterL)} L`}
         fill={r.waterL / Math.max(start.waterL, r.waterL)}
         delta={d?.waterL}
@@ -115,7 +119,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       />
       <Meter
         name="Food"
-        icon="🥔"
+        icon={<Badge tone="green"><Apple size={20} fill="currentColor" /></Badge>}
         value={`${Math.round(r.foodKg)} kg`}
         fill={r.foodKg / Math.max(start.foodKg, r.foodKg)}
         delta={d?.foodKg}
@@ -130,7 +134,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
         name="Radiation"
         forecast={isForecast}
         highlight={highlight === 'radiation'}
-        icon="☢️"
+        icon={<Badge tone="yellow"><Radiation size={20} /></Badge>}
         value={`${Math.round(worst.doseMSv)} / ${worst.careerDoseLimitMSv} mSv`}
         fill={worst.doseMSv / worst.careerDoseLimitMSv}
         invert
@@ -143,7 +147,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
         name="Crew time"
         forecast={isForecast}
         highlight={highlight === 'crew time'}
-        icon="⏱️"
+        icon={<Badge tone="indigo"><Users size={20} /></Badge>}
         value={`${hoursAssigned} / ${hoursAvailable} h`}
         fill={hoursAvailable ? hoursAssigned / hoursAvailable : 0}
         why={METER_WHY.crewTime(game.scenario)}
@@ -165,7 +169,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
 
 interface MeterProps {
   name: string
-  icon: string
+  icon: ReactNode
   value: string
   fill: number
   delta?: number
@@ -191,11 +195,11 @@ function Meter({ name, icon, value, fill, delta, unit, amount, why, detail, inve
   const bar = neutral ? 'bg-sky-400' : danger ? 'bg-red-500' : caution ? 'bg-amber-400' : 'bg-emerald-400'
 
   return (
-    <div className={`rounded-lg border p-2.5 ${danger && !neutral ? 'border-red-500/60 bg-red-950/30' : 'border-slate-700 bg-slate-900/60'} ${highlight ? 'ring-2 ring-yellow-300' : ''}`}>
+    <div className={`flex gap-3 rounded-xl border p-2.5 ${danger && !neutral ? 'border-red-500/60 bg-red-950/30' : 'border-slate-700/80 bg-slate-950/50'} ${highlight ? 'ring-2 ring-yellow-300' : ''}`}>
+      {icon}
+      <div className="min-w-0 flex-1">
       <div className="flex items-center justify-between gap-2 text-sm">
-        <span className="font-medium">
-          <span aria-hidden>{icon}</span> {name}
-        </span>
+        <span className="font-semibold">{name}</span>
         <span className="flex items-center gap-2">
           <span className="tabular-nums">{value}</span>
           <WhyTooltip why={why} />
@@ -204,16 +208,35 @@ function Meter({ name, icon, value, fill, delta, unit, amount, why, detail, inve
       <div className="mt-1.5 h-2 overflow-hidden rounded bg-slate-700" role="meter" aria-valuenow={Math.round(f * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={name}>
         <div className={`h-full ${bar} transition-all`} style={{ width: `${f * 100}%` }} />
       </div>
-      <div className="mt-1 flex justify-between gap-2 text-[11px] text-slate-400">
+      <div className="mt-1 flex flex-wrap justify-between gap-x-2 text-[11px] text-slate-400">
         <span className={warn ? 'text-amber-300' : ''}>{detail}</span>
         {delta !== undefined && Math.abs(delta) >= 0.05 && (
-          <span className={`shrink-0 tabular-nums ${(invert ? delta > 0 : delta < 0) ? 'text-red-300' : 'text-emerald-300'}`}>
+          <span className={`ml-auto whitespace-nowrap tabular-nums ${(invert ? delta > 0 : delta < 0) ? 'text-red-300' : 'text-emerald-300'}`}>
             {forecast ? 'next sol: ' : ''}
             {delta > 0 ? '+' : ''}
             {delta.toFixed(1)} {unit}/sol{solsLeft !== null && solsLeft < 60 ? ` · ~${solsLeft} sols left` : ''}
           </span>
         )}
       </div>
+      </div>
     </div>
+  )
+}
+
+const BADGE_TONES = {
+  amber: 'bg-amber-400/15 text-amber-300 ring-amber-300/30',
+  sky: 'bg-sky-400/15 text-sky-300 ring-sky-300/30',
+  blue: 'bg-blue-400/15 text-blue-300 ring-blue-300/30',
+  green: 'bg-emerald-400/15 text-emerald-300 ring-emerald-300/30',
+  yellow: 'bg-yellow-400/15 text-yellow-300 ring-yellow-300/30',
+  indigo: 'bg-indigo-400/15 text-indigo-300 ring-indigo-300/30',
+}
+
+// The round icon badge at the left of each meter.
+function Badge({ tone, children }: { tone: keyof typeof BADGE_TONES; children: ReactNode }) {
+  return (
+    <span aria-hidden className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ring-1 ${BADGE_TONES[tone]}`}>
+      {children}
+    </span>
   )
 }

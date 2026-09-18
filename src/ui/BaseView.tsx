@@ -13,6 +13,9 @@ import type { CrewTask, Decisions, GameState, PowerLoad } from '../sim/types.ts'
 const W = 1585
 const H = 992
 const ART = '/art'
+// The part of the terrain shown: the five pads and the crater, trimmed of
+// empty edges so the map doesn't push the crew cards off screen.
+const VIEW = { x: 120, y: 140, w: 1360, h: 660 }
 
 // Pad centres and widths, measured on the terrain's ground markings.
 const PADS = {
@@ -142,7 +145,7 @@ export function BaseView({ game, decisions }: { game: GameState; decisions: Deci
   const o2Pad = PADS.reactor // Mars has no reactor; its O₂ makers use that pad
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full bg-[#0c1633]" role="img" aria-label={`The ${isMars ? 'Mars' : 'lunar'} outpost`}>
+    <svg viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`} className="h-auto w-full bg-[#0c1633]" role="img" aria-label={`The ${isMars ? 'Mars' : 'lunar'} outpost`}>
       <defs>
         {/* The terrain slab's outline, so Mars recolouring stays on the ground. */}
         <clipPath id="slab">
@@ -240,7 +243,7 @@ export function BaseView({ game, decisions }: { game: GameState; decisions: Deci
         </>
       )}
 
-      <text x={W - 24} y={H - 20} textAnchor="end" className="fill-slate-300 text-[22px]" style={{ paintOrder: 'stroke', stroke: '#0f172a', strokeWidth: 5 }}>
+      <text x={VIEW.x + VIEW.w - 24} y={VIEW.y + VIEW.h - 20} textAnchor="end" className="fill-slate-300 text-[22px]" style={{ paintOrder: 'stroke', stroke: '#0f172a', strokeWidth: 5 }}>
         condition {Math.round(f.condition * 100)}% · shielding {f.shieldingLevel}/{BALANCE.MAX_SHIELDING_LEVEL}
       </text>
     </svg>

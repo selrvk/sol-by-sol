@@ -1,5 +1,6 @@
 // Presentation text only. No game rules here.
 
+import { BedDouble, FlaskConical, Mountain, Pickaxe, Sprout, Sun, Wind, Wrench, type LucideIcon } from 'lucide-react'
 import { c, type ConstantKey, type CurveKey } from '../sim/constants.ts'
 import type { CrewTask, PowerLoad, Scenario, ScenarioId } from '../sim/types.ts'
 
@@ -12,6 +13,17 @@ export const TASK_LABELS: Record<CrewTask, { label: string; short: string; icon:
   maintenance: { label: 'Maintenance', short: 'Repair', icon: '🔧', hint: 'Repairs wear: keeps water recycling and panels working' },
   isru: { label: 'Build O₂ maker', short: 'O₂', icon: '🫧', hint: 'Makes oxygen from the Martian air, uses power' },
   rest: { label: 'Rest', short: 'Rest', icon: '💤', hint: 'No work' },
+}
+
+export const TASK_ICONS: Record<CrewTask, LucideIcon> = {
+  labScience: FlaskConical,
+  fieldScience: Pickaxe,
+  greenhouse: Sprout,
+  solar: Sun,
+  shielding: Mountain,
+  maintenance: Wrench,
+  isru: Wind,
+  rest: BedDouble,
 }
 
 export const POWER_LABELS: Record<PowerLoad, string> = {

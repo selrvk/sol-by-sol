@@ -1,8 +1,11 @@
+import { ChartLine } from 'lucide-react'
 import { lazy, Suspense, useEffect, useReducer, useState } from 'react'
+import type { ScenarioId } from '../sim/types.ts'
 import { BaseView } from './BaseView.tsx'
-import { DecisionPanel } from './DecisionPanel.tsx'
+import { ControlPanel } from './ControlPanel.tsx'
+import { CrewPanel } from './CrewPanel.tsx'
 import { EventModal } from './EventModal.tsx'
-import { loadSavedUiState, reducer, saveUiState } from './gameReducer.ts'
+import { loadSavedUiState, reducer, saveUiState, SCENARIOS } from './gameReducer.ts'
 import { OPENINGS } from './labels.ts'
 import { MissionLog } from './MissionLog.tsx'
 import { OpeningBriefing } from './OpeningBriefing.tsx'
@@ -50,17 +53,52 @@ export function Game() {
           if (game.outcome.status !== 'playing' || window.confirm('Quit this mission? Your progress will be lost.')) dispatch({ type: 'quit' })
         }}
       />
-      <main className="grid flex-1 gap-4 p-4 pb-28 lg:grid-cols-[1fr_20rem] lg:pb-4">
-        <div className="space-y-3">
+      {/* Two columns on large screens. On phones the columns dissolve
+          (display: contents) so sections can be re-ordered: the meters come
+          right after the map, where the briefing points. */}
+      <main className="flex flex-1 flex-col gap-4 p-4 pb-28 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:pb-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <div className="contents lg:block lg:min-w-0 lg:space-y-4">
           {showBriefing && (
+            <div className="order-1 lg:order-none">
             <OpeningBriefing game={game} decisions={decisions} onDismiss={() => setBriefingDismissedFor(game.rng.seed)} />
+            </div>
           )}
-          <div className="overflow-hidden rounded-xl border border-slate-800">
+          <div className="relative order-2 overflow-hidden rounded-2xl border border-slate-800 lg:order-none">
             <BaseView game={game} decisions={decisions} />
+            <label className="absolute left-3 top-3">
+              <span className="sr-only">World</span>
+              <select
+                value={game.scenario.id}
+                onChange={(e) => {
+                  const next = e.target.value as ScenarioId
+                  if (next === game.scenario.id) return
+                  if (window.confirm(`Start a new mission on ${SCENARIOS[next].name}? This mission will be lost.`)) {
+                    dispatch({ type: 'start', scenarioId: next, seed: (game.rng.seed * 1103515245 + 12345) >>> 0 })
+                  }
+                }}
+                className="rounded-lg border border-slate-600 bg-slate-900/90 px-2 py-0.5 text-xs font-semibold text-white shadow-lg sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-sm"
+              >
+                <option value="moon">🌕 Moon</option>
+                <option value="mars">🔴 Mars</option>
+              </select>
+            </label>
           </div>
-          <MissionLog log={game.log} />
-          <details className="group rounded-xl border border-slate-800 p-3" open={history.length > 1}>
-            <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wider text-slate-400">📈 Trends</summary>
+          <div className="order-4 lg:order-none">
+          <CrewPanel
+            game={game}
+            decisions={decisions}
+            dispatch={dispatch}
+            highlightTask={showBriefing && !fixChosen ? opening.fixTask : undefined}
+            showAdvice={!(showBriefing && onFirstSol)}
+          />
+          </div>
+          <div className="order-6 lg:order-none">
+            <MissionLog log={game.log} />
+          </div>
+          <details className="group order-7 rounded-2xl border border-slate-800 bg-slate-900/50 p-3 lg:order-none" open={history.length > 1}>
+            <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-300">
+              <ChartLine size={16} className="text-sky-300" aria-hidden /> Trends
+            </summary>
             <div className="mt-2">
               <Suspense fallback={<p className="text-sm text-slate-500">Loading charts…</p>}>
                 <TrendCharts game={game} history={history} />
@@ -68,16 +106,13 @@ export function Game() {
             </div>
           </details>
         </div>
-        <ResourcePanel game={game} previous={previous} decisions={decisions} highlight={showBriefing && onFirstSol ? opening.meter : undefined} />
-        <div className="lg:col-span-2">
-          <DecisionPanel
-            game={game}
-            decisions={decisions}
-            dispatch={dispatch}
-            highlightTask={showBriefing && !fixChosen ? opening.fixTask : undefined}
-            highlightAdvance={showBriefing && onFirstSol && fixChosen}
-            showAdvice={!(showBriefing && onFirstSol)}
-          />
+        <div className="contents lg:block lg:space-y-4">
+          <div className="order-3 lg:order-none">
+          <ResourcePanel game={game} previous={previous} decisions={decisions} highlight={showBriefing && onFirstSol ? opening.meter : undefined} />
+          </div>
+          <div className="order-5 lg:order-none">
+          <ControlPanel game={game} decisions={decisions} dispatch={dispatch} highlightAdvance={showBriefing && onFirstSol && fixChosen} />
+          </div>
         </div>
       </main>
       {game.pendingEvent && !decisions.eventChoiceId && game.outcome.status === 'playing' && (
