@@ -3,15 +3,15 @@
 import { c, type ConstantKey, type CurveKey } from '../sim/constants.ts'
 import type { CrewTask, PowerLoad, Scenario, ScenarioId } from '../sim/types.ts'
 
-export const TASK_LABELS: Record<CrewTask, { label: string; icon: string; hint: string }> = {
-  labScience: { label: 'Lab science', icon: '🔬', hint: 'Science points, needs the lab powered' },
-  fieldScience: { label: 'Field science', icon: '🪨', hint: 'More science, but outside: extra radiation' },
-  greenhouse: { label: 'Grow greenhouse', icon: '🌱', hint: 'More growing area: more food, more power' },
-  solar: { label: 'Build solar', icon: '☀️', hint: 'More panels: more power in sunlight' },
-  shielding: { label: 'Pile regolith', icon: '⛰️', hint: 'Shielding: protects against solar storms' },
-  maintenance: { label: 'Maintenance', icon: '🔧', hint: 'Repairs wear: keeps water recycling and panels working' },
-  isru: { label: 'Build O₂ maker', icon: '🫧', hint: 'Makes oxygen from the Martian air, uses power' },
-  rest: { label: 'Rest', icon: '💤', hint: 'No work' },
+export const TASK_LABELS: Record<CrewTask, { label: string; short: string; icon: string; hint: string }> = {
+  labScience: { label: 'Lab science', short: 'Lab', icon: '🔬', hint: 'Science points, needs the lab powered' },
+  fieldScience: { label: 'Field science', short: 'Field', icon: '🪨', hint: 'More science, but outside: extra radiation' },
+  greenhouse: { label: 'Grow greenhouse', short: 'Grow', icon: '🌱', hint: 'More growing area: more food, more power' },
+  solar: { label: 'Build solar', short: 'Solar', icon: '☀️', hint: 'More panels: more power in sunlight' },
+  shielding: { label: 'Pile regolith', short: 'Shield', icon: '⛰️', hint: 'Shielding: protects against solar storms' },
+  maintenance: { label: 'Maintenance', short: 'Repair', icon: '🔧', hint: 'Repairs wear: keeps water recycling and panels working' },
+  isru: { label: 'Build O₂ maker', short: 'O₂', icon: '🫧', hint: 'Makes oxygen from the Martian air, uses power' },
+  rest: { label: 'Rest', short: 'Rest', icon: '💤', hint: 'No work' },
 }
 
 export const POWER_LABELS: Record<PowerLoad, string> = {

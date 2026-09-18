@@ -12,15 +12,44 @@ export const SCENARIOS = { moon, mars }
 
 type PowerSwitch = keyof Decisions['power']
 
+// One row per sol for the trend charts. UI data only: the sim never sees it.
+export interface HistoryPoint {
+  sol: number
+  power: number
+  oxygen: number
+  water: number
+  food: number
+  dose: number // highest career dose in the crew
+  science: number
+  night: boolean
+  storm: boolean
+}
+
 export interface UiState {
   game: GameState | null
   previous: GameState | null // state before the last sol, for per-sol deltas
   decisions: Decisions
+  history: HistoryPoint[]
+}
+
+function snapshot(g: GameState): HistoryPoint {
+  return {
+    sol: g.sol,
+    power: Math.round(g.resources.storedPowerKWh),
+    oxygen: Math.round(g.resources.oxygenKg * 10) / 10,
+    water: Math.round(g.resources.waterL),
+    food: Math.round(g.resources.foodKg),
+    dose: Math.round(Math.max(...g.crew.map((m) => m.doseMSv)) * 10) / 10,
+    science: g.sciencePoints,
+    night: !g.environment.isDaylight,
+    storm: g.environment.dustStormSolsLeft > 0,
+  }
 }
 
 export type Action =
   | { type: 'start'; scenarioId: ScenarioId; seed: number }
   | { type: 'assign'; crewId: CrewId; task: CrewTask }
+  | { type: 'swapTasks'; a: CrewId; b: CrewId }
   | { type: 'togglePower'; load: PowerSwitch }
   | { type: 'chooseEvent'; choiceId: string }
   | { type: 'advance' }
@@ -32,6 +61,7 @@ export const initialUiState: UiState = {
   game: null,
   previous: null,
   decisions: { assignments: {}, power: { lab: true, greenhouse: true, isru: true } },
+  history: [],
 }
 
 // The whole game state is plain data, so an unfinished mission can be kept
@@ -45,7 +75,7 @@ export function loadSavedUiState(): UiState {
     if (!raw) return initialUiState
     const saved = JSON.parse(raw) as UiState
     if (!saved.game || saved.game.outcome?.status !== 'playing' || !saved.decisions?.assignments) return initialUiState
-    return saved
+    return { ...saved, history: Array.isArray(saved.history) ? saved.history : [snapshot(saved.game)] }
   } catch {
     return initialUiState
   }
@@ -70,6 +100,7 @@ export function reducer(state: UiState, action: Action): UiState {
         game,
         previous: null,
         decisions: { assignments, power: { lab: true, greenhouse: true, isru: true } },
+        history: [snapshot(game)],
       }
     }
     case 'assign':
@@ -80,6 +111,14 @@ export function reducer(state: UiState, action: Action): UiState {
           assignments: { ...state.decisions.assignments, [action.crewId]: action.task },
         },
       }
+    case 'swapTasks': {
+      const { a, b } = action
+      const tasks = state.decisions.assignments
+      return {
+        ...state,
+        decisions: { ...state.decisions, assignments: { ...tasks, [a]: tasks[b], [b]: tasks[a] } },
+      }
+    }
     case 'togglePower':
       return {
         ...state,
@@ -94,10 +133,12 @@ export function reducer(state: UiState, action: Action): UiState {
       if (!state.game || state.game.outcome.status !== 'playing') return state
       // Tasks and power switches carry over to the next sol; the event
       // answer is used once.
+      const game = advanceSol(state.game, state.decisions)
       return {
-        game: advanceSol(state.game, state.decisions),
+        game,
         previous: state.game,
         decisions: { ...state.decisions, eventChoiceId: undefined },
+        history: [...state.history, snapshot(game)],
       }
     }
     case 'restart':

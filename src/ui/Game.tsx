@@ -4,15 +4,17 @@ import { DecisionPanel } from './DecisionPanel.tsx'
 import { EventModal } from './EventModal.tsx'
 import { loadSavedUiState, reducer, saveUiState } from './gameReducer.ts'
 import { OPENINGS } from './labels.ts'
+import { MissionLog } from './MissionLog.tsx'
 import { OpeningBriefing } from './OpeningBriefing.tsx'
 import { ResourcePanel } from './ResourcePanel.tsx'
 import { EndScreen, StartScreen } from './Screens.tsx'
 import { TopBar } from './TopBar.tsx'
+import { TrendCharts } from './TrendCharts.tsx'
 
 export function Game() {
   const [ui, dispatch] = useReducer(reducer, undefined, loadSavedUiState)
   const [briefingDismissedFor, setBriefingDismissedFor] = useState<number | null>(null)
-  const { game, previous, decisions } = ui
+  const { game, previous, decisions, history } = ui
 
   useEffect(() => saveUiState(ui), [ui])
 
@@ -37,7 +39,6 @@ export function Game() {
   const fixChosen = Object.values(decisions.assignments).includes(opening.fixTask)
   const onFirstSol = game.sol === game.scenario.start.sol
 
-  const recentLog = game.log.slice(-5).reverse()
   return (
     <div className="flex min-h-screen flex-col">
       <TopBar
@@ -54,13 +55,13 @@ export function Game() {
           <div className="overflow-hidden rounded-xl border border-slate-800">
             <BaseView game={game} decisions={decisions} />
           </div>
-          <ol aria-label="Mission log" className="space-y-1 text-sm">
-            {recentLog.map((e, i) => (
-              <li key={`${e.sol}-${i}`} className={i === 0 ? 'text-slate-200' : 'text-slate-500'}>
-                <span className="tabular-nums text-slate-500">Sol {e.sol}:</span> {e.message}
-              </li>
-            ))}
-          </ol>
+          <MissionLog log={game.log} />
+          <details className="group rounded-xl border border-slate-800 p-3" open={history.length > 1}>
+            <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wider text-slate-400">📈 Trends</summary>
+            <div className="mt-2">
+              <TrendCharts game={game} history={history} />
+            </div>
+          </details>
         </div>
         <ResourcePanel game={game} previous={previous} decisions={decisions} highlight={showBriefing && onFirstSol ? opening.meter : undefined} />
         <div className="lg:col-span-2">

@@ -286,7 +286,7 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
   rng = rolled.rng
   if (rolled.event) {
     pendingEvent = rolled.event
-    log.push({ sol, kind: 'eventStart', message: `${rolled.event.title}: ${rolled.event.description}` })
+    log.push({ sol, kind: 'eventStart', message: rolled.event.title })
   }
 
   // 8. Win/loss

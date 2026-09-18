@@ -1,6 +1,7 @@
 import type { Dispatch } from 'react'
 import { EVA_TASKS, loadDemandKWh } from '../sim/advanceSol.ts'
 import { BALANCE } from '../sim/balance.ts'
+import { gcrDoseMSv } from '../sim/radiation.ts'
 import type { CrewTask, Decisions, GameState } from '../sim/types.ts'
 import type { Action } from './gameReducer.ts'
 import { POWER_LABELS, TASK_LABELS } from './labels.ts'
@@ -22,6 +23,32 @@ export function DecisionPanel({ game, decisions, dispatch, highlightTask, highli
   const sheltering = game.environment.shelterSolsLeft > 0
   const repairShifts = game.environment.busyShifts + game.environment.busyEvaShifts
   const waitingForEvent = game.pendingEvent !== null && !decisions.eventChoiceId
+  // Background dose for one sol, indoors vs on a spacewalk (from the sim's
+  // radiation model), so the cost of an EVA is visible before choosing it.
+  const evaFraction = BALANCE.SHIFT_HOURS / game.scenario.hoursPerSol
+  const indoorDose = gcrDoseMSv(game.scenario, game.facilities, 0)
+  const evaDose = gcrDoseMSv(game.scenario, game.facilities, evaFraction)
+  const headroom = (id: string) => {
+    const m = game.crew.find((c) => c.id === id)!
+    return m.careerDoseLimitMSv - m.doseMSv
+  }
+  // Advice: if someone with little radiation to spare is outside while a
+  // crewmate with more to spare works indoors, suggest swapping their jobs.
+  const onEva = game.crew.filter((m) => EVA_TASKS.has(decisions.assignments[m.id] ?? 'rest'))
+  const indoorWorkers = game.crew.filter((m) => {
+    const t = decisions.assignments[m.id] ?? 'rest'
+    return t !== 'rest' && !EVA_TASKS.has(t)
+  })
+  let swapAdvice: { out: string; in: string } | null = null
+  for (const out of [...onEva].sort((a, b) => headroom(a.id) - headroom(b.id))) {
+    const better = [...indoorWorkers].sort((a, b) => headroom(b.id) - headroom(a.id))[0]
+    if (better && headroom(better.id) - headroom(out.id) > 100) {
+      swapAdvice = { out: out.id, in: better.id }
+      break
+    }
+  }
+  const name = (id: string) => game.crew.find((m) => m.id === id)!.name
+
   // Building past a cap does nothing: say so, or the shift is silently wasted.
   const maxedOut: Partial<Record<CrewTask, string>> = {
     ...(game.facilities.shieldingLevel >= BALANCE.MAX_SHIELDING_LEVEL && { shielding: 'Shielding is already at maximum: this shift does nothing.' }),
@@ -31,6 +58,9 @@ export function DecisionPanel({ game, decisions, dispatch, highlightTask, highli
   return (
     <section aria-label="Decisions" className="grid gap-4 lg:grid-cols-[1fr_auto]">
       <div>
+        <p className="float-right mt-0.5 text-[11px] text-slate-500">
+          <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-orange-400 align-middle" /> = outside (EVA), extra radiation
+        </p>
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-slate-400">
           Crew assignments {sheltering && <span className="normal-case text-amber-300">(sheltering: no work this sol)</span>}
           {!sheltering && repairShifts > 0 && (
@@ -39,6 +69,22 @@ export function DecisionPanel({ game, decisions, dispatch, highlightTask, highli
             </span>
           )}
         </h2>
+        {swapAdvice && (
+          <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-sky-400/50 bg-sky-950/40 px-3 py-2 text-sm">
+            <span className="flex-1">
+              💡 {name(swapAdvice.out)} is outside with only {Math.round(headroom(swapAdvice.out))} mSv of radiation to spare.{' '}
+              {name(swapAdvice.in)} has {Math.round(headroom(swapAdvice.in))} mSv to spare and is working indoors. Whoever is outside
+              takes the biggest dose if a solar storm hits.
+            </span>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: 'swapTasks', a: swapAdvice!.out, b: swapAdvice!.in })}
+              className="rounded-md bg-sky-300 px-2.5 py-1 text-xs font-semibold text-slate-900 hover:bg-sky-200"
+            >
+              Swap their jobs
+            </button>
+          </div>
+        )}
         <div className="grid gap-2 sm:grid-cols-2">
           {game.crew.map((m) => {
             const task = decisions.assignments[m.id] ?? 'rest'
@@ -57,18 +103,23 @@ export function DecisionPanel({ game, decisions, dispatch, highlightTask, highli
                 <div className="mt-1 h-1 overflow-hidden rounded bg-slate-700">
                   <div className={`h-full ${doseFrac > 0.85 ? 'bg-red-500' : doseFrac > 0.7 ? 'bg-amber-400' : 'bg-slate-400'}`} style={{ width: `${Math.min(1, doseFrac) * 100}%` }} />
                 </div>
-                <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label={`Task for ${m.name}`}>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  {Math.round(m.careerDoseLimitMSv - m.doseMSv)} mSv to spare · per sol: indoors +{indoorDose.toFixed(1)}, on EVA +{evaDose.toFixed(1)}
+                </p>
+                <div className="mt-2 grid grid-cols-4 gap-1" role="group" aria-label={`Task for ${m.name}`}>
                   {tasks.map((t) => (
                     <button
                       key={t}
                       type="button"
                       title={`${TASK_LABELS[t].label}: ${TASK_LABELS[t].hint}`}
                       aria-pressed={task === t}
+                      aria-label={TASK_LABELS[t].label}
                       onClick={() => dispatch({ type: 'assign', crewId: m.id, task: t })}
-                      className={`rounded-md border px-2 py-1 text-base leading-none ${task === t ? 'border-yellow-300 bg-yellow-300/20' : 'border-slate-700 hover:border-slate-500'} ${highlightTask === t && (task === 'labScience' || task === 'fieldScience') ? 'animate-pulse ring-2 ring-yellow-300' : ''}`}
+                      className={`relative flex flex-col items-center gap-0.5 rounded-md border px-1 py-1 leading-none ${task === t ? 'border-yellow-300 bg-yellow-300/20 text-yellow-100' : 'border-slate-700 text-slate-300 hover:border-slate-500'} ${highlightTask === t && (task === 'labScience' || task === 'fieldScience') ? 'animate-pulse ring-2 ring-yellow-300' : ''}`}
                     >
-                      <span aria-hidden>{TASK_LABELS[t].icon}</span>
-                      <span className="sr-only">{TASK_LABELS[t].label}</span>
+                      <span aria-hidden className="text-base">{TASK_LABELS[t].icon}</span>
+                      <span aria-hidden className="text-[10px]">{TASK_LABELS[t].short}</span>
+                      {EVA_TASKS.has(t) && <span aria-hidden className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-orange-400" title="EVA" />}
                     </button>
                   ))}
                 </div>
