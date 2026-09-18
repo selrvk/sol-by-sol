@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.scripts.json",
-    "sim": "node scripts/simulate.ts"
+    "sim": "node scripts/simulate.ts",
+    "balance": "node scripts/balance-report.ts"
   },
   "dependencies": {
     "react": "^18.3.1",

@@ -11,7 +11,7 @@ export const mars: Scenario = {
   name: 'Mars outpost',
   hoursPerSol: HOURS_PER_SOL,
   missionLengthSols: 120,
-  scienceTarget: 400,
+  scienceTarget: 580,
   solarKWhPerM2PerSol: c('MARS_CLEAR_SOL_INSOLATION_KWH_M2'),
   dayNightCycle: null, // day/night is already averaged into the daily insolation
   maxSolarArrayM2: 600,
@@ -28,7 +28,7 @@ export const mars: Scenario = {
   isruAvailable: true,
   start: {
     sol: 0,
-    resources: { storedPowerKWh: 300, oxygenKg: 250, waterL: 400, foodKg: 700 },
+    resources: { storedPowerKWh: 300, oxygenKg: 250, waterL: 300, foodKg: 750 },
     facilities: {
       solarArrayM2: 300,
       reactorKW: c('REACTOR_UNIT_KW'),

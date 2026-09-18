@@ -12,7 +12,7 @@ export const moon: Scenario = {
   name: 'Lunar outpost',
   hoursPerSol: HOURS_PER_SOL,
   missionLengthSols: 120,
-  scienceTarget: 480,
+  scienceTarget: 620,
   // Equatorial site, fixed horizontal panels: the mean of cos(sun angle)
   // over a lunar day is 2/π. 1361 W/m² × 24 h × 2/π ≈ 20.8 kWh/m² per sol.
   solarKWhPerM2PerSol: (c('SOLAR_FLUX_MOON') * HOURS_PER_SOL * (2 / Math.PI)) / 1000,
@@ -24,12 +24,12 @@ export const moon: Scenario = {
   // Earth is ~3 days away: regular cargo landers.
   resupply: {
     intervalSols: 30,
-    cargo: { storedPowerKWh: 0, oxygenKg: 90, waterL: 60, foodKg: 180 },
+    cargo: { storedPowerKWh: 0, oxygenKg: 90, waterL: 60, foodKg: 120 },
   },
   isruAvailable: false,
   start: {
     sol: 0,
-    resources: { storedPowerKWh: 300, oxygenKg: 200, waterL: 300, foodKg: 400 },
+    resources: { storedPowerKWh: 300, oxygenKg: 200, waterL: 200, foodKg: 400 },
     facilities: {
       solarArrayM2: 100,
       reactorKW: c('REACTOR_UNIT_KW'),

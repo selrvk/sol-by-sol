@@ -24,11 +24,11 @@ export const BALANCE = {
 
   // Base condition (0..1). Every module wears; maintenance repairs.
   // Condition scales solar output (dust on panels) and water recovery.
-  WEAR_BASE_PER_SOL: 0.01,
+  WEAR_BASE_PER_SOL: 0.02,
   WEAR_PER_SOLAR_M2: 0.00005,
   WEAR_PER_GREENHOUSE_M2: 0.001,
   WEAR_PER_ISRU_UNIT: 0.005,
-  MAINTENANCE_PER_SHIFT: 0.04,
+  MAINTENANCE_PER_SHIFT: 0.08,
 
   // Events
   SPE_SHELTER_SOLS: 2,
