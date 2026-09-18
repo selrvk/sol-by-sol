@@ -21,7 +21,21 @@ import type {
 } from './types.ts'
 import type { EventContext } from './events.ts'
 
-const EVA_TASKS: ReadonlySet<CrewTask> = new Set(['fieldScience', 'solar', 'shielding', 'isru'])
+// Tasks done outside in a spacesuit: they take extra radiation dose.
+export const EVA_TASKS: ReadonlySet<CrewTask> = new Set(['fieldScience', 'solar', 'shielding', 'isru'])
+
+// kWh each system would draw this sol if switched on.
+export function loadDemandKWh(scenario: Scenario, fac: Facilities): Record<PowerLoad, number> {
+  const solDays = scenario.hoursPerSol / 24
+  return {
+    lifeSupport: c('LIFE_SUPPORT_KW') * scenario.hoursPerSol,
+    isru: scenario.isruAvailable
+      ? fac.isruUnits * BALANCE.ISRU_KG_O2_PER_UNIT_PER_SOL * c('MOXIE_KWH_PER_KG_O2')
+      : 0,
+    greenhouse: fac.greenhouseM2 * c('GREENHOUSE_YIELD_KG_M2_PER_DAY') * solDays * c('GREENHOUSE_KWH_PER_KG_FOOD'),
+    lab: BALANCE.LAB_KW * scenario.hoursPerSol,
+  }
+}
 
 // Advance the simulation by one sol. Pure and deterministic: all randomness
 // comes from state.rng, never Math.random().
@@ -120,15 +134,12 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
   const generated = solarKWh + reactorKWh
 
   // 3. Power draw. Life support first, then optional loads in priority order.
+  const full = loadDemandKWh(scenario, fac)
   const demand: Record<PowerLoad, number> = {
-    lifeSupport: c('LIFE_SUPPORT_KW') * scenario.hoursPerSol,
-    isru: scenario.isruAvailable && decisions.power.isru
-      ? fac.isruUnits * BALANCE.ISRU_KG_O2_PER_UNIT_PER_SOL * c('MOXIE_KWH_PER_KG_O2')
-      : 0,
-    greenhouse: decisions.power.greenhouse
-      ? fac.greenhouseM2 * c('GREENHOUSE_YIELD_KG_M2_PER_DAY') * solDays * c('GREENHOUSE_KWH_PER_KG_FOOD')
-      : 0,
-    lab: decisions.power.lab ? BALANCE.LAB_KW * scenario.hoursPerSol : 0,
+    lifeSupport: full.lifeSupport,
+    isru: decisions.power.isru ? full.isru : 0,
+    greenhouse: decisions.power.greenhouse ? full.greenhouse : 0,
+    lab: decisions.power.lab ? full.lab : 0,
   }
   let available = res.storedPowerKWh + generated
   let lifeSupportFailed = false
