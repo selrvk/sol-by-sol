@@ -20,6 +20,7 @@ export const moon: Scenario = {
   maxSolarArrayM2: 300,
   dustStorm: { chancePerSol: 0, minSols: 0, maxSols: 0, solarFactor: 1 },
   surfaceDoseMSvPerSol: c('MOON_SURFACE_DOSE_MSV_PER_DAY') * (HOURS_PER_SOL / 24),
+  atmosphereGCm2: 0,
   eventChancePerSol: 0.03,
   // Earth is ~3 days away: regular cargo landers.
   resupply: {
@@ -29,7 +30,7 @@ export const moon: Scenario = {
   isruAvailable: false,
   start: {
     sol: 0,
-    resources: { storedPowerKWh: 300, oxygenKg: 200, waterL: 200, foodKg: 400 },
+    resources: { storedPowerKWh: 300, oxygenKg: 200, waterL: 170, foodKg: 400 },
     facilities: {
       solarArrayM2: 100,
       reactorKW: c('REACTOR_UNIT_KW'),

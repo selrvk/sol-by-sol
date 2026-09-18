@@ -94,6 +94,7 @@ export interface Scenario {
     solarFactor: number
   }
   surfaceDoseMSvPerSol: number
+  atmosphereGCm2: number // shielding from the atmosphere (0 on the Moon)
   eventChancePerSol: number
   resupply: { intervalSols: number; cargo: ResourceLevels } | null
   isruAvailable: boolean
@@ -114,6 +115,9 @@ export interface EventOutcome {
   message: string
   resources?: Partial<ResourceLevels> // deltas
   crewDoseMSv?: number                // added to every crew member
+  // Solar particle event: dose depends on each person's shielding.
+  // scale = event size as a fraction of the August 1972 event.
+  solarParticleEvent?: { scale: number; sheltered: boolean }
   sciencePoints?: number              // delta
   shelterSols?: number                // crew shelter and do no work
 }

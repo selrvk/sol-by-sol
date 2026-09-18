@@ -1,6 +1,7 @@
 import { BALANCE } from './balance.ts'
 import { c } from './constants.ts'
 import { EVENTS } from './events.ts'
+import { gcrDoseMSv, speDoses } from './radiation.ts'
 import { nextRandom } from './rng.ts'
 import type {
   CrewMember,
@@ -18,6 +19,7 @@ import type {
   RngState,
   Scenario,
 } from './types.ts'
+import type { EventContext } from './events.ts'
 
 const EVA_TASKS: ReadonlySet<CrewTask> = new Set(['fieldScience', 'solar', 'shielding', 'isru'])
 
@@ -62,6 +64,13 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
       }
     }
     if (o.crewDoseMSv) for (const m of crew) m.doseMSv += o.crewDoseMSv
+    if (o.solarParticleEvent) {
+      const dose = speDoses(scenario, fac, o.solarParticleEvent.scale)
+      for (const m of crew) {
+        const onEva = EVA_TASKS.has(decisions.assignments[m.id] ?? 'rest')
+        m.doseMSv += o.solarParticleEvent.sheltered ? dose.sheltered : onEva ? dose.eva : dose.indoor
+      }
+    }
     if (o.sciencePoints) science += o.sciencePoints
     if (o.shelterSols) env.shelterSolsLeft = Math.max(env.shelterSolsLeft, o.shelterSols)
     log.push({ sol, kind: 'eventResolved', message: `${event.title}: ${o.message}` })
@@ -154,17 +163,11 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
     res.oxygenKg += fac.isruUnits * BALANCE.ISRU_KG_O2_PER_UNIT_PER_SOL
   }
 
-  // 5. Radiation. EVA hours take the full surface dose; indoor hours are
-  // reduced by the habitat and any regolith shielding.
-  const shieldTransmission = Math.max(
-    c('SHIELDING_MIN_TRANSMISSION'),
-    1 - c('SHIELDING_REDUCTION_PER_LEVEL') * fac.shieldingLevel,
-  )
-  const indoorTransmission = c('HABITAT_DOSE_TRANSMISSION') * shieldTransmission
+  // 5. Radiation (galactic cosmic rays). EVA hours take the full surface
+  // dose; indoor hours are reduced a little by the habitat and regolith.
   for (const m of crew) {
     const evaFraction = EVA_TASKS.has(taskFor(m)) ? BALANCE.SHIFT_HOURS / scenario.hoursPerSol : 0
-    m.doseMSv +=
-      scenario.surfaceDoseMSvPerSol * (evaFraction + (1 - evaFraction) * indoorTransmission)
+    m.doseMSv += gcrDoseMSv(scenario, fac, evaFraction)
   }
 
   // 6. Crew tasks
@@ -231,7 +234,7 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
 
   // 7. Random event
   let pendingEvent: PendingEvent | null = null
-  const rolled = rollEvent(scenario, rng)
+  const rolled = rollEvent({ scenario, facilities: fac }, rng)
   rng = rolled.rng
   if (rolled.event) {
     pendingEvent = rolled.event
@@ -283,7 +286,8 @@ function isDaylight(scenario: Scenario, sol: number): boolean {
   return sol % (cycle.daySols + cycle.nightSols) < cycle.daySols
 }
 
-function rollEvent(scenario: Scenario, rng: RngState): { event: PendingEvent | null; rng: RngState } {
+function rollEvent(ctx: EventContext, rng: RngState): { event: PendingEvent | null; rng: RngState } {
+  const { scenario } = ctx
   const roll = nextRandom(rng)
   if (roll.value >= scenario.eventChancePerSol) return { event: null, rng: roll.next }
 
@@ -301,8 +305,8 @@ function rollEvent(scenario: Scenario, rng: RngState): { event: PendingEvent | n
       break
     }
   }
-  const { id, title, description, choices, defaultChoiceId } = chosen
-  return { event: { id, title, description, choices, defaultChoiceId }, rng: pick.next }
+  const variation = nextRandom(pick.next)
+  return { event: chosen.build(ctx, variation.value), rng: variation.next }
 }
 
 function checkOutcome(

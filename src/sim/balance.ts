@@ -14,6 +14,7 @@ export const BALANCE = {
   SOLAR_M2_PER_SHIFT: 20,
   SHIELDING_LEVELS_PER_SHIFT: 1,
   MAX_SHIELDING_LEVEL: 6,
+  REGOLITH_G_CM2_PER_LEVEL: 5, // shielding mass added per level of piled regolith
   ISRU_UNITS_PER_SHIFT: 1,
 
   // ISRU output per unit, kg O2 per sol (energy cost comes from constants.ts)
@@ -25,11 +26,15 @@ export const BALANCE = {
   // Base condition (0..1). Every module wears; maintenance repairs.
   // Condition scales solar output (dust on panels) and water recovery.
   WEAR_BASE_PER_SOL: 0.02,
-  WEAR_PER_SOLAR_M2: 0.00005,
+  WEAR_PER_SOLAR_M2: 0.00001,
   WEAR_PER_GREENHOUSE_M2: 0.001,
   WEAR_PER_ISRU_UNIT: 0.005,
   MAINTENANCE_PER_SHIFT: 0.08,
 
   // Events
   SPE_SHELTER_SOLS: 2,
+  // Solar particle event size, as a fraction of the August 1972 event
+  // (one of the largest ever recorded). Rolled when the event happens.
+  SPE_SCALE_MIN: 0.05,
+  SPE_SCALE_MAX: 0.5,
 } as const

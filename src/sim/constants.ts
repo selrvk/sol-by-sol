@@ -168,45 +168,77 @@ export const CONSTANTS = {
     source: 'NASA-STD-3001 Vol. 1 Rev B (2022)',
     status: 'unchecked',
   },
-  HABITAT_DOSE_TRANSMISSION: {
-    value: 0.7,
-    unit: 'fraction',
-    source: 'TODO: SOURCE NEEDED',
-    status: 'placeholder',
-    note: 'Fraction of surface dose reaching crew inside an unshielded habitat.',
-  },
-  SHIELDING_REDUCTION_PER_LEVEL: {
-    value: 0.1,
-    unit: 'fraction per level',
-    source: 'TODO: SOURCE NEEDED',
-    status: 'placeholder',
-    note: 'Each level of piled regolith cuts indoor dose by this fraction of the unshielded dose.',
-  },
-  SHIELDING_MIN_TRANSMISSION: {
-    value: 0.4,
-    unit: 'fraction',
-    source: 'TODO: SOURCE NEEDED',
-    status: 'placeholder',
-    note: 'Galactic cosmic rays are hard to stop; shielding never removes all dose.',
-  },
-  SPE_UNSHELTERED_DOSE_MSV: {
-    value: 60,
-    unit: 'mSv',
-    source: 'TODO: SOURCE NEEDED',
-    status: 'placeholder',
-    note: 'Dose to crew who keep working through a solar particle event. NASA-STD-3001 caps a single event at 250 mSv.',
-  },
-  SPE_SHELTERED_DOSE_MSV: {
+  HABITAT_WALL_G_CM2: {
     value: 5,
-    unit: 'mSv',
+    unit: 'g/cm²',
+    source: 'Shavers et al. (2023), habitat cases of 5 and 20 g/cm² Al, as cited in Matthiä & Berger (2024), Table 2',
+    status: 'unchecked',
+    note: 'Shielding from the habitat structure itself; the thinner of the two modelled cases. Treated as equivalent to regolith.',
+  },
+  STORM_SHELTER_EXTRA_G_CM2: {
+    value: 10,
+    unit: 'g/cm²',
     source: 'TODO: SOURCE NEEDED',
     status: 'placeholder',
+    note: 'Extra mass (water, supplies) around the storm-shelter area during a solar particle event.',
+  },
+  MARS_ATMOSPHERE_G_CM2: {
+    value: 21,
+    unit: 'g/cm²',
+    source: 'Hassler et al. (2014); Guo et al. (2017), JGR Planets: mean column depth at Gale crater',
+    status: 'unchecked',
+    note: 'Already included in the measured Mars surface dose; used here only to scale solar particle events.',
   },
 } satisfies Record<string, SourcedConstant>
 
+// A dose curve: points of [shielding in g/cm², dose]. Values in between are
+// linearly interpolated; beyond the last point the last value is used.
+export interface SourcedCurve {
+  points: [number, number][]
+  unit: string
+  source: string
+  status: ConstantStatus
+  note?: string
+}
+
+export const CURVES = {
+  // Galactic cosmic rays: extra mass barely helps. Used as a fraction of the
+  // unshielded value, so it applies on top of the measured surface doses.
+  GCR_DOSE_VS_SHIELDING: {
+    points: [[0, 299], [1, 288], [10, 228], [30, 212], [60, 213], [180, 200]],
+    unit: 'mSv/year (lunar surface, solar minimum)',
+    source: 'Matthiä & Berger (2024), Space Weather 22:e2024SW004095, Table 2 and abstract',
+    status: 'verified',
+    note: '~180 g/cm² of regolith cuts cosmic-ray dose by only ~25%. The 60 g/cm² point is slightly above 30 in the source (model noise).',
+  },
+  // Solar particle events: a few g/cm² makes a huge difference.
+  SPE_1972_DOSE_VS_SHIELDING: {
+    points: [[0, 533], [5, 88], [10, 37], [20, 14.3]],
+    unit: 'mSv (blood-forming organs, whole event)',
+    source: 'Matthiä & Berger (2024), Space Weather 22:e2024SW004095, Table 2: August 1972 event',
+    status: 'verified',
+    note: 'The 0 point is a person in a spacesuit only. The August 1972 event is one of the largest on record.',
+  },
+} satisfies Record<string, SourcedCurve>
+
 export type ConstantKey = keyof typeof CONSTANTS
+export type CurveKey = keyof typeof CURVES
 
 // Short accessor used throughout the sim.
 export function c(key: ConstantKey): number {
   return CONSTANTS[key].value
+}
+
+// Interpolate a dose curve at the given shielding (g/cm²).
+export function curveAt(key: CurveKey, gPerCm2: number): number {
+  const pts = CURVES[key].points
+  if (gPerCm2 <= pts[0][0]) return pts[0][1]
+  for (let i = 1; i < pts.length; i++) {
+    const [x1, y1] = pts[i]
+    if (gPerCm2 <= x1) {
+      const [x0, y0] = pts[i - 1]
+      return y0 + ((gPerCm2 - x0) / (x1 - x0)) * (y1 - y0)
+    }
+  }
+  return pts[pts.length - 1][1]
 }

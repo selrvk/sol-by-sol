@@ -14,7 +14,7 @@ export const mars: Scenario = {
   scienceTarget: 580,
   solarKWhPerM2PerSol: c('MARS_CLEAR_SOL_INSOLATION_KWH_M2'),
   dayNightCycle: null, // day/night is already averaged into the daily insolation
-  maxSolarArrayM2: 600,
+  maxSolarArrayM2: 900,
   dustStorm: {
     chancePerSol: 0.01, // balance placeholder
     minSols: 20,        // "dust storms cut solar for weeks"
@@ -22,17 +22,18 @@ export const mars: Scenario = {
     solarFactor: c('DUST_STORM_SOLAR_FACTOR'),
   },
   surfaceDoseMSvPerSol: c('MARS_SURFACE_DOSE_MSV_PER_DAY') * (HOURS_PER_SOL / 24),
+  atmosphereGCm2: c('MARS_ATMOSPHERE_G_CM2'),
   eventChancePerSol: 0.03,
   // Launch windows are ~26 months apart, longer than the mission: no resupply.
   resupply: null,
   isruAvailable: true,
   start: {
     sol: 0,
-    resources: { storedPowerKWh: 300, oxygenKg: 250, waterL: 300, foodKg: 750 },
+    resources: { storedPowerKWh: 300, oxygenKg: 250, waterL: 300, foodKg: 850 },
     facilities: {
-      solarArrayM2: 300,
-      reactorKW: c('REACTOR_UNIT_KW'),
-      batteryCapacityKWh: 500,
+      solarArrayM2: 520,
+      reactorKW: 0, // solar only: dust storms are the power threat
+      batteryCapacityKWh: 800,
       greenhouseM2: 4,
       shieldingLevel: 0,
       isruUnits: 1,
