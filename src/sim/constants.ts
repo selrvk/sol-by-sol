@@ -39,3 +39,12 @@ export const SOLAR_FLUX_MOON = 1361
 // used an older solar constant of 1371.) Surface flux is lower and drops
 // further with dust opacity.
 export const SOLAR_FLUX_MARS = 586
+
+// Fraction of normal daily solar energy reaching the Martian surface during a
+// heavy dust storm. Appelbaum & Flood (1989), NASA TM-102299, Viking Lander 1
+// data: "For a day (Ls = 299) with a relative high opacity, the daily mean
+// global irradiance is still appreciable and is about 30 percent of that in a
+// clear day." (Table IV: 95 W/m^2 at optical depth 3.25 vs 308 clear.)
+// Global = direct + diffuse on a horizontal surface; diffuse light is why it
+// isn't near zero.
+export const DUST_STORM_SOLAR_FACTOR = 0.3
