@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState } from 'react'
+import { lazy, Suspense, useEffect, useReducer, useState } from 'react'
 import { BaseView } from './BaseView.tsx'
 import { DecisionPanel } from './DecisionPanel.tsx'
 import { EventModal } from './EventModal.tsx'
@@ -9,7 +9,10 @@ import { OpeningBriefing } from './OpeningBriefing.tsx'
 import { ResourcePanel } from './ResourcePanel.tsx'
 import { EndScreen, StartScreen } from './Screens.tsx'
 import { TopBar } from './TopBar.tsx'
-import { TrendCharts } from './TrendCharts.tsx'
+
+// The charts pull in Recharts, the largest dependency. Load it separately so
+// the game itself appears quickly.
+const TrendCharts = lazy(() => import('./TrendCharts.tsx').then((m) => ({ default: m.TrendCharts })))
 
 export function Game() {
   const [ui, dispatch] = useReducer(reducer, undefined, loadSavedUiState)
@@ -59,7 +62,9 @@ export function Game() {
           <details className="group rounded-xl border border-slate-800 p-3" open={history.length > 1}>
             <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wider text-slate-400">📈 Trends</summary>
             <div className="mt-2">
-              <TrendCharts game={game} history={history} />
+              <Suspense fallback={<p className="text-sm text-slate-500">Loading charts…</p>}>
+                <TrendCharts game={game} history={history} />
+              </Suspense>
             </div>
           </details>
         </div>
