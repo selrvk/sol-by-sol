@@ -1,5 +1,6 @@
 import type { Dispatch } from 'react'
 import { EVA_TASKS, loadDemandKWh } from '../sim/advanceSol.ts'
+import { BALANCE } from '../sim/balance.ts'
 import type { CrewTask, Decisions, GameState } from '../sim/types.ts'
 import type { Action } from './gameReducer.ts'
 import { POWER_LABELS, TASK_LABELS } from './labels.ts'
@@ -21,6 +22,11 @@ export function DecisionPanel({ game, decisions, dispatch, highlightTask, highli
   const sheltering = game.environment.shelterSolsLeft > 0
   const repairShifts = game.environment.busyShifts + game.environment.busyEvaShifts
   const waitingForEvent = game.pendingEvent !== null && !decisions.eventChoiceId
+  // Building past a cap does nothing: say so, or the shift is silently wasted.
+  const maxedOut: Partial<Record<CrewTask, string>> = {
+    ...(game.facilities.shieldingLevel >= BALANCE.MAX_SHIELDING_LEVEL && { shielding: 'Shielding is already at maximum: this shift does nothing.' }),
+    ...(game.facilities.solarArrayM2 >= game.scenario.maxSolarArrayM2 && { solar: 'No room for more panels: this shift does nothing.' }),
+  }
 
   return (
     <section aria-label="Decisions" className="grid gap-4 lg:grid-cols-[1fr_auto]">
@@ -70,6 +76,7 @@ export function DecisionPanel({ game, decisions, dispatch, highlightTask, highli
                   {TASK_LABELS[task].label}
                   {EVA_TASKS.has(task) && <span className="ml-1 rounded bg-orange-500/20 px-1 text-orange-300">EVA: extra radiation</span>}
                   <span className="block text-slate-500">{TASK_LABELS[task].hint}</span>
+                  {maxedOut[task] && <span className="block font-semibold text-amber-300">⚠ {maxedOut[task]}</span>}
                 </p>
               </div>
             )
