@@ -1,1 +1,13 @@
 @import "tailwindcss";
+
+/* A building cut off for lack of power pulses red. */
+@keyframes shed-pulse {
+  0%, 100% { filter: drop-shadow(0 0 0 rgb(239 68 68 / 0)); }
+  50% { filter: drop-shadow(0 0 14px rgb(239 68 68 / 0.95)); }
+}
+.shed-pulse {
+  animation: shed-pulse 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .shed-pulse { animation: none; filter: drop-shadow(0 0 10px rgb(239 68 68 / 0.9)); }
+}

@@ -12,9 +12,10 @@ interface Props {
   dispatch: Dispatch<Action>
   highlightTask?: CrewTask // pulse this task's buttons (opening guide)
   highlightAdvance?: boolean
+  showAdvice?: boolean // hold back tips while the opening briefing has the stage
 }
 
-export function DecisionPanel({ game, decisions, dispatch, highlightTask, highlightAdvance }: Props) {
+export function DecisionPanel({ game, decisions, dispatch, highlightTask, highlightAdvance, showAdvice = true }: Props) {
   const tasks = (Object.keys(TASK_LABELS) as CrewTask[]).filter(
     (t) => t !== 'isru' || game.scenario.isruAvailable,
   )
@@ -69,7 +70,7 @@ export function DecisionPanel({ game, decisions, dispatch, highlightTask, highli
             </span>
           )}
         </h2>
-        {swapAdvice && (
+        {showAdvice && swapAdvice && (
           <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-sky-400/50 bg-sky-950/40 px-3 py-2 text-sm">
             <span className="flex-1">
               💡 {name(swapAdvice.out)} is outside with only {Math.round(headroom(swapAdvice.out))} mSv of radiation to spare.{' '}

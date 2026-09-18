@@ -76,6 +76,7 @@ export function Game() {
             dispatch={dispatch}
             highlightTask={showBriefing && !fixChosen ? opening.fixTask : undefined}
             highlightAdvance={showBriefing && onFirstSol && fixChosen}
+            showAdvice={!(showBriefing && onFirstSol)}
           />
         </div>
       </main>
