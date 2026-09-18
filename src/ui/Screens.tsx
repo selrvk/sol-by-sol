@@ -1,4 +1,5 @@
 import type { Dispatch } from 'react'
+import { c } from '../sim/constants.ts'
 import type { GameState, LossReason, ScenarioId } from '../sim/types.ts'
 import type { Action } from './gameReducer.ts'
 import { SCENARIOS } from './gameReducer.ts'
@@ -35,7 +36,7 @@ export function StartScreen({ dispatch }: { dispatch: Dispatch<Action> }) {
               <h2 className="mt-2 text-xl font-bold">{sc.name}</h2>
               <p className="mt-1 text-sm text-slate-300">{SCENARIO_BLURBS[id]}</p>
               <p className="mt-3 text-sm text-violet-300">
-                Goal: {sc.scienceTarget} science in {sc.missionLengthSols} sols
+                You take command on sol {sc.start.sol}. Goal: {sc.scienceTarget} science by sol {sc.missionLengthSols}.
               </p>
             </button>
           )
@@ -45,33 +46,121 @@ export function StartScreen({ dispatch }: { dispatch: Dispatch<Action> }) {
   )
 }
 
-// Placeholder wording: Stage 5 writes the real loss screens.
-const LOSS_TEXT: Record<LossReason, string> = {
-  oxygen: 'The crew ran out of oxygen.',
-  water: 'The crew ran out of water.',
-  food: 'The crew ran out of food.',
-  power: 'Life support lost power.',
-  radiation: 'An astronaut passed their career radiation limit.',
-  missionTimeout: 'The mission clock ran out before the science target was reached.',
+interface LossInfo {
+  icon: string
+  title: string
+  whatHappened: (g: GameState) => string
+  realWorld: string
+  tryNext: string
+}
+
+const pctOf = (x: number) => `${Math.round(x * 100)}%`
+
+// Each loss names what went wrong in this game and why it matters in real
+// spaceflight. Figures come from constants.ts so they match the game.
+const LOSS_INFO: Record<LossReason, LossInfo> = {
+  water: {
+    icon: '💧',
+    title: 'The crew ran out of water',
+    whatHappened: (g) =>
+      `By sol ${g.sol - 1} the base was at ${pctOf(g.facilities.condition)} condition, so the recycler was losing water faster than the crew could replace it.`,
+    realWorld:
+      `Each astronaut uses about ${c('CREW_WATER_L_PER_DAY')} L of water a day. Water is heavy to launch, so the ISS recycles about ${pctOf(c('WATER_RECOVERY_FRACTION'))} of it, from sweat and urine too. A recycler only works if someone keeps it running.`,
+    tryNext: 'Keep someone on 🔧 Maintenance whenever the base condition drops.',
+  },
+  oxygen: {
+    icon: '🫁',
+    title: 'The crew ran out of oxygen',
+    whatHappened: (g) =>
+      g.scenario.isruAvailable
+        ? `The base had ${g.facilities.isruUnits} O₂ maker${g.facilities.isruUnits === 1 ? '' : 's'}, not enough to cover what four people breathe.`
+        : `The oxygen stock ran out before the next cargo lander arrived.`,
+    realWorld:
+      `Each astronaut breathes about ${c('CREW_O2_KG_PER_DAY')} kg of oxygen a day, and without it a person passes out within minutes. That is why NASA tested MOXIE on Mars: making oxygen from the air means not shipping every kilogram from Earth.`,
+    tryNext: 'Build O₂ makers early, and keep enough solar power to run them through dust storms.',
+  },
+  food: {
+    icon: '🥔',
+    title: 'The crew ran out of food',
+    whatHappened: (g) => `The greenhouse was ${g.facilities.greenhouseM2} m², and deliveries could not keep up with four hungry astronauts.`,
+    realWorld:
+      `Each astronaut gets through about ${c('CREW_FOOD_KG_PER_DAY')} kg of packaged food a day. NASA's Veggie experiment has grown lettuce on the ISS, but growing a whole diet takes a lot of space and power.`,
+    tryNext: 'Grow the greenhouse, and keep it powered when you can.',
+  },
+  power: {
+    icon: '⚡',
+    title: 'Life support lost power',
+    whatHappened: (g) =>
+      g.scenario.dayNightCycle
+        ? 'The battery ran flat during the long lunar night. Every system left on drained power that life support needed later.'
+        : 'A dust storm dimmed the Sun and the solar panels could not keep life support running.',
+    realWorld:
+      `Life support needs about ${c('LIFE_SUPPORT_KW')} kW, all the time: it scrubs the air, makes it breathable and keeps the crew warm. The lunar night lasts ${c('LUNAR_NIGHT_HOURS')} hours, which is why NASA has been developing small fission reactors like Kilopower for the Moon.`,
+    tryNext: 'Switch off the lab and greenhouse at night or in a storm, and build panels before storms hit.',
+  },
+  radiation: {
+    icon: '☢️',
+    title: 'An astronaut passed their radiation limit',
+    whatHappened: (g) => {
+      const m = g.crew.reduce((a, b) => (b.doseMSv - b.careerDoseLimitMSv > a.doseMSv - a.careerDoseLimitMSv ? b : a))
+      return `${m.name} reached ${Math.round(m.doseMSv)} mSv over their career. They must stop flying, and the mission cannot go on without them.`
+    },
+    realWorld:
+      `NASA limits each astronaut to ${c('CAREER_DOSE_LIMIT_MSV')} mSv over a whole career, to keep their extra risk of dying from cancer small. Piled regolith does little against cosmic rays but blocks solar storms well, which is why sheltering matters.`,
+    tryNext: 'Pile regolith, shelter from solar storms, and give spacewalks to the crew with the lowest dose.',
+  },
+  missionTimeout: {
+    icon: '⏱️',
+    title: 'The mission clock ran out',
+    whatHappened: (g) => `The crew survived, but finished with ${g.sciencePoints} of the ${g.scenario.scienceTarget} science points needed.`,
+    realWorld:
+      'Science is why we send people at all. Real missions have fixed windows: from Mars, a chance to fly home only comes around every 26 months or so, so time cannot be stretched.',
+    tryNext: 'Once the base is safe, move crew off extra building and onto science. Playing it too safe is a way to fail too.',
+  },
 }
 
 export function EndScreen({ game, dispatch }: { game: GameState; dispatch: Dispatch<Action> }) {
   const o = game.outcome
   const won = o.status === 'won'
+  const info = o.status === 'lost' ? LOSS_INFO[o.reason] : null
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" role="dialog" aria-modal="true">
-      <div className={`w-full max-w-md rounded-2xl border p-6 text-center ${won ? 'border-emerald-400' : 'border-red-500'} bg-slate-900`}>
-        <p className="text-5xl" aria-hidden>{won ? '🏆' : '💀'}</p>
-        <h2 className="mt-2 text-2xl font-bold">{won ? 'Mission accomplished!' : 'Mission failed'}</h2>
-        <p className="mt-2 text-slate-300">
-          {o.status === 'lost' ? LOSS_TEXT[o.reason] : `Science target reached with ${game.scenario.missionLengthSols - game.sol} sols to spare.`}
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-4" role="dialog" aria-modal="true" aria-labelledby="end-title">
+      <div className={`w-full max-w-lg rounded-2xl border bg-slate-900 p-6 ${won ? 'border-emerald-400' : 'border-red-500'}`}>
+        <p className="text-center text-5xl" aria-hidden>{won ? '🏆' : info!.icon}</p>
+        <h2 id="end-title" className="mt-2 text-center text-2xl font-bold">
+          {won ? 'Mission accomplished!' : info!.title}
+        </h2>
+        {won ? (
+          <p className="mt-3 text-center text-slate-300">
+            Science target reached on sol {game.sol - 1}, with {game.scenario.missionLengthSols - game.sol} sols to spare, and the whole crew is safe.
+          </p>
+        ) : (
+          <div className="mt-4 space-y-3 text-sm">
+            <div>
+              <p className="font-semibold uppercase tracking-wider text-red-300">What went wrong</p>
+              <p className="text-slate-200">{info!.whatHappened(game)}</p>
+            </div>
+            <div>
+              <p className="font-semibold uppercase tracking-wider text-sky-300">Why it matters for real</p>
+              <p className="text-slate-200">{info!.realWorld}</p>
+            </div>
+            <div>
+              <p className="font-semibold uppercase tracking-wider text-yellow-300">Try next time</p>
+              <p className="text-slate-200">{info!.tryNext}</p>
+            </div>
+          </div>
+        )}
+        <p className="mt-4 text-center text-xs text-slate-500">
+          Sol {game.sol - 1} · science {game.sciencePoints}/{game.scenario.scienceTarget} · seed {game.rng.seed}
         </p>
-        <p className="mt-3 text-sm text-slate-400">
-          Sol {game.sol} · science {game.sciencePoints}/{game.scenario.scienceTarget} · seed {game.rng.seed}
-        </p>
-        <button type="button" onClick={() => dispatch({ type: 'quit' })} className="mt-5 rounded-xl bg-yellow-300 px-6 py-3 font-bold text-slate-900 hover:bg-yellow-200">
-          Play again
-        </button>
+        <div className="mt-4 flex justify-center gap-3">
+          <button type="button" onClick={() => dispatch({ type: 'restart' })} className="rounded-xl bg-yellow-300 px-5 py-3 font-bold text-slate-900 hover:bg-yellow-200">
+            Try again
+          </button>
+          <button type="button" onClick={() => dispatch({ type: 'quit' })} className="rounded-xl border border-slate-600 px-5 py-3 font-semibold hover:border-slate-400">
+            Choose world
+          </button>
+        </div>
       </div>
     </div>
   )

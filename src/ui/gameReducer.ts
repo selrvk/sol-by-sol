@@ -24,8 +24,11 @@ export type Action =
   | { type: 'chooseEvent'; choiceId: string }
   | { type: 'advance' }
   | { type: 'quit' }
+  | { type: 'restart' }
 
-const DEFAULT_TASKS: CrewTask[] = ['maintenance', 'labScience', 'fieldScience', 'labScience']
+// The previous commander's plan: all science, no upkeep. The opening crisis
+// comes from this, and changing it is the player's first move.
+const INHERITED_TASKS: CrewTask[] = ['labScience', 'fieldScience', 'labScience', 'fieldScience']
 
 export const initialUiState: UiState = {
   game: null,
@@ -37,7 +40,7 @@ export function reducer(state: UiState, action: Action): UiState {
   switch (action.type) {
     case 'start': {
       const game = newGame(SCENARIOS[action.scenarioId], action.seed)
-      const assignments = Object.fromEntries(game.crew.map((m, i) => [m.id, DEFAULT_TASKS[i] ?? 'rest']))
+      const assignments = Object.fromEntries(game.crew.map((m, i) => [m.id, INHERITED_TASKS[i] ?? 'rest']))
       return {
         game,
         previous: null,
@@ -72,6 +75,9 @@ export function reducer(state: UiState, action: Action): UiState {
         decisions: { ...state.decisions, eventChoiceId: undefined },
       }
     }
+    case 'restart':
+      if (!state.game) return state
+      return reducer(state, { type: 'start', scenarioId: state.game.scenario.id, seed: (state.game.rng.seed * 1103515245 + 12345) >>> 0 })
     case 'quit':
       return initialUiState
   }

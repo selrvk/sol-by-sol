@@ -8,9 +8,11 @@ interface Props {
   game: GameState
   decisions: Decisions
   dispatch: Dispatch<Action>
+  highlightTask?: CrewTask // pulse this task's buttons (opening guide)
+  highlightAdvance?: boolean
 }
 
-export function DecisionPanel({ game, decisions, dispatch }: Props) {
+export function DecisionPanel({ game, decisions, dispatch, highlightTask, highlightAdvance }: Props) {
   const tasks = (Object.keys(TASK_LABELS) as CrewTask[]).filter(
     (t) => t !== 'isru' || game.scenario.isruAvailable,
   )
@@ -57,7 +59,7 @@ export function DecisionPanel({ game, decisions, dispatch }: Props) {
                       title={`${TASK_LABELS[t].label}: ${TASK_LABELS[t].hint}`}
                       aria-pressed={task === t}
                       onClick={() => dispatch({ type: 'assign', crewId: m.id, task: t })}
-                      className={`rounded-md border px-2 py-1 text-base leading-none ${task === t ? 'border-yellow-300 bg-yellow-300/20' : 'border-slate-700 hover:border-slate-500'}`}
+                      className={`rounded-md border px-2 py-1 text-base leading-none ${task === t ? 'border-yellow-300 bg-yellow-300/20' : 'border-slate-700 hover:border-slate-500'} ${highlightTask === t && task !== t ? 'animate-pulse ring-2 ring-yellow-300' : ''}`}
                     >
                       <span aria-hidden>{TASK_LABELS[t].icon}</span>
                       <span className="sr-only">{TASK_LABELS[t].label}</span>
@@ -106,7 +108,7 @@ export function DecisionPanel({ game, decisions, dispatch }: Props) {
           type="button"
           disabled={waitingForEvent}
           onClick={() => dispatch({ type: 'advance' })}
-          className="rounded-xl bg-yellow-300 px-6 py-4 text-lg font-bold text-slate-900 shadow-lg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-40"
+          className={`rounded-xl bg-yellow-300 px-6 py-4 text-lg font-bold text-slate-900 shadow-lg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-40 ${highlightAdvance ? 'animate-pulse ring-4 ring-yellow-300/60' : ''}`}
         >
           {waitingForEvent ? 'Answer the alert first' : 'Advance sol ▶'}
         </button>

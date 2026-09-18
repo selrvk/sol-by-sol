@@ -102,7 +102,10 @@ function upkeepJobs(s: GameState, opts: { shielding: boolean }): CrewTask[] {
   if (f.condition < 0.95) jobs.push('maintenance')
   if (f.condition < 0.8) jobs.push('maintenance')
   if (needsMorePower(s)) jobs.push('solar')
-  if (s.scenario.isruAvailable && f.isruUnits < 3 && o2Short) jobs.push('isru')
+  // Build O₂ makers until they cover what the crew breathes.
+  const o2Made = f.isruUnits * BALANCE.ISRU_KG_O2_PER_UNIT_PER_SOL
+  const o2Breathed = c('CREW_O2_KG_PER_DAY') * s.crew.length * (s.scenario.hoursPerSol / 24)
+  if (s.scenario.isruAvailable && (o2Made < o2Breathed || (o2Short && f.isruUnits < 6))) jobs.push('isru')
   if (foodShort && f.greenhouseM2 < 16) jobs.push('greenhouse')
   if (opts.shielding && f.shieldingLevel < 3) jobs.push('shielding')
   return jobs
@@ -143,7 +146,11 @@ const reckless: Policy = (s) => ({
 
 const cautious: Policy = (s) => {
   const f = s.facilities
-  const jobs = upkeepJobs(s, { shielding: true })
+  // Keeps the base in top repair before anything else.
+  const jobs: CrewTask[] = []
+  if (f.condition < 0.98) jobs.push('maintenance')
+  if (f.condition < 0.9) jobs.push('maintenance')
+  jobs.push(...upkeepJobs(s, { shielding: true }).filter((j) => j !== 'maintenance'))
   // Then over-build "just in case".
   if (s.scenario.isruAvailable && f.isruUnits < 4) jobs.push('isru')
   if (f.greenhouseM2 < 20) jobs.push('greenhouse')

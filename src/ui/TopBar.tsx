@@ -20,7 +20,7 @@ export function TopBar({ game, onQuit }: { game: GameState; onQuit: () => void }
       <div>
         <p className="text-xs uppercase tracking-wider text-slate-400">{sc.name}</p>
         <p className="text-lg font-semibold tabular-nums">
-          Sol {game.sol} <span className="text-slate-500">/ {sc.missionLengthSols}</span>
+          Sol {game.outcome.status === 'playing' ? game.sol : game.sol - 1} <span className="text-slate-500">/ {sc.missionLengthSols}</span>
         </p>
       </div>
       <div className="text-sm">

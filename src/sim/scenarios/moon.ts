@@ -12,7 +12,7 @@ export const moon: Scenario = {
   name: 'Lunar outpost',
   hoursPerSol: HOURS_PER_SOL,
   missionLengthSols: 120,
-  scienceTarget: 620,
+  scienceTarget: 550,
   // Equatorial site, fixed horizontal panels: the mean of cos(sun angle)
   // over a lunar day is 2/π. 1361 W/m² × 24 h × 2/π ≈ 20.8 kWh/m² per sol.
   solarKWhPerM2PerSol: (c('SOLAR_FLUX_MOON') * HOURS_PER_SOL * (2 / Math.PI)) / 1000,
@@ -29,21 +29,24 @@ export const moon: Scenario = {
     cargo: { storedPowerKWh: 0, oxygenKg: 90, waterL: 60, foodKg: 120 },
   },
   isruAvailable: false,
+  // The player takes command mid-mission, on sol 40. The previous commander
+  // put everyone on science and skipped repairs, so the base is worn out and
+  // the water recycler is failing: the first thing to learn is maintenance.
   start: {
-    sol: 0,
-    resources: { storedPowerKWh: 300, oxygenKg: 200, waterL: 170, foodKg: 400 },
+    sol: 40,
+    resources: { storedPowerKWh: 400, oxygenKg: 150, waterL: 60, foodKg: 300 },
     facilities: {
-      solarArrayM2: 100,
+      solarArrayM2: 140,
       // A 5 kWe unit (Kilopower covers 1–10 kWe). Slightly less than life
       // support needs, so the battery must be rationed through the night.
       reactorKW: 5,
       batteryCapacityKWh: 500,
-      greenhouseM2: 0,
-      shieldingLevel: 0,
+      greenhouseM2: 8,
+      shieldingLevel: 2,
       isruUnits: 0,
-      condition: 1,
+      condition: 0.5,
     },
-    crew: makeCrew([120, 250, 60, 420]),
-    sciencePoints: 0,
+    crew: makeCrew([165, 295, 105, 465]),
+    sciencePoints: 200,
   },
 }

@@ -11,10 +11,10 @@ export const mars: Scenario = {
   name: 'Mars outpost',
   hoursPerSol: HOURS_PER_SOL,
   missionLengthSols: 120,
-  scienceTarget: 580,
+  scienceTarget: 490,
   solarKWhPerM2PerSol: c('MARS_CLEAR_SOL_INSOLATION_KWH_M2'),
   dayNightCycle: null, // day/night is already averaged into the daily insolation
-  maxSolarArrayM2: 900,
+  maxSolarArrayM2: 1200,
   dustStorm: {
     chancePerSol: 0.01, // balance placeholder
     minSols: 20,        // "dust storms cut solar for weeks"
@@ -28,19 +28,22 @@ export const mars: Scenario = {
   // Launch windows are ~26 months apart, longer than the mission: no resupply.
   resupply: null,
   isruAvailable: true,
+  // The player takes command mid-mission, on sol 40. Only one O₂ maker is
+  // running and the crew breathes more than it makes: the first thing to
+  // learn is building oxygen makers.
   start: {
-    sol: 0,
-    resources: { storedPowerKWh: 300, oxygenKg: 250, waterL: 300, foodKg: 850 },
+    sol: 40,
+    resources: { storedPowerKWh: 600, oxygenKg: 60, waterL: 250, foodKg: 600 },
     facilities: {
-      solarArrayM2: 520,
+      solarArrayM2: 560,
       reactorKW: 0, // solar only: dust storms are the power threat
       batteryCapacityKWh: 800,
-      greenhouseM2: 4,
-      shieldingLevel: 0,
+      greenhouseM2: 10,
+      shieldingLevel: 1,
       isruUnits: 1,
-      condition: 1,
+      condition: 0.85,
     },
-    crew: makeCrew([120, 250, 60, 420]),
-    sciencePoints: 0,
+    crew: makeCrew([150, 280, 90, 450]),
+    sciencePoints: 190,
   },
 }

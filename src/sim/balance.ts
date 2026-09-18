@@ -18,7 +18,7 @@ export const BALANCE = {
   ISRU_UNITS_PER_SHIFT: 1,
 
   // ISRU output per unit, kg O2 per sol (energy cost comes from constants.ts)
-  ISRU_KG_O2_PER_UNIT_PER_SOL: 0.5,
+  ISRU_KG_O2_PER_UNIT_PER_SOL: 1.0,
 
   // Science lab power draw
   LAB_KW: 2,

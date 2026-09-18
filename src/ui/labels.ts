@@ -123,3 +123,38 @@ export const METER_WHY: Record<string, (s: Scenario) => MeterWhy> = {
     refs: [{ rule: 'The 8-hour shift is a game rule, not a NASA figure.' }],
   }),
 }
+
+// The opening crisis for each world: one visible problem, one fix. The first
+// click should teach the loop: pick a task, watch the forecast change,
+// press Advance sol.
+export interface Opening {
+  meter: 'water' | 'oxygen'
+  title: string
+  problem: string
+  fix: string
+  fixTask: CrewTask
+  afterFix: string
+}
+
+export const OPENINGS: Record<ScenarioId, Opening> = {
+  moon: {
+    meter: 'water',
+    title: 'You are the new commander. Water is running out.',
+    problem:
+      'Your predecessor put everyone on science and skipped repairs. The base is worn out, so the water recycler is losing most of the water the crew uses.',
+    fix: 'Give one astronaut the 🔧 Maintenance task and watch the recycler’s condition in the Water box go up. Then press Advance sol.',
+    fixTask: 'maintenance',
+    afterFix:
+      'Maintenance repairs the base, so the recycler wins back more water each sol. It takes a few sols to recover, and two astronauts on maintenance fix it faster. But every shift spent on repairs is a shift not spent on science. That trade-off is the whole game. Night is coming soon: keep an eye on power.',
+  },
+  mars: {
+    meter: 'oxygen',
+    title: 'You are the new commander. Oxygen is running low.',
+    problem:
+      'Only one O₂ maker is running, and the crew breathes more than it makes. Your predecessor spent every shift on science.',
+    fix: 'Give one astronaut the 🫧 Build O₂ maker task and watch the number of O₂ makers in the Oxygen box go up. Then press Advance sol.',
+    fixTask: 'isru',
+    afterFix:
+      'Each O₂ maker splits carbon dioxide from the Martian air, but it runs on solar power. When a dust storm dims the Sun, you may not have power for all of them. Build before the storms come.',
+  },
+}

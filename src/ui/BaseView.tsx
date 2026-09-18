@@ -45,6 +45,15 @@ function Box({ x, y, w, d, h, c, opacity = 1, label }: {
   )
 }
 
+function Label({ x, y, z, text }: { x: number; y: number; z: number; text: string }) {
+  const [lx, ly] = iso(x, y, z)
+  return (
+    <text x={lx} y={ly} textAnchor="middle" className="fill-white text-[10px] font-semibold" style={{ paintOrder: 'stroke', stroke: '#0f172a', strokeWidth: 3 }}>
+      {text}
+    </text>
+  )
+}
+
 // Where each task happens, so astronauts can be drawn at their work.
 const TASK_SPOTS: Record<CrewTask, [number, number]> = {
   labScience: [8.2, 4.6],
@@ -113,10 +122,12 @@ export function BaseView({ game, decisions }: { game: GameState; decisions: Deci
       {f.reactorKW > 0 && <Box x={9} y={0.5} w={1} d={1} h={22} c={{ top: '#fdba74', left: '#c2410c', right: '#9a3412' }} label={`Reactor ${f.reactorKW} kW`} />}
 
       {/* habitat + regolith shielding */}
-      <Box x={4} y={4} w={2.4} d={2.4} h={34} c={COLORS.neutral} label="Habitat" />
+      <Box x={4} y={4} w={2.4} d={2.4} h={34} c={COLORS.neutral} />
       {berm > 0 && (
         <Box x={3.7} y={3.7} w={3} d={3} h={6 + berm * 26} c={{ top: '#a8a29e', left: '#78716c', right: '#57534e' }} opacity={0.92} />
       )}
+      {/* label drawn after the berm so it stays visible */}
+      <Label x={5.2} y={5.2} z={40} text="Habitat" />
 
       {/* lab */}
       <Box x={7.4} y={3.6} w={1.6} d={1.6} h={22} c={COLORS[status('lab')]} label="Lab" />
