@@ -5,12 +5,15 @@
 // a policy that proves it can happen.
 //
 //   balanced  - keeps the base alive and does steady science (should win)
-//   greedy    - everyone on EVA science, no upkeep, press on (dies: water)
+//   greedy    - everyone on EVA science, no upkeep, press on (dies: water;
+//               on Mars, power when a dust storm hits the unexpanded array)
 //   reckless  - does upkeep but ignores radiation: no shielding, EVA science
 //               whatever the dose, press on through flares (Moon: radiation)
+//   power-hog - plays like balanced but never switches anything off
+//               (Moon: power, during the lunar night)
 //   cautious  - safety work first, lab science with leftover crew
 //               (survives with a low score)
-//   rota-*    - the same tasks every sol, no thinking (should not win)
+//   rota-*    - the same tasks every sol, no building (should not win)
 
 import { BALANCE } from '../src/sim/balance.ts'
 import { c } from '../src/sim/constants.ts'
@@ -20,12 +23,54 @@ export type Policy = (s: GameState) => Decisions
 
 const ALL_ON = { lab: true, greenhouse: true, isru: true }
 
+function loadKWh(s: GameState) {
+  const sc = s.scenario
+  const f = s.facilities
+  const solDays = sc.hoursPerSol / 24
+  return {
+    lifeSupport: c('LIFE_SUPPORT_KW') * sc.hoursPerSol,
+    isru: sc.isruAvailable ? f.isruUnits * BALANCE.ISRU_KG_O2_PER_UNIT_PER_SOL * c('MOXIE_KWH_PER_KG_O2') : 0,
+    greenhouse: f.greenhouseM2 * c('GREENHOUSE_YIELD_KG_M2_PER_DAY') * solDays * c('GREENHOUSE_KWH_PER_KG_FOOD'),
+    lab: BALANCE.LAB_KW * sc.hoursPerSol,
+  }
+}
+
+// A sensible player's power switches: keep enough battery in reserve to run
+// life support through the rest of the night or dust storm, and only switch
+// on optional loads (most important first) if there is power to spare.
+function rationPower(s: GameState): Decisions['power'] {
+  const sc = s.scenario
+  const f = s.facilities
+  const loads = loadKWh(s)
+  const cycle = sc.dayNightCycle
+  const pos = cycle ? s.sol % (cycle.daySols + cycle.nightSols) : 0
+  const night = cycle ? pos >= cycle.daySols : false
+  const storm = s.environment.dustStormSolsLeft > 0
+  const solarFactor = night ? 0 : storm ? sc.dustStorm.solarFactor : 1
+  const genKWh =
+    f.solarArrayM2 * sc.solarKWhPerM2PerSol * c('SOLAR_PANEL_EFFICIENCY') * f.condition * solarFactor +
+    f.reactorKW * sc.hoursPerSol
+  const hardSolsLeft = night ? cycle!.daySols + cycle!.nightSols - pos : storm ? s.environment.dustStormSolsLeft : 0
+  const reserve = Math.max(0, loads.lifeSupport - genKWh) * hardSolsLeft
+  let spare = s.resources.storedPowerKWh + genKWh - loads.lifeSupport - reserve
+  const on = { isru: false, greenhouse: false, lab: false }
+  for (const load of ['isru', 'greenhouse', 'lab'] as const) {
+    if (loads[load] <= spare) {
+      on[load] = true
+      spare -= loads[load]
+    }
+  }
+  return on
+}
+
 // What a sensible player would notice: will the base survive the worst sol
 // for power (lunar night, or a dust storm)?
 function needsMorePower(s: GameState): boolean {
   const sc = s.scenario
   const f = s.facilities
-  const worstSolar = sc.dayNightCycle ? 0 : sc.dustStorm.solarFactor
+  // Panels can't help at night; only rationing the battery can.
+  if (sc.dayNightCycle) return false
+  const worstSolar = sc.dustStorm.solarFactor
   const worstKWh =
     f.solarArrayM2 * sc.solarKWhPerM2PerSol * c('SOLAR_PANEL_EFFICIENCY') * worstSolar + f.reactorKW * sc.hoursPerSol
   // Life support, plus oxygen production where the base depends on it.
@@ -73,19 +118,21 @@ const balanced: Policy = (s) => ({
   assignments: assign(s, upkeepJobs(s, { shielding: true }), (headroom) =>
     headroom > 100 ? 'fieldScience' : 'labScience',
   ),
-  power: ALL_ON,
+  power: rationPower(s),
   eventChoiceId: 'shelter',
 })
 
 const greedy: Policy = (s) => ({
   assignments: Object.fromEntries(s.crew.map((m) => [m.id, 'fieldScience' as CrewTask])),
-  power: { lab: true, greenhouse: false, isru: false },
+  power: rationPower(s),
   eventChoiceId: 'pressOn',
 })
 
+const powerHog: Policy = (s) => ({ ...balanced(s), power: ALL_ON })
+
 const reckless: Policy = (s) => ({
   assignments: assign(s, upkeepJobs(s, { shielding: false }), () => 'fieldScience'),
-  power: ALL_ON,
+  power: rationPower(s),
   eventChoiceId: 'pressOn',
 })
 
@@ -98,14 +145,14 @@ const cautious: Policy = (s) => {
   if (f.shieldingLevel < BALANCE.MAX_SHIELDING_LEVEL) jobs.push('shielding')
   return {
     assignments: assign(s, jobs, () => 'labScience'),
-    power: ALL_ON,
+    power: rationPower(s),
     eventChoiceId: 'shelter',
   }
 }
 
 const rota = (tasks: CrewTask[]): Policy => (s) => ({
   assignments: Object.fromEntries(s.crew.map((m, i) => [m.id, tasks[i]])),
-  power: ALL_ON,
+  power: rationPower(s),
   eventChoiceId: 'shelter',
 })
 
@@ -113,6 +160,7 @@ export const POLICIES: Record<string, Policy> = {
   balanced,
   greedy,
   reckless,
+  'power-hog': powerHog,
   cautious,
   'rota-1m3f': rota(['maintenance', 'fieldScience', 'fieldScience', 'fieldScience']),
   'rota-2m2f': rota(['maintenance', 'maintenance', 'fieldScience', 'fieldScience']),

@@ -33,7 +33,9 @@ export const moon: Scenario = {
     resources: { storedPowerKWh: 300, oxygenKg: 200, waterL: 170, foodKg: 400 },
     facilities: {
       solarArrayM2: 100,
-      reactorKW: c('REACTOR_UNIT_KW'),
+      // A 5 kWe unit (Kilopower covers 1–10 kWe). Slightly less than life
+      // support needs, so the battery must be rationed through the night.
+      reactorKW: 5,
       batteryCapacityKWh: 500,
       greenhouseM2: 0,
       shieldingLevel: 0,
