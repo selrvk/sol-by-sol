@@ -34,7 +34,7 @@ export const moon: Scenario = {
   // the water recycler is failing: the first thing to learn is maintenance.
   start: {
     sol: 40,
-    resources: { storedPowerKWh: 400, oxygenKg: 150, waterL: 60, foodKg: 300 },
+    resources: { storedPowerKWh: 400, oxygenKg: 150, waterL: 90, foodKg: 300 },
     facilities: {
       solarArrayM2: 140,
       // A 5 kWe unit (Kilopower covers 1–10 kWe). Slightly less than life

@@ -150,7 +150,8 @@ export function EndScreen({ game, dispatch }: { game: GameState; dispatch: Dispa
             </div>
           </div>
         )}
-        <p className="mt-4 text-center text-xs text-slate-500">
+        <MissionSummary game={game} />
+        <p className="mt-3 text-center text-xs text-slate-500">
           Sol {game.sol - 1} · science {game.sciencePoints}/{game.scenario.scienceTarget} · seed {game.rng.seed}
         </p>
         <div className="mt-4 flex justify-center gap-3">
@@ -161,6 +162,40 @@ export function EndScreen({ game, dispatch }: { game: GameState; dispatch: Dispa
             Choose world
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// A short mission report: the crew's radiation and what the base became.
+function MissionSummary({ game }: { game: GameState }) {
+  const f = game.facilities
+  const start = game.scenario.start.facilities
+  const built = (now: number, then: number, unit: string) => `${now}${unit}${now !== then ? ` (${now > then ? '+' : ''}${now - then})` : ''}`
+  return (
+    <div className="mt-4 grid gap-3 rounded-xl border border-slate-700 bg-slate-950/60 p-3 text-xs sm:grid-cols-2">
+      <div>
+        <p className="mb-1 font-semibold uppercase tracking-wider text-slate-400">Crew career dose</p>
+        <ul className="space-y-0.5">
+          {game.crew.map((m) => (
+            <li key={m.id} className="flex justify-between tabular-nums">
+              <span>{m.name}</span>
+              <span className={m.doseMSv > m.careerDoseLimitMSv ? 'text-red-300' : m.doseMSv > 0.85 * m.careerDoseLimitMSv ? 'text-amber-300' : 'text-slate-300'}>
+                {Math.round(m.doseMSv)} / {m.careerDoseLimitMSv} mSv
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <p className="mb-1 font-semibold uppercase tracking-wider text-slate-400">Your base</p>
+        <ul className="space-y-0.5 tabular-nums text-slate-300">
+          <li>Solar panels: {built(f.solarArrayM2, start.solarArrayM2, ' m²')}</li>
+          <li>Greenhouse: {built(f.greenhouseM2, start.greenhouseM2, ' m²')}</li>
+          <li>Shielding level: {built(f.shieldingLevel, start.shieldingLevel, '')}</li>
+          {game.scenario.isruAvailable && <li>O₂ makers: {built(f.isruUnits, start.isruUnits, '')}</li>}
+          <li>Condition: {Math.round(f.condition * 100)}%</li>
+        </ul>
       </div>
     </div>
   )

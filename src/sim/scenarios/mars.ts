@@ -33,7 +33,7 @@ export const mars: Scenario = {
   // learn is building oxygen makers.
   start: {
     sol: 40,
-    resources: { storedPowerKWh: 600, oxygenKg: 60, waterL: 250, foodKg: 600 },
+    resources: { storedPowerKWh: 600, oxygenKg: 40, waterL: 250, foodKg: 600 },
     facilities: {
       solarArrayM2: 560,
       reactorKW: 0, // solar only: dust storms are the power threat

@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { advanceSol } from '../sim/advanceSol.ts'
 import { BALANCE } from '../sim/balance.ts'
+import { lifeSupportReserveKWh } from '../sim/forecast.ts'
 import type { Decisions, GameState } from '../sim/types.ts'
 import { METER_WHY, POWER_LABELS } from './labels.ts'
 import { WhyTooltip } from './WhyTooltip.tsx'
@@ -39,6 +40,15 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
   const cond = Math.round(game.facilities.condition * 100)
   const nextCond = forecast ? Math.round(forecast.facilities.condition * 100) : null
   const prevCond = previous ? Math.round(previous.facilities.condition * 100) : null
+  // Through a night or dust storm, how much battery life support will need.
+  const reserve = lifeSupportReserveKWh(game)
+  const reserveKWh = Math.ceil(reserve.reserveKWh)
+  const reserveShort = reserve.hardSols > 0 && r.storedPowerKWh < reserveKWh
+  const reserveLine =
+    reserve.hardSols > 0 && reserveKWh > 0
+      ? `Life support needs ${reserveKWh} kWh of battery to reach ${game.environment.dustStormSolsLeft > 0 && game.environment.isDaylight ? 'the end of the storm' : 'sunrise'}.` +
+        (reserveShort ? ' Not enough: switch things off!' : '')
+      : null
   const units = game.facilities.isruUnits
   const nextUnits = forecast?.facilities.isruUnits
   const o2Line = !game.scenario.isruAvailable
@@ -68,12 +78,13 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
         amount={r.storedPowerKWh}
         why={METER_WHY.power(game.scenario)}
         detail={
-          report
+          (reserveLine ? reserveLine + ' ' : '') +
+          (report
             ? `${isForecast ? 'Next sol' : 'Last sol'}: made ${Math.round(report.powerGeneratedKWh)}, needed ${Math.round(report.powerDemandKWh)}` +
               (report.shedLoads.length ? ` · switched off: ${report.shedLoads.map((l) => POWER_LABELS[l]).join(', ')}` : '')
-            : `Battery holds ${game.facilities.batteryCapacityKWh} kWh`
+            : `Battery holds ${game.facilities.batteryCapacityKWh} kWh`)
         }
-        warn={report ? report.shedLoads.length > 0 : false}
+        warn={reserveShort || (report ? report.shedLoads.length > 0 : false)}
       />
       <Meter
         name="Oxygen"

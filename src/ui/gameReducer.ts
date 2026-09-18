@@ -6,6 +6,7 @@ import { newGame } from '../sim/newGame.ts'
 import { mars } from '../sim/scenarios/mars.ts'
 import { moon } from '../sim/scenarios/moon.ts'
 import type { CrewId, CrewTask, Decisions, GameState, ScenarioId } from '../sim/types.ts'
+import { OPENINGS } from './labels.ts'
 
 export const SCENARIOS = { moon, mars }
 
@@ -26,9 +27,6 @@ export type Action =
   | { type: 'quit' }
   | { type: 'restart' }
 
-// The previous commander's plan: all science, no upkeep. The opening crisis
-// comes from this, and changing it is the player's first move.
-const INHERITED_TASKS: CrewTask[] = ['labScience', 'fieldScience', 'labScience', 'fieldScience']
 
 export const initialUiState: UiState = {
   game: null,
@@ -36,11 +34,38 @@ export const initialUiState: UiState = {
   decisions: { assignments: {}, power: { lab: true, greenhouse: true, isru: true } },
 }
 
+// The whole game state is plain data, so an unfinished mission can be kept
+// in the browser and picked up again after a refresh. Storage can be
+// unavailable (private mode, blocked site data), so every access is guarded.
+const SAVE_KEY = 'jamt-save-v1'
+
+export function loadSavedUiState(): UiState {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY)
+    if (!raw) return initialUiState
+    const saved = JSON.parse(raw) as UiState
+    if (!saved.game || saved.game.outcome?.status !== 'playing' || !saved.decisions?.assignments) return initialUiState
+    return saved
+  } catch {
+    return initialUiState
+  }
+}
+
+export function saveUiState(state: UiState): void {
+  try {
+    if (state.game && state.game.outcome.status === 'playing') localStorage.setItem(SAVE_KEY, JSON.stringify(state))
+    else localStorage.removeItem(SAVE_KEY)
+  } catch {
+    // Saving is a convenience; the game works without it.
+  }
+}
+
 export function reducer(state: UiState, action: Action): UiState {
   switch (action.type) {
     case 'start': {
       const game = newGame(SCENARIOS[action.scenarioId], action.seed)
-      const assignments = Object.fromEntries(game.crew.map((m, i) => [m.id, INHERITED_TASKS[i] ?? 'rest']))
+      const inherited = OPENINGS[action.scenarioId].inheritedTasks
+      const assignments = Object.fromEntries(game.crew.map((m, i) => [m.id, inherited[i] ?? 'rest']))
       return {
         game,
         previous: null,

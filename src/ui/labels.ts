@@ -128,6 +128,9 @@ export const METER_WHY: Record<string, (s: Scenario) => MeterWhy> = {
 // click should teach the loop: pick a task, watch the forecast change,
 // press Advance sol.
 export interface Opening {
+  // The previous commander's plan, which the player inherits. The crisis
+  // comes from it, and changing it is the player's first move.
+  inheritedTasks: CrewTask[]
   meter: 'water' | 'oxygen'
   title: string
   problem: string
@@ -138,6 +141,7 @@ export interface Opening {
 
 export const OPENINGS: Record<ScenarioId, Opening> = {
   moon: {
+    inheritedTasks: ['labScience', 'fieldScience', 'labScience', 'fieldScience'],
     meter: 'water',
     title: 'You are the new commander. Water is running out.',
     problem:
@@ -145,16 +149,17 @@ export const OPENINGS: Record<ScenarioId, Opening> = {
     fix: 'Give one astronaut the 🔧 Maintenance task and watch the recycler’s condition in the Water box go up. Then press Advance sol.',
     fixTask: 'maintenance',
     afterFix:
-      'Maintenance repairs the base, so the recycler wins back more water each sol. It takes a few sols to recover, and two astronauts on maintenance fix it faster. But every shift spent on repairs is a shift not spent on science. That trade-off is the whole game. Night is coming soon: keep an eye on power.',
+      'Maintenance repairs the base, so the recycler wins back more water each sol. It takes a few sols to recover, and two astronauts on maintenance fix it faster. But every shift spent on repairs is a shift not spent on science. That trade-off is the whole game. Night is coming: the top bar shows when.',
   },
   mars: {
+    inheritedTasks: ['maintenance', 'fieldScience', 'labScience', 'fieldScience'],
     meter: 'oxygen',
     title: 'You are the new commander. Oxygen is running low.',
     problem:
-      'Only one O₂ maker is running, and the crew breathes more than it makes. Your predecessor spent every shift on science.',
-    fix: 'Give one astronaut the 🫧 Build O₂ maker task and watch the number of O₂ makers in the Oxygen box go up. Then press Advance sol.',
+      'Only one O₂ maker is running, and the crew breathes more than it makes. Your predecessor kept the base repaired but spent every other shift on science.',
+    fix: 'Move one of the scientists to the 🫧 Build O₂ maker task and watch the number of O₂ makers in the Oxygen box go up. Then press Advance sol.',
     fixTask: 'isru',
     afterFix:
-      'Each O₂ maker splits carbon dioxide from the Martian air, but it runs on solar power. When a dust storm dims the Sun, you may not have power for all of them. Build before the storms come.',
+      'Each O₂ maker splits carbon dioxide from the Martian air, but it runs on solar power and wears the base. Once oxygen is going up each sol, move them back to science. When a dust storm dims the Sun you may not have power for every O₂ maker, so build panels before the storms come.',
   },
 }

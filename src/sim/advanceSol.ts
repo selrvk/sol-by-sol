@@ -1,6 +1,7 @@
 import { BALANCE } from './balance.ts'
 import { c } from './constants.ts'
 import { EVENTS, SOLAR_PARTICLE_EVENT } from './events.ts'
+import { lightInfo } from './forecast.ts'
 import { gcrDoseMSv, speDoses } from './radiation.ts'
 import { nextRandom } from './rng.ts'
 import type {
@@ -136,7 +137,7 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
   res.foodKg -= c('CREW_FOOD_KG_PER_DAY') * crew.length * solDays
 
   // 2. Power generation
-  const daylight = isDaylight(scenario, sol)
+  const daylight = lightInfo(scenario, sol).isDaylight
   if (daylight !== env.isDaylight) {
     log.push(
       daylight
@@ -345,12 +346,6 @@ function applyEffects(e: EventEffects, res: ResourceLevels, fac: Facilities, env
   if (e.shelterSols) env.shelterSolsLeft = Math.max(env.shelterSolsLeft, e.shelterSols)
   if (e.crewShifts) env.busyShifts += e.crewShifts
   if (e.evaShifts) env.busyEvaShifts += e.evaShifts
-}
-
-function isDaylight(scenario: Scenario, sol: number): boolean {
-  const cycle = scenario.dayNightCycle
-  if (!cycle) return true
-  return sol % (cycle.daySols + cycle.nightSols) < cycle.daySols
 }
 
 // Solar particle events are space weather: they get their own roll, like

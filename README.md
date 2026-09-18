@@ -21,7 +21,7 @@ Requires Node 22 or later (developed on Node 25).
 ```bash
 npm install
 npm run dev        # play at http://localhost:5173
-npm test           # unit tests for the simulation
+npm test           # unit tests for the simulation and the opening
 npm run typecheck  # type-check the app, config and scripts
 npm run build      # production build into dist/
 ```
@@ -80,7 +80,7 @@ The balance is checked with scripted players, each built to make one kind of mis
 
 | Player | Mistake | Moon | Mars |
 |---|---|---|---|
-| balanced | none | wins (48/50) | wins (50/50) |
+| balanced | none | wins (50/50) | wins (48/50) |
 | greedy | skips maintenance | runs out of water | loses power in a dust storm |
 | reckless | ignores radiation | often exceeds the dose limit (18/50) | wins: the atmosphere shields it |
 | power-hog | never switches anything off | loses power in the lunar night | wins |

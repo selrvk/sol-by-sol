@@ -59,7 +59,7 @@ export function DecisionPanel({ game, decisions, dispatch, highlightTask, highli
                       title={`${TASK_LABELS[t].label}: ${TASK_LABELS[t].hint}`}
                       aria-pressed={task === t}
                       onClick={() => dispatch({ type: 'assign', crewId: m.id, task: t })}
-                      className={`rounded-md border px-2 py-1 text-base leading-none ${task === t ? 'border-yellow-300 bg-yellow-300/20' : 'border-slate-700 hover:border-slate-500'} ${highlightTask === t && task !== t ? 'animate-pulse ring-2 ring-yellow-300' : ''}`}
+                      className={`rounded-md border px-2 py-1 text-base leading-none ${task === t ? 'border-yellow-300 bg-yellow-300/20' : 'border-slate-700 hover:border-slate-500'} ${highlightTask === t && (task === 'labScience' || task === 'fieldScience') ? 'animate-pulse ring-2 ring-yellow-300' : ''}`}
                     >
                       <span aria-hidden>{TASK_LABELS[t].icon}</span>
                       <span className="sr-only">{TASK_LABELS[t].label}</span>
@@ -107,6 +107,7 @@ export function DecisionPanel({ game, decisions, dispatch, highlightTask, highli
         {/* On phones the button is pinned to the bottom of the screen so the
             player never has to scroll to reach it. */}
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-800 bg-slate-950/95 p-3 lg:static lg:border-0 lg:bg-transparent lg:p-0">
+          <p className="mb-1 hidden text-center text-[11px] text-slate-500 lg:block">or press Enter</p>
           <button
             type="button"
             disabled={waitingForEvent}

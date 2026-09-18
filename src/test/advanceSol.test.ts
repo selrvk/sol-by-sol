@@ -9,6 +9,7 @@ import { newGame } from '../sim/newGame.ts'
 import { mars } from '../sim/scenarios/mars.ts'
 import { moon } from '../sim/scenarios/moon.ts'
 import type { Decisions, GameState, Scenario } from '../sim/types.ts'
+import { OPENINGS } from '../ui/labels.ts'
 
 // A scenario with parts of its starting state replaced.
 function withStart(base: Scenario, start: Partial<Scenario['start']>, extra: Partial<Scenario> = {}): Scenario {
@@ -103,4 +104,38 @@ describe('advanceSol', () => {
     const over = advanceSol(state, plan(state))
     assert.equal(advanceSol(over, plan(over)), over)
   })
+})
+
+// The opening crisis must be fair: doing what the briefing says (and nothing
+// else) survives it, and ignoring it does not.
+describe('opening crisis', () => {
+  const FIX = { moon: 'maintenance', mars: 'isru' } as const
+
+  function playOpening(scenario: Scenario, seed: number, followBriefing: boolean, sols: number): GameState {
+    const tasks = [...OPENINGS[scenario.id].inheritedTasks]
+    if (followBriefing) tasks[1] = FIX[scenario.id] // move one scientist to the fix
+    let state = newGame(scenario, seed)
+    while (state.outcome.status === 'playing' && state.sol < scenario.start.sol + sols) {
+      state = advanceSol(state, {
+        assignments: Object.fromEntries(state.crew.map((m, i) => [m.id, tasks[i]])),
+        power: { lab: true, greenhouse: true, isru: true },
+        eventChoiceId: state.pendingEvent?.defaultChoiceId,
+      })
+    }
+    return state
+  }
+
+  for (const scenario of [moon, mars]) {
+    it(`${scenario.id}: following the briefing survives the first 12 sols`, () => {
+      for (let seed = 1; seed <= 30; seed++) {
+        assert.equal(playOpening(scenario, seed, true, 12).outcome.status, 'playing', `seed ${seed}`)
+      }
+    })
+
+    it(`${scenario.id}: ignoring the briefing loses within 30 sols`, () => {
+      for (let seed = 1; seed <= 30; seed++) {
+        assert.equal(playOpening(scenario, seed, false, 30).outcome.status, 'lost', `seed ${seed}`)
+      }
+    })
+  }
 })

@@ -1,8 +1,8 @@
-import { useReducer, useState } from 'react'
+import { useEffect, useReducer, useState } from 'react'
 import { BaseView } from './BaseView.tsx'
 import { DecisionPanel } from './DecisionPanel.tsx'
 import { EventModal } from './EventModal.tsx'
-import { initialUiState, reducer } from './gameReducer.ts'
+import { loadSavedUiState, reducer, saveUiState } from './gameReducer.ts'
 import { OPENINGS } from './labels.ts'
 import { OpeningBriefing } from './OpeningBriefing.tsx'
 import { ResourcePanel } from './ResourcePanel.tsx'
@@ -10,9 +10,25 @@ import { EndScreen, StartScreen } from './Screens.tsx'
 import { TopBar } from './TopBar.tsx'
 
 export function Game() {
-  const [ui, dispatch] = useReducer(reducer, initialUiState)
+  const [ui, dispatch] = useReducer(reducer, undefined, loadSavedUiState)
   const [briefingDismissedFor, setBriefingDismissedFor] = useState<number | null>(null)
   const { game, previous, decisions } = ui
+
+  useEffect(() => saveUiState(ui), [ui])
+
+  // Enter advances the sol, unless an alert is waiting or a control has focus.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' || e.repeat) return
+      const target = e.target as HTMLElement
+      if (target.closest('button, input, select, textarea, [role=dialog]')) return
+      if (!ui.game || ui.game.outcome.status !== 'playing') return
+      if (ui.game.pendingEvent && !ui.decisions.eventChoiceId) return
+      dispatch({ type: 'advance' })
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [ui])
   if (!game) return <StartScreen dispatch={dispatch} />
 
   // The opening guide belongs to this game (keyed by seed) until dismissed.
@@ -24,7 +40,12 @@ export function Game() {
   const recentLog = game.log.slice(-5).reverse()
   return (
     <div className="flex min-h-screen flex-col">
-      <TopBar game={game} onQuit={() => dispatch({ type: 'quit' })} />
+      <TopBar
+        game={game}
+        onQuit={() => {
+          if (game.outcome.status !== 'playing' || window.confirm('Quit this mission? Your progress will be lost.')) dispatch({ type: 'quit' })
+        }}
+      />
       <main className="grid flex-1 gap-4 p-4 pb-28 lg:grid-cols-[1fr_20rem] lg:pb-4">
         <div className="space-y-3">
           {showBriefing && (
