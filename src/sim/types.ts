@@ -69,6 +69,9 @@ export interface Environment {
   isDaylight: boolean
   dustStormSolsLeft: number // 0 when no storm is active
   shelterSolsLeft: number   // >0 while crew shelter from a solar particle event
+  // Crew shifts owed to event repairs. Taken from science tasks first.
+  busyShifts: number
+  busyEvaShifts: number     // same, but the work is outside (EVA dose)
 }
 
 // --- Scenario (static config, one per world) ---
@@ -95,7 +98,8 @@ export interface Scenario {
   }
   surfaceDoseMSvPerSol: number
   atmosphereGCm2: number // shielding from the atmosphere (0 on the Moon)
-  eventChancePerSol: number
+  speChancePerSol: number   // solar particle events (space weather)
+  eventChancePerSol: number // all other events
   resupply: { intervalSols: number; cargo: ResourceLevels } | null
   isruAvailable: boolean
   // Full starting state, so a scenario can open mid-mission (Stage 5).
@@ -110,16 +114,33 @@ export interface Scenario {
 
 // --- Events ---
 
+// Facility values an event can change (deltas).
+export type FacilityDeltas = Partial<
+  Pick<Facilities, 'solarArrayM2' | 'batteryCapacityKWh' | 'greenhouseM2' | 'shieldingLevel' | 'isruUnits' | 'condition'>
+>
+
 // What a player's answer to an event does.
-export interface EventOutcome {
-  message: string
+export interface EventEffects {
   resources?: Partial<ResourceLevels> // deltas
+  facilities?: FacilityDeltas         // deltas
   crewDoseMSv?: number                // added to every crew member
   // Solar particle event: dose depends on each person's shielding.
   // scale = event size as a fraction of the August 1972 event.
   solarParticleEvent?: { scale: number; sheltered: boolean }
   sciencePoints?: number              // delta
   shelterSols?: number                // crew shelter and do no work
+  crewShifts?: number                 // shifts diverted to the problem
+  evaShifts?: number                  // same, but outside (EVA dose)
+}
+
+export interface EventOutcome extends EventEffects {
+  message: string
+  // A risky choice: resolved with the seeded RNG when the player answers.
+  gamble?: {
+    chance: number // probability of success, 0..1
+    success: EventEffects & { message: string }
+    failure: EventEffects & { message: string }
+  }
 }
 
 export interface EventChoice {
@@ -130,6 +151,8 @@ export interface EventChoice {
 
 // An event waiting for the player's decision. Resolved at the start of the
 // next advanceSol using Decisions.eventChoiceId.
+// Convention: choices[0] is the careful option and the default; the last
+// choice is the one that cuts corners.
 export interface PendingEvent {
   id: string
   title: string
@@ -182,6 +205,7 @@ export interface SolReport {
   resourceDeltas: ResourceLevels
   crewHoursAvailable: number
   crewHoursWorked: number
+  repairShifts: number // shifts that went to event repairs instead of tasks
   scienceEarned: number
 }
 

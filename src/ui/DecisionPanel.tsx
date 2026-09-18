@@ -17,6 +17,7 @@ export function DecisionPanel({ game, decisions, dispatch }: Props) {
   const demand = loadDemandKWh(game.scenario, game.facilities)
   const switches = (['lab', 'greenhouse', 'isru'] as const).filter((l) => l !== 'isru' || game.scenario.isruAvailable)
   const sheltering = game.environment.shelterSolsLeft > 0
+  const repairShifts = game.environment.busyShifts + game.environment.busyEvaShifts
   const waitingForEvent = game.pendingEvent !== null && !decisions.eventChoiceId
 
   return (
@@ -24,6 +25,11 @@ export function DecisionPanel({ game, decisions, dispatch }: Props) {
       <div>
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-slate-400">
           Crew assignments {sheltering && <span className="normal-case text-amber-300">(sheltering: no work this sol)</span>}
+          {!sheltering && repairShifts > 0 && (
+            <span className="normal-case text-amber-300">
+              {' '}(🔧 {repairShifts} shift{repairShifts > 1 ? 's' : ''} owed to repairs{game.environment.busyEvaShifts > 0 ? ', some outside' : ''}: taken from science first)
+            </span>
+          )}
         </h2>
         <div className="grid gap-2 sm:grid-cols-2">
           {game.crew.map((m) => {

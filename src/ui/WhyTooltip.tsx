@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { CONSTANTS, CURVES, type SourcedConstant, type SourcedCurve } from '../sim/constants.ts'
-import type { WhyRef } from './labels.ts'
+import { SOURCE_LABELS, type MeterWhy, type WhyRef } from './labels.ts'
 
 // "why?" button that reveals the real figures behind a meter and their
 // sources. Placeholders are labelled as estimates, never as fact.
-export function WhyTooltip({ refs }: { refs: WhyRef[] }) {
+export function WhyTooltip({ why }: { why: MeterWhy }) {
   const [open, setOpen] = useState(false)
   return (
     <span className="relative inline-block">
@@ -20,11 +20,14 @@ export function WhyTooltip({ refs }: { refs: WhyRef[] }) {
       {open && (
         <div
           role="tooltip"
-          className="absolute right-0 z-30 mt-1 w-72 space-y-2 rounded-lg border border-slate-600 bg-slate-900 p-3 text-xs text-slate-200 shadow-xl"
+          className="absolute right-0 z-30 mt-1 max-h-[70vh] w-80 max-w-[85vw] space-y-2 overflow-y-auto rounded-lg border border-slate-600 bg-slate-900 p-3 text-xs text-slate-200 shadow-xl"
         >
-          {refs.map((ref, i) => (
-            <WhyLine key={i} whyRef={ref} />
-          ))}
+          <p className="text-sm leading-snug text-slate-100">{why.summary}</p>
+          <div className="space-y-2 border-t border-slate-700 pt-2">
+            {why.refs.map((ref, i) => (
+              <WhyLine key={i} whyRef={ref} />
+            ))}
+          </div>
         </div>
       )}
     </span>
@@ -33,6 +36,7 @@ export function WhyTooltip({ refs }: { refs: WhyRef[] }) {
 
 function WhyLine({ whyRef }: { whyRef: WhyRef }) {
   if ('rule' in whyRef) return <p className="text-slate-300">{whyRef.rule}</p>
+  const key = 'constant' in whyRef ? whyRef.constant : whyRef.curve
   const item: SourcedConstant | SourcedCurve = 'constant' in whyRef ? CONSTANTS[whyRef.constant] : CURVES[whyRef.curve]
   const figure =
     'value' in item
@@ -40,6 +44,7 @@ function WhyLine({ whyRef }: { whyRef: WhyRef }) {
       : item.points.map(([g, d]) => `${d} at ${g} g/cm²`).join(', ') + ` (${item.unit})`
   return (
     <div>
+      <p className="text-slate-400">{SOURCE_LABELS[key]}</p>
       <p className="font-semibold text-white">
         {figure}
         {item.status === 'placeholder' && (

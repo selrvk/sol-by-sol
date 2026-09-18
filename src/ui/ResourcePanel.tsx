@@ -1,6 +1,6 @@
 import { BALANCE } from '../sim/balance.ts'
 import type { Decisions, GameState } from '../sim/types.ts'
-import { METER_SOURCES, POWER_LABELS } from './labels.ts'
+import { METER_WHY, POWER_LABELS } from './labels.ts'
 import { WhyTooltip } from './WhyTooltip.tsx'
 
 interface Props {
@@ -13,7 +13,6 @@ export function ResourcePanel({ game, previous, decisions }: Props) {
   const r = game.resources
   const start = game.scenario.start.resources
   const d = game.lastReport?.resourceDeltas
-  const sc = game.scenario.id
 
   const worst = game.crew.reduce((a, b) => (b.doseMSv / b.careerDoseLimitMSv > a.doseMSv / a.careerDoseLimitMSv ? b : a))
   const prevWorst = previous?.crew.find((m) => m.id === worst.id)
@@ -25,6 +24,8 @@ export function ResourcePanel({ game, previous, decisions }: Props) {
       : activeCrew.filter((m) => (decisions.assignments[m.id] ?? 'rest') !== 'rest').length * BALANCE.SHIFT_HOURS
 
   const report = game.lastReport
+  const repairShifts = game.environment.busyShifts + game.environment.busyEvaShifts
+  const lastRepairs = report?.repairShifts ?? 0
   return (
     <section aria-label="Resources" className="space-y-3">
       <Meter
@@ -35,7 +36,7 @@ export function ResourcePanel({ game, previous, decisions }: Props) {
         delta={d?.storedPowerKWh}
         unit="kWh"
         amount={r.storedPowerKWh}
-        why={METER_SOURCES.power(sc)}
+        why={METER_WHY.power(game.scenario)}
         detail={
           report
             ? `Last sol: made ${Math.round(report.powerGeneratedKWh)}, needed ${Math.round(report.powerDemandKWh)}` +
@@ -44,9 +45,9 @@ export function ResourcePanel({ game, previous, decisions }: Props) {
         }
         warn={report ? report.shedLoads.length > 0 : false}
       />
-      <Meter name="Oxygen" icon="🫁" value={`${Math.round(r.oxygenKg)} kg`} fill={r.oxygenKg / Math.max(start.oxygenKg, r.oxygenKg)} delta={d?.oxygenKg} unit="kg" amount={r.oxygenKg} why={METER_SOURCES.oxygen(sc)} />
-      <Meter name="Water" icon="💧" value={`${Math.round(r.waterL)} L`} fill={r.waterL / Math.max(start.waterL, r.waterL)} delta={d?.waterL} unit="L" amount={r.waterL} why={METER_SOURCES.water(sc)} />
-      <Meter name="Food" icon="🥔" value={`${Math.round(r.foodKg)} kg`} fill={r.foodKg / Math.max(start.foodKg, r.foodKg)} delta={d?.foodKg} unit="kg" amount={r.foodKg} why={METER_SOURCES.food(sc)} />
+      <Meter name="Oxygen" icon="🫁" value={`${Math.round(r.oxygenKg)} kg`} fill={r.oxygenKg / Math.max(start.oxygenKg, r.oxygenKg)} delta={d?.oxygenKg} unit="kg" amount={r.oxygenKg} why={METER_WHY.oxygen(game.scenario)} />
+      <Meter name="Water" icon="💧" value={`${Math.round(r.waterL)} L`} fill={r.waterL / Math.max(start.waterL, r.waterL)} delta={d?.waterL} unit="L" amount={r.waterL} why={METER_WHY.water(game.scenario)} />
+      <Meter name="Food" icon="🥔" value={`${Math.round(r.foodKg)} kg`} fill={r.foodKg / Math.max(start.foodKg, r.foodKg)} delta={d?.foodKg} unit="kg" amount={r.foodKg} why={METER_WHY.food(game.scenario)} />
       <Meter
         name="Radiation"
         icon="☢️"
@@ -55,7 +56,7 @@ export function ResourcePanel({ game, previous, decisions }: Props) {
         invert
         delta={prevWorst ? worst.doseMSv - prevWorst.doseMSv : undefined}
         unit="mSv"
-        why={METER_SOURCES.radiation(sc)}
+        why={METER_WHY.radiation(game.scenario)}
         detail={`Highest career dose: ${worst.name}`}
       />
       <Meter
@@ -63,8 +64,17 @@ export function ResourcePanel({ game, previous, decisions }: Props) {
         icon="⏱️"
         value={`${hoursAssigned} / ${hoursAvailable} h`}
         fill={hoursAvailable ? hoursAssigned / hoursAvailable : 0}
-        why={METER_SOURCES.crewTime(sc)}
-        detail={game.environment.shelterSolsLeft > 0 ? 'Sheltering from a solar storm: no work this sol' : 'Hours of work planned for the next sol'}
+        why={METER_WHY.crewTime(game.scenario)}
+        detail={
+          game.environment.shelterSolsLeft > 0
+            ? 'Sheltering from a solar storm: no work this sol'
+            : repairShifts > 0
+              ? `${repairShifts} shift${repairShifts > 1 ? 's' : ''} still owed to repairs (taken from science first)`
+              : lastRepairs > 0
+                ? `Last sol, ${lastRepairs} shift${lastRepairs > 1 ? 's' : ''} went to repairs instead of the plan`
+                : 'Hours of work planned for the next sol'
+        }
+        warn={repairShifts > 0 || lastRepairs > 0}
         neutral
       />
     </section>
@@ -79,7 +89,7 @@ interface MeterProps {
   delta?: number
   unit?: string
   amount?: number // for a "sols left" estimate from the last sol's change
-  why: Parameters<typeof WhyTooltip>[0]['refs']
+  why: Parameters<typeof WhyTooltip>[0]['why']
   detail?: string
   invert?: boolean  // higher is worse (radiation)
   neutral?: boolean // no good/bad colouring
@@ -101,7 +111,7 @@ function Meter({ name, icon, value, fill, delta, unit, amount, why, detail, inve
         </span>
         <span className="flex items-center gap-2">
           <span className="tabular-nums">{value}</span>
-          <WhyTooltip refs={why} />
+          <WhyTooltip why={why} />
         </span>
       </div>
       <div className="mt-1.5 h-2 overflow-hidden rounded bg-slate-700" role="meter" aria-valuenow={Math.round(f * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={name}>

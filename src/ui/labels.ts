@@ -1,7 +1,7 @@
 // Presentation text only. No game rules here.
 
-import type { ConstantKey, CurveKey } from '../sim/constants.ts'
-import type { CrewTask, PowerLoad, ScenarioId } from '../sim/types.ts'
+import { c, type ConstantKey, type CurveKey } from '../sim/constants.ts'
+import type { CrewTask, PowerLoad, Scenario, ScenarioId } from '../sim/types.ts'
 
 export const TASK_LABELS: Record<CrewTask, { label: string; icon: string; hint: string }> = {
   labScience: { label: 'Lab science', icon: '🔬', hint: 'Science points, needs the lab powered' },
@@ -26,27 +26,100 @@ export const SCENARIO_BLURBS: Record<ScenarioId, string> = {
   mars: 'Solar power only, and dust storms can dim the Sun for weeks. The thin air blocks some radiation. No resupply.',
 }
 
+// Plain names for the sourced figures shown in "why?" tooltips.
+export const SOURCE_LABELS: Record<ConstantKey | CurveKey, string> = {
+  CREW_O2_KG_PER_DAY: 'Oxygen breathed per astronaut per day',
+  CREW_WATER_L_PER_DAY: 'Water used per astronaut per day',
+  CREW_FOOD_KG_PER_DAY: 'Food per astronaut per day (with packaging)',
+  LUNAR_NIGHT_HOURS: 'Length of the lunar night',
+  MARS_SOL_HOURS: 'Length of a Mars day (sol)',
+  SOLAR_FLUX_MOON: 'Sunlight reaching the Moon',
+  SOLAR_FLUX_MARS: 'Sunlight reaching Mars (top of the air)',
+  MARS_CLEAR_SOL_INSOLATION_KWH_M2: 'Solar energy on the Martian ground, clear day',
+  DUST_STORM_SOLAR_FACTOR: 'Sunlight left during a big dust storm',
+  SOLAR_PANEL_EFFICIENCY: 'Solar panel efficiency',
+  REACTOR_UNIT_KW: 'Kilopower reactor output (maximum)',
+  LIFE_SUPPORT_KW: 'Life support power (ISS)',
+  WATER_RECOVERY_FRACTION: 'Water the ISS recycler recovers',
+  GREENHOUSE_YIELD_KG_M2_PER_DAY: 'Potato harvest per m² per day',
+  GREENHOUSE_KWH_PER_KG_FOOD: 'Energy to grow 1 kg of food under lamps',
+  MOXIE_KWH_PER_KG_O2: 'Energy MOXIE used per kg of oxygen',
+  MOON_SURFACE_DOSE_MSV_PER_DAY: 'Radiation dose on the Moon’s surface',
+  MARS_SURFACE_DOSE_MSV_PER_DAY: 'Radiation dose on the Mars surface',
+  CAREER_DOSE_LIMIT_MSV: 'NASA career radiation limit',
+  HABITAT_WALL_G_CM2: 'Shielding from the habitat walls',
+  STORM_SHELTER_EXTRA_G_CM2: 'Extra shielding in the storm shelter',
+  MARS_ATMOSPHERE_G_CM2: 'Shielding from the Martian air',
+  GCR_DOSE_VS_SHIELDING: 'Cosmic-ray dose behind regolith',
+  SPE_1972_DOSE_VS_SHIELDING: 'August 1972 solar storm dose behind regolith',
+}
+
 // Which sourced figures each meter's "why?" tooltip shows.
 export type WhyRef = { constant: ConstantKey } | { curve: CurveKey } | { rule: string }
 
-export const METER_SOURCES: Record<string, (scenario: ScenarioId) => WhyRef[]> = {
-  power: (sc) => [
-    { constant: 'LIFE_SUPPORT_KW' },
-    { constant: sc === 'moon' ? 'SOLAR_FLUX_MOON' : 'MARS_CLEAR_SOL_INSOLATION_KWH_M2' },
-    sc === 'moon' ? { constant: 'REACTOR_UNIT_KW' } : { constant: 'DUST_STORM_SOLAR_FACTOR' },
-  ],
-  oxygen: (sc) => [
-    { constant: 'CREW_O2_KG_PER_DAY' },
-    ...(sc === 'mars' ? [{ constant: 'MOXIE_KWH_PER_KG_O2' } as WhyRef] : []),
-  ],
-  water: () => [{ constant: 'CREW_WATER_L_PER_DAY' }, { constant: 'WATER_RECOVERY_FRACTION' }],
-  food: () => [{ constant: 'CREW_FOOD_KG_PER_DAY' }, { constant: 'GREENHOUSE_YIELD_KG_M2_PER_DAY' }],
-  radiation: (sc) => [
-    { constant: sc === 'moon' ? 'MOON_SURFACE_DOSE_MSV_PER_DAY' : 'MARS_SURFACE_DOSE_MSV_PER_DAY' },
-    { constant: 'CAREER_DOSE_LIMIT_MSV' },
-    { curve: 'SPE_1972_DOSE_VS_SHIELDING' },
-  ],
-  crewTime: () => [
-    { rule: 'Each astronaut works one 8-hour shift per sol. This is a game rule, not a NASA figure.' },
-  ],
+export interface MeterWhy {
+  summary: string
+  refs: WhyRef[]
+}
+
+const n = (key: ConstantKey) => c(key).toLocaleString('en')
+
+export const METER_WHY: Record<string, (s: Scenario) => MeterWhy> = {
+  power: (s) =>
+    s.id === 'moon'
+      ? {
+          summary:
+            `Life support needs ${n('LIFE_SUPPORT_KW')} kW every hour of every day. Sunlight is strong on the Moon ` +
+            `(${n('SOLAR_FLUX_MOON')} W on every square metre), but the night lasts ${n('LUNAR_NIGHT_HOURS')} hours. ` +
+            `Your ${s.start.facilities.reactorKW} kW reactor can't quite cover life support alone, so the battery has to last until sunrise.`,
+          refs: [{ constant: 'LIFE_SUPPORT_KW' }, { constant: 'SOLAR_FLUX_MOON' }, { constant: 'LUNAR_NIGHT_HOURS' }, { constant: 'REACTOR_UNIT_KW' }, { constant: 'SOLAR_PANEL_EFFICIENCY' }],
+        }
+      : {
+          summary:
+            `Life support needs ${n('LIFE_SUPPORT_KW')} kW all the time. Mars is farther from the Sun: a clear sol gives ` +
+            `${n('MARS_CLEAR_SOL_INSOLATION_KWH_M2')} kWh on each square metre of ground. A big dust storm cuts that to ` +
+            `${Math.round(c('DUST_STORM_SOLAR_FACTOR') * 100)}%, for weeks. Build enough panels before a storm comes.`,
+          refs: [{ constant: 'LIFE_SUPPORT_KW' }, { constant: 'MARS_CLEAR_SOL_INSOLATION_KWH_M2' }, { constant: 'DUST_STORM_SOLAR_FACTOR' }, { constant: 'SOLAR_FLUX_MARS' }, { constant: 'SOLAR_PANEL_EFFICIENCY' }],
+        },
+  oxygen: (s) => ({
+    summary:
+      `Each astronaut breathes about ${n('CREW_O2_KG_PER_DAY')} kg of oxygen a day. ` +
+      (s.isruAvailable
+        ? `On Mars you can make more: O₂ makers split carbon dioxide from the air, like NASA's MOXIE experiment, which used about ${n('MOXIE_KWH_PER_KG_O2')} kWh of energy per kg.`
+        : 'Nothing on this base makes oxygen, so every kilogram comes from Earth on a cargo lander.'),
+    refs: [{ constant: 'CREW_O2_KG_PER_DAY' }, ...(s.isruAvailable ? [{ constant: 'MOXIE_KWH_PER_KG_O2' } as WhyRef] : [])],
+  }),
+  water: () => ({
+    summary:
+      `Each astronaut uses about ${n('CREW_WATER_L_PER_DAY')} L of water a day for drinking, food, washing and the toilet. ` +
+      `The recycler can win back up to ${Math.round(c('WATER_RECOVERY_FRACTION') * 100)}% of it, as the ISS does, but only if the base is kept in good repair.`,
+    refs: [{ constant: 'CREW_WATER_L_PER_DAY' }, { constant: 'WATER_RECOVERY_FRACTION' }],
+  }),
+  food: () => ({
+    summary:
+      `Each astronaut gets through about ${n('CREW_FOOD_KG_PER_DAY')} kg of packaged food a day. ` +
+      `A greenhouse helps: potatoes grow about ${n('GREENHOUSE_YIELD_KG_M2_PER_DAY')} kg per square metre each day, ` +
+      `but the grow lights need about ${n('GREENHOUSE_KWH_PER_KG_FOOD')} kWh for every kg. Food costs power.`,
+    refs: [{ constant: 'CREW_FOOD_KG_PER_DAY' }, { constant: 'GREENHOUSE_YIELD_KG_M2_PER_DAY' }, { constant: 'GREENHOUSE_KWH_PER_KG_FOOD' }],
+  }),
+  radiation: (s) => ({
+    summary:
+      (s.id === 'moon'
+        ? `On the Moon's surface an astronaut takes about ${n('MOON_SURFACE_DOSE_MSV_PER_DAY')} mSv a day, measured by China's Chang'e 4 lander. `
+        : `On Mars an astronaut takes about ${n('MARS_SURFACE_DOSE_MSV_PER_DAY')} mSv a day, measured by the Curiosity rover. The thin air blocks some. `) +
+      `NASA stops astronauts at ${n('CAREER_DOSE_LIMIT_MSV')} mSv over their whole career. ` +
+      `Piled regolith barely slows cosmic rays, but it stops solar storms very well.`,
+    refs: [
+      { constant: s.id === 'moon' ? 'MOON_SURFACE_DOSE_MSV_PER_DAY' : 'MARS_SURFACE_DOSE_MSV_PER_DAY' },
+      { constant: 'CAREER_DOSE_LIMIT_MSV' },
+      { curve: 'GCR_DOSE_VS_SHIELDING' },
+      { curve: 'SPE_1972_DOSE_VS_SHIELDING' },
+      ...(s.id === 'mars' ? [{ constant: 'MARS_ATMOSPHERE_G_CM2' } as WhyRef] : []),
+    ],
+  }),
+  crewTime: () => ({
+    summary:
+      'Four astronauts, one 8-hour shift each per sol. Every hour spent fixing, building or sheltering is an hour not spent on science. That is why real crews work to a tightly planned schedule.',
+    refs: [{ rule: 'The 8-hour shift is a game rule, not a NASA figure.' }],
+  }),
 }

@@ -23,7 +23,8 @@ export const mars: Scenario = {
   },
   surfaceDoseMSvPerSol: c('MARS_SURFACE_DOSE_MSV_PER_DAY') * (HOURS_PER_SOL / 24),
   atmosphereGCm2: c('MARS_ATMOSPHERE_G_CM2'),
-  eventChancePerSol: 0.03,
+  speChancePerSol: 0.03,
+  eventChancePerSol: 0.05,
   // Launch windows are ~26 months apart, longer than the mission: no resupply.
   resupply: null,
   isruAvailable: true,

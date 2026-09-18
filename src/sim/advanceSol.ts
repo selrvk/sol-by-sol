@@ -1,13 +1,15 @@
 import { BALANCE } from './balance.ts'
 import { c } from './constants.ts'
-import { EVENTS } from './events.ts'
+import { EVENTS, SOLAR_PARTICLE_EVENT } from './events.ts'
 import { gcrDoseMSv, speDoses } from './radiation.ts'
 import { nextRandom } from './rng.ts'
 import type {
+  CrewId,
   CrewMember,
   CrewTask,
   Decisions,
   Environment,
+  EventEffects,
   Facilities,
   GameEvent,
   GameState,
@@ -23,6 +25,16 @@ import type { EventContext } from './events.ts'
 
 // Tasks done outside in a spacesuit: they take extra radiation dose.
 export const EVA_TASKS: ReadonlySet<CrewTask> = new Set(['fieldScience', 'solar', 'shielding', 'isru'])
+
+const LOAD_NAMES: Record<PowerLoad, string> = {
+  lifeSupport: 'life support',
+  isru: 'O₂ makers',
+  greenhouse: 'greenhouse',
+  lab: 'science lab',
+}
+
+// When repairs need crew, they are taken off science first.
+const BUSY_PRIORITY: CrewTask[] = ['fieldScience', 'labScience', 'greenhouse', 'solar', 'shielding', 'isru', 'maintenance']
 
 // kWh each system would draw this sol if switched on.
 export function loadDemandKWh(scenario: Scenario, fac: Facilities): Record<PowerLoad, number> {
@@ -66,32 +78,56 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
   let science = state.sciencePoints
 
   // 0. Resolve pending event
+  let spe: { scale: number; sheltered: boolean } | null = null
   if (state.pendingEvent) {
     const event = state.pendingEvent
     const choice =
       event.choices.find((ch) => ch.id === decisions.eventChoiceId) ??
       event.choices.find((ch) => ch.id === event.defaultChoiceId)!
     const o = choice.outcome
-    if (o.resources) {
-      for (const key of Object.keys(o.resources) as (keyof ResourceLevels)[]) {
-        res[key] += o.resources[key] ?? 0
-      }
+    const messages = [o.message]
+    const applied: EventEffects[] = [o]
+    if (o.gamble) {
+      const roll = nextRandom(rng)
+      rng = roll.next
+      const result = roll.value < o.gamble.chance ? o.gamble.success : o.gamble.failure
+      applied.push(result)
+      messages.push(result.message)
     }
-    if (o.crewDoseMSv) for (const m of crew) m.doseMSv += o.crewDoseMSv
-    if (o.solarParticleEvent) {
-      const dose = speDoses(scenario, fac, o.solarParticleEvent.scale)
+    for (const e of applied) {
+      applyEffects(e, res, fac, env, crew)
+      if (e.sciencePoints) science += e.sciencePoints
+      if (e.solarParticleEvent) spe = e.solarParticleEvent
+    }
+    if (spe) {
+      const dose = speDoses(scenario, fac, spe.scale)
       for (const m of crew) {
         const onEva = EVA_TASKS.has(decisions.assignments[m.id] ?? 'rest')
-        m.doseMSv += o.solarParticleEvent.sheltered ? dose.sheltered : onEva ? dose.eva : dose.indoor
+        m.doseMSv += spe.sheltered ? dose.sheltered : onEva ? dose.eva : dose.indoor
       }
     }
-    if (o.sciencePoints) science += o.sciencePoints
-    if (o.shelterSols) env.shelterSolsLeft = Math.max(env.shelterSolsLeft, o.shelterSols)
-    log.push({ sol, kind: 'eventResolved', message: `${event.title}: ${o.message}` })
+    log.push({ sol, kind: 'eventResolved', message: `${event.title}: ${messages.join(' ')}` })
   }
   const sheltering = env.shelterSolsLeft > 0
-  const taskFor = (m: CrewMember): CrewTask =>
+  const planned = (m: CrewMember): CrewTask =>
     sheltering || m.status !== 'active' ? 'rest' : (decisions.assignments[m.id] ?? 'rest')
+
+  // Crew owed to event repairs this sol, taken off science first.
+  const busy = new Map<CrewId, 'eva' | 'indoor'>()
+  const workers = crew
+    .filter((m) => planned(m) !== 'rest')
+    .sort((a, b) => BUSY_PRIORITY.indexOf(planned(a)) - BUSY_PRIORITY.indexOf(planned(b)))
+  for (const m of workers) {
+    if (env.busyEvaShifts > 0) {
+      busy.set(m.id, 'eva')
+      env.busyEvaShifts--
+    } else if (env.busyShifts > 0) {
+      busy.set(m.id, 'indoor')
+      env.busyShifts--
+    }
+  }
+  const taskFor = (m: CrewMember): CrewTask => (busy.has(m.id) ? 'rest' : planned(m))
+  const onEva = (m: CrewMember) => busy.get(m.id) === 'eva' || EVA_TASKS.has(taskFor(m))
 
   // 1. Crew consumption (everyone breathes, eats and drinks)
   const waterUsed = c('CREW_WATER_L_PER_DAY') * crew.length * solDays
@@ -161,7 +197,7 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
     }
   }
   if (shed.length > 0) {
-    log.push({ sol, kind: 'loadShed', message: `Not enough power. Switched off: ${shed.join(', ')}.` })
+    log.push({ sol, kind: 'loadShed', message: `Not enough power. Switched off: ${shed.map((l) => LOAD_NAMES[l]).join(', ')}.` })
   }
   res.storedPowerKWh = Math.min(fac.batteryCapacityKWh, available)
 
@@ -177,7 +213,7 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
   // 5. Radiation (galactic cosmic rays). EVA hours take the full surface
   // dose; indoor hours are reduced a little by the habitat and regolith.
   for (const m of crew) {
-    const evaFraction = EVA_TASKS.has(taskFor(m)) ? BALANCE.SHIFT_HOURS / scenario.hoursPerSol : 0
+    const evaFraction = onEva(m) ? BALANCE.SHIFT_HOURS / scenario.hoursPerSol : 0
     m.doseMSv += gcrDoseMSv(scenario, fac, evaFraction)
   }
 
@@ -188,7 +224,7 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
   let maintenanceShifts = 0
   for (const m of activeCrew) {
     const task = taskFor(m)
-    if (task !== 'rest') shiftsWorked++
+    if (task !== 'rest' || busy.has(m.id)) shiftsWorked++
     switch (task) {
       case 'labScience':
         if (powered.has('lab')) scienceEarned += BALANCE.LAB_SCIENCE_PER_SHIFT
@@ -245,7 +281,7 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
 
   // 7. Random event
   let pendingEvent: PendingEvent | null = null
-  const rolled = rollEvent({ scenario, facilities: fac }, rng)
+  const rolled = rollEvent({ scenario, facilities: fac, environment: env, crew, sol }, rng)
   rng = rolled.rng
   if (rolled.event) {
     pendingEvent = rolled.event
@@ -285,10 +321,30 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
       },
       crewHoursAvailable: activeCrew.length * BALANCE.SHIFT_HOURS,
       crewHoursWorked: shiftsWorked * BALANCE.SHIFT_HOURS,
+      repairShifts: busy.size,
       scienceEarned,
     },
     outcome,
   }
+}
+
+function applyEffects(e: EventEffects, res: ResourceLevels, fac: Facilities, env: Environment, crew: CrewMember[]) {
+  if (e.resources) {
+    for (const key of Object.keys(e.resources) as (keyof ResourceLevels)[]) {
+      res[key] = Math.max(0, res[key] + (e.resources[key] ?? 0))
+    }
+  }
+  if (e.facilities) {
+    for (const key of Object.keys(e.facilities) as (keyof typeof e.facilities)[]) {
+      fac[key] = Math.max(0, fac[key] + (e.facilities[key] ?? 0))
+    }
+    fac.condition = clamp01(fac.condition)
+    res.storedPowerKWh = Math.min(res.storedPowerKWh, fac.batteryCapacityKWh)
+  }
+  if (e.crewDoseMSv) for (const m of crew) m.doseMSv += e.crewDoseMSv
+  if (e.shelterSols) env.shelterSolsLeft = Math.max(env.shelterSolsLeft, e.shelterSols)
+  if (e.crewShifts) env.busyShifts += e.crewShifts
+  if (e.evaShifts) env.busyEvaShifts += e.evaShifts
 }
 
 function isDaylight(scenario: Scenario, sol: number): boolean {
@@ -297,12 +353,20 @@ function isDaylight(scenario: Scenario, sol: number): boolean {
   return sol % (cycle.daySols + cycle.nightSols) < cycle.daySols
 }
 
+// Solar particle events are space weather: they get their own roll, like
+// dust storms. Everything else shares one roll and is picked by weight.
 function rollEvent(ctx: EventContext, rng: RngState): { event: PendingEvent | null; rng: RngState } {
   const { scenario } = ctx
-  const roll = nextRandom(rng)
+  const spe = nextRandom(rng)
+  if (spe.value < scenario.speChancePerSol) {
+    const variation = nextRandom(spe.next)
+    return { event: SOLAR_PARTICLE_EVENT.build(ctx, variation.value), rng: variation.next }
+  }
+
+  const roll = nextRandom(spe.next)
   if (roll.value >= scenario.eventChancePerSol) return { event: null, rng: roll.next }
 
-  const eligible = EVENTS.filter((e) => e.scenarios.includes(scenario.id))
+  const eligible = EVENTS.filter((e) => e.scenarios.includes(scenario.id) && (e.canHappen?.(ctx) ?? true))
   const pick = nextRandom(roll.next)
   if (eligible.length === 0) return { event: null, rng: pick.next }
 

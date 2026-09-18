@@ -23,6 +23,11 @@ export type Policy = (s: GameState) => Decisions
 
 const ALL_ON = { lab: true, greenhouse: true, isru: true }
 
+// Events list the careful choice first (the default) and the corner-cutting
+// one last.
+const careful = (s: GameState) => s.pendingEvent?.defaultChoiceId
+const cutCorners = (s: GameState) => s.pendingEvent?.choices.at(-1)?.id
+
 function loadKWh(s: GameState) {
   const sc = s.scenario
   const f = s.facilities
@@ -119,13 +124,13 @@ const balanced: Policy = (s) => ({
     headroom > 100 ? 'fieldScience' : 'labScience',
   ),
   power: rationPower(s),
-  eventChoiceId: 'shelter',
+  eventChoiceId: careful(s),
 })
 
 const greedy: Policy = (s) => ({
   assignments: Object.fromEntries(s.crew.map((m) => [m.id, 'fieldScience' as CrewTask])),
   power: rationPower(s),
-  eventChoiceId: 'pressOn',
+  eventChoiceId: cutCorners(s),
 })
 
 const powerHog: Policy = (s) => ({ ...balanced(s), power: ALL_ON })
@@ -133,7 +138,7 @@ const powerHog: Policy = (s) => ({ ...balanced(s), power: ALL_ON })
 const reckless: Policy = (s) => ({
   assignments: assign(s, upkeepJobs(s, { shielding: false }), () => 'fieldScience'),
   power: rationPower(s),
-  eventChoiceId: 'pressOn',
+  eventChoiceId: cutCorners(s),
 })
 
 const cautious: Policy = (s) => {
@@ -146,14 +151,14 @@ const cautious: Policy = (s) => {
   return {
     assignments: assign(s, jobs, () => 'labScience'),
     power: rationPower(s),
-    eventChoiceId: 'shelter',
+    eventChoiceId: careful(s),
   }
 }
 
 const rota = (tasks: CrewTask[]): Policy => (s) => ({
   assignments: Object.fromEntries(s.crew.map((m, i) => [m.id, tasks[i]])),
   power: rationPower(s),
-  eventChoiceId: 'shelter',
+  eventChoiceId: careful(s),
 })
 
 export const POLICIES: Record<string, Policy> = {

@@ -9,7 +9,7 @@ export function newGame(scenario: Scenario, seed: number): GameState {
     resources: { ...start.resources },
     crew: start.crew.map((m) => ({ ...m })),
     facilities: { ...start.facilities },
-    environment: { isDaylight: true, dustStormSolsLeft: 0, shelterSolsLeft: 0 },
+    environment: { isDaylight: true, dustStormSolsLeft: 0, shelterSolsLeft: 0, busyShifts: 0, busyEvaShifts: 0 },
     sciencePoints: start.sciencePoints,
     rng: createRng(seed),
     pendingEvent: null,
