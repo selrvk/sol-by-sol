@@ -104,14 +104,18 @@ export function DecisionPanel({ game, decisions, dispatch, highlightTask, highli
           </ul>
           <p className="mt-1 text-[11px] text-slate-500">kWh per sol. If there isn't enough power, the lab switches off first.</p>
         </div>
-        <button
-          type="button"
-          disabled={waitingForEvent}
-          onClick={() => dispatch({ type: 'advance' })}
-          className={`rounded-xl bg-yellow-300 px-6 py-4 text-lg font-bold text-slate-900 shadow-lg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-40 ${highlightAdvance ? 'animate-pulse ring-4 ring-yellow-300/60' : ''}`}
-        >
-          {waitingForEvent ? 'Answer the alert first' : 'Advance sol ▶'}
-        </button>
+        {/* On phones the button is pinned to the bottom of the screen so the
+            player never has to scroll to reach it. */}
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-800 bg-slate-950/95 p-3 lg:static lg:border-0 lg:bg-transparent lg:p-0">
+          <button
+            type="button"
+            disabled={waitingForEvent}
+            onClick={() => dispatch({ type: 'advance' })}
+            className={`w-full rounded-xl bg-yellow-300 px-6 py-4 text-lg font-bold text-slate-900 shadow-lg hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-40 ${highlightAdvance ? 'animate-pulse ring-4 ring-yellow-300/60' : ''}`}
+          >
+            {waitingForEvent ? 'Answer the alert first' : `Advance sol ${game.sol} ▶`}
+          </button>
+        </div>
       </div>
     </section>
   )

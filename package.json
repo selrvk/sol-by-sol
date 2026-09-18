@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.scripts.json",
     "sim": "node scripts/simulate.ts",
-    "balance": "node scripts/balance-report.ts"
+    "balance": "node scripts/balance-report.ts",
+    "test": "node --test \"src/test/**/*.test.ts\""
   },
   "dependencies": {
     "react": "^18.3.1",

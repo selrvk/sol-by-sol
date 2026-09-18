@@ -25,7 +25,7 @@ export function Game() {
   return (
     <div className="flex min-h-screen flex-col">
       <TopBar game={game} onQuit={() => dispatch({ type: 'quit' })} />
-      <main className="grid flex-1 gap-4 p-4 lg:grid-cols-[1fr_20rem]">
+      <main className="grid flex-1 gap-4 p-4 pb-28 lg:grid-cols-[1fr_20rem] lg:pb-4">
         <div className="space-y-3">
           {showBriefing && (
             <OpeningBriefing game={game} decisions={decisions} onDismiss={() => setBriefingDismissedFor(game.rng.seed)} />

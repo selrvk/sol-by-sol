@@ -17,5 +17,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["scripts", "src/sim"]
+  "include": ["scripts", "src/sim", "src/test"]
 }
