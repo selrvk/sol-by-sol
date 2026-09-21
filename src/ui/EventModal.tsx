@@ -1,3 +1,4 @@
+import { TriangleAlert } from 'lucide-react'
 import type { Dispatch } from 'react'
 import type { PendingEvent } from '../sim/types.ts'
 import type { Action } from './gameReducer.ts'
@@ -7,7 +8,9 @@ export function EventModal({ event, dispatch }: { event: PendingEvent; dispatch:
     // A light backdrop, so the meters stay readable while the player decides.
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/35 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="event-title">
       <div className="w-full max-w-lg rounded-2xl border border-amber-400/60 bg-slate-900 p-5 shadow-2xl">
-        <p className="text-xs font-semibold uppercase tracking-wider text-amber-300">⚠ Alert</p>
+        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-amber-300">
+          <TriangleAlert size={14} aria-hidden /> Alert
+        </p>
         <h2 id="event-title" className="mt-1 text-xl font-bold">{event.title}</h2>
         <p className="mt-2 text-slate-300">{event.description}</p>
         <div className="mt-4 space-y-2">

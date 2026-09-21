@@ -1,4 +1,4 @@
-import { ChartLine } from 'lucide-react'
+import { ChartLine, Globe, Moon } from 'lucide-react'
 import { lazy, Suspense, useEffect, useReducer, useState } from 'react'
 import type { ScenarioId } from '../sim/types.ts'
 import { BaseView } from './BaseView.tsx'
@@ -67,8 +67,17 @@ export function Game() {
           )}
           <div className="relative order-2 overflow-hidden rounded-2xl border border-slate-800 lg:order-none">
             <BaseView game={game} decisions={decisions} effects={solEffects} />
-            <label className="absolute left-3 top-3">
+            <label className="absolute left-3 top-3 flex items-center">
               <span className="sr-only">World</span>
+              {/* A native <option> can only hold text, so the world's icon
+                  sits beside the menu rather than inside it. */}
+              <span className="pointer-events-none absolute left-2 z-10" aria-hidden>
+                {game.scenario.id === 'moon' ? (
+                  <Moon size={14} className="text-amber-200" />
+                ) : (
+                  <Globe size={14} className="text-red-400" />
+                )}
+              </span>
               <select
                 value={game.scenario.id}
                 onChange={(e) => {
@@ -78,10 +87,10 @@ export function Game() {
                     dispatch({ type: 'start', scenarioId: next, seed: (game.rng.seed * 1103515245 + 12345) >>> 0 })
                   }
                 }}
-                className="rounded-lg border border-slate-600 bg-slate-900/90 px-2 py-0.5 text-xs font-semibold text-white shadow-lg sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-sm"
+                className="appearance-none rounded-lg border border-slate-600 bg-slate-900/90 py-0.5 pl-7 pr-6 text-xs font-semibold text-white shadow-lg sm:rounded-xl sm:py-1.5 sm:text-sm"
               >
-                <option value="moon">🌕 Moon</option>
-                <option value="mars">🔴 Mars</option>
+                <option value="moon">Moon</option>
+                <option value="mars">Mars</option>
               </select>
             </label>
           </div>

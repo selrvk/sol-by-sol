@@ -4,15 +4,15 @@ import { BedDouble, FlaskConical, Mountain, Pickaxe, Sprout, Sun, Wind, Wrench, 
 import { c, type ConstantKey, type CurveKey } from '../sim/constants.ts'
 import type { CrewTask, PowerLoad, Scenario, ScenarioId } from '../sim/types.ts'
 
-export const TASK_LABELS: Record<CrewTask, { label: string; short: string; icon: string; hint: string }> = {
-  labScience: { label: 'Lab science', short: 'Lab', icon: '🔬', hint: 'Science points, needs the lab powered' },
-  fieldScience: { label: 'Field science', short: 'Field', icon: '🪨', hint: 'More science, but outside: extra radiation' },
-  greenhouse: { label: 'Grow greenhouse', short: 'Grow', icon: '🌱', hint: 'More growing area: more food, more power' },
-  solar: { label: 'Build solar', short: 'Solar', icon: '☀️', hint: 'More panels: more power in sunlight' },
-  shielding: { label: 'Pile regolith', short: 'Shield', icon: '⛰️', hint: 'Shielding: protects against solar storms' },
-  maintenance: { label: 'Maintenance', short: 'Repair', icon: '🔧', hint: 'Repairs wear: keeps water recycling and panels working' },
-  isru: { label: 'Build O₂ maker', short: 'O₂', icon: '🫧', hint: 'Makes oxygen from the Martian air, uses power' },
-  rest: { label: 'Rest', short: 'Rest', icon: '💤', hint: 'No work' },
+export const TASK_LABELS: Record<CrewTask, { label: string; short: string; hint: string }> = {
+  labScience: { label: 'Lab science', short: 'Lab', hint: 'Science points, needs the lab powered' },
+  fieldScience: { label: 'Field science', short: 'Field', hint: 'More science, but outside: extra radiation' },
+  greenhouse: { label: 'Grow greenhouse', short: 'Grow', hint: 'More growing area: more food, more power' },
+  solar: { label: 'Build solar', short: 'Solar', hint: 'More panels: more power in sunlight' },
+  shielding: { label: 'Pile regolith', short: 'Shield', hint: 'Shielding: protects against solar storms' },
+  maintenance: { label: 'Maintenance', short: 'Repair', hint: 'Repairs wear: keeps water recycling and panels working' },
+  isru: { label: 'Build O₂ maker', short: 'O₂', hint: 'Makes oxygen from the Martian air, uses power' },
+  rest: { label: 'Rest', short: 'Rest', hint: 'No work' },
 }
 
 // Crew portraits, cut from the two art sheets by art/process.py. Each
@@ -168,7 +168,9 @@ export interface Opening {
   meter: 'water' | 'oxygen'
   title: string
   problem: string
-  fix: string
+  // The sentence that tells the player what to do, split either side of the
+  // task it names, so the screen can show that task's own icon and label.
+  fix: { before: string; after: string }
   fixTask: CrewTask
   afterFix: string
 }
@@ -180,7 +182,7 @@ export const OPENINGS: Record<ScenarioId, Opening> = {
     title: 'You are the new commander. Water is running out.',
     problem:
       'Your predecessor put everyone on science and skipped repairs. The base is worn out, so the water recycler is losing most of the water the crew uses.',
-    fix: 'Give one astronaut the 🔧 Maintenance task and watch the recycler’s condition in the Water box go up. Then press Advance sol.',
+    fix: { before: 'Give one astronaut the', after: 'task and watch the recycler’s condition in the Water box go up. Then press Advance sol.' },
     fixTask: 'maintenance',
     afterFix:
       'Maintenance repairs the base, so the recycler wins back more water each sol. It takes a few sols to recover, and two astronauts on maintenance fix it faster. But every shift spent on repairs is a shift not spent on science. That trade-off is the whole game. Night is coming: the top bar shows when.',
@@ -191,7 +193,7 @@ export const OPENINGS: Record<ScenarioId, Opening> = {
     title: 'You are the new commander. Oxygen is running low.',
     problem:
       'Only one O₂ maker is running, and the crew breathes more than it makes. Your predecessor kept the base repaired but spent every other shift on science.',
-    fix: 'Move one of the scientists to the 🫧 Build O₂ maker task and watch the number of O₂ makers in the Oxygen box go up. Then press Advance sol.',
+    fix: { before: 'Move one of the scientists to the', after: 'task and watch the number of O₂ makers in the Oxygen box go up. Then press Advance sol.' },
     fixTask: 'isru',
     afterFix:
       'Each O₂ maker splits carbon dioxide from the Martian air, but it runs on solar power and wears the base. Once oxygen is going up each sol, move them back to science. When a dust storm dims the Sun you may not have power for every O₂ maker, so build panels before the storms come.',

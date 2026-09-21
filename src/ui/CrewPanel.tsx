@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Lightbulb, Radiation, Users } from 'lucide-react'
+import { ArrowLeftRight, Lightbulb, Radiation, TriangleAlert, Users, Wrench } from 'lucide-react'
 import type { Dispatch } from 'react'
 import { EVA_TASKS } from '../sim/advanceSol.ts'
 import { BALANCE } from '../sim/balance.ts'
@@ -66,8 +66,8 @@ export function CrewPanel({ game, decisions, dispatch, highlightTask, showAdvice
       </div>
       {sheltering && <p className="mb-2 text-sm text-amber-300">Sheltering from a solar storm: no work this sol.</p>}
       {!sheltering && repairShifts > 0 && (
-        <p className="mb-2 text-sm text-amber-300">
-          🔧 {repairShifts} shift{repairShifts > 1 ? 's' : ''} owed to repairs{game.environment.busyEvaShifts > 0 ? ', some outside' : ''}: taken from science first.
+        <p className="flex items-center gap-1.5 mb-2 text-sm text-amber-300">
+          <Wrench size={15} className="shrink-0" aria-hidden /> {repairShifts} shift{repairShifts > 1 ? 's' : ''} owed to repairs{game.environment.busyEvaShifts > 0 ? ', some outside' : ''}: taken from science first.
         </p>
       )}
       {showAdvice && swapAdvice && (
@@ -145,7 +145,11 @@ export function CrewPanel({ game, decisions, dispatch, highlightTask, showAdvice
                 {TASK_LABELS[task].label}
                 {EVA_TASKS.has(task) && <span className="ml-1 rounded bg-orange-500/20 px-1 text-orange-300">EVA: extra radiation</span>}
                 <span className="block text-slate-500">{TASK_LABELS[task].hint}</span>
-                {maxedOut[task] && <span className="block font-semibold text-amber-300">⚠ {maxedOut[task]}</span>}
+                {maxedOut[task] && (
+                  <span className="flex items-start gap-1 font-semibold text-amber-300">
+                    <TriangleAlert size={13} className="mt-0.5 shrink-0" aria-hidden /> {maxedOut[task]}
+                  </span>
+                )}
               </p>
             </div>
           )

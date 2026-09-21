@@ -5,6 +5,7 @@
 // Coordinates are pixels of the terrain image (1585 x 992). Each building
 // sits on one of the five pads marked on the terrain.
 
+import { FlaskConical, Home, Pickaxe, Shield, Sprout, Sun, TriangleAlert, Wind, Zap, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { EVA_TASKS } from '../sim/advanceSol.ts'
 import { BALANCE } from '../sim/balance.ts'
@@ -36,14 +37,16 @@ function groundAt(u: number, v: number) {
   return { x: nx + u * (wx - nx) + v * (ex - nx), y: ny + u * (wy - ny) + v * (ey - ny) }
 }
 
-// Where each building stands. Spread out, with bare ground between them:
-// the outpost should read as a few small structures on a big empty world.
+// Where each building stands: the habitat in the middle with the other four
+// around it, bare ground between them. Every stone platform keeps at least
+// ~80px of clearance from the slab's rocky rim, which is what stops a
+// building from looking like it is sliding off the edge at night.
 const PADS = {
-  solar: { u: 0.18, v: 0.3 },
-  habitat: { u: 0.46, v: 0.52 },
-  reactor: { u: 0.2, v: 0.8 },
-  greenhouse: { u: 0.9, v: 0.45 },
-  lab: { u: 0.55, v: 0.92 },
+  solar: { u: 0.22, v: 0.25 },
+  habitat: { u: 0.5, v: 0.5 },
+  reactor: { u: 0.22, v: 0.8 },
+  greenhouse: { u: 0.8, v: 0.25 },
+  lab: { u: 0.78, v: 0.78 },
 } as const
 type PadId = keyof typeof PADS
 
@@ -79,7 +82,7 @@ const TASK_PLACE: Record<CrewTask, PadId | 'field' | 'o2'> = {
   isru: 'o2',
   rest: 'habitat',
 }
-const FIELD_SPOT = groundAt(0.8, 0.7) // open ground between the greenhouse and the lab
+const FIELD_SPOT = groundAt(0.8, 0.52) // open ground between the greenhouse and the lab
 
 type Status = 'on' | 'off' | 'shed'
 
@@ -138,13 +141,17 @@ function CargoLander({ x, y }: { x: number; y: number }) {
   )
 }
 
-// A pill-shaped label, like a map marker, centred at (x, y).
-function Pill({ x, y, children, tone = 'normal' }: { x: number; y: number; children: ReactNode; tone?: 'normal' | 'warn' | 'bad' }) {
+// A pill-shaped label, like a map marker, centred at (x, y). It holds real
+// elements rather than SVG text, so the icons are the same lucide set the
+// rest of the UI uses.
+function Pill({ x, y, icon: Icon, children, tone = 'normal' }: { x: number; y: number; icon?: LucideIcon; children: ReactNode; tone?: 'normal' | 'warn' | 'bad' }) {
   const border = tone === 'bad' ? 'border-red-400' : tone === 'warn' ? 'border-amber-300' : 'border-sky-300/60'
+  const iconTone = tone === 'bad' ? 'text-red-300' : tone === 'warn' ? 'text-amber-300' : 'text-sky-300'
   return (
     <foreignObject x={x - 220} y={y - 28} width={440} height={56} style={{ overflow: 'visible' }}>
       <div className="flex h-full items-center justify-center">
-        <div className={`whitespace-nowrap rounded-xl border-2 ${border} bg-slate-900/85 px-4 py-1 text-[24px] font-semibold text-white shadow-lg`}>
+        <div className={`flex items-center gap-1.5 whitespace-nowrap rounded-xl border-2 ${border} bg-slate-900/85 px-4 py-1 text-[24px] font-semibold text-white shadow-lg`}>
+          {Icon && <Icon size={22} className={`shrink-0 ${iconTone}`} aria-hidden />}
           {children}
         </div>
       </div>
@@ -291,38 +298,55 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
       {sheltering && <rect width={W} height={H} fill="#dc2626" opacity={0.12} />}
 
       {/* Labels and crew, drawn last so nothing covers them. */}
-      {f.solarArrayM2 > 0 && <Pill x={sol.x} y={sol.y}>Solar ☀️ {f.solarArrayM2} m²</Pill>}
+      {f.solarArrayM2 > 0 && (
+        <Pill x={sol.x} y={sol.y} icon={Sun}>
+          Solar {f.solarArrayM2} m²
+        </Pill>
+      )}
       {badgesUnder('solar', sol.x, sol.foot)}
 
       {f.greenhouseM2 > 0 && (
-        <Pill x={gh.x} y={gh.y} tone={status('greenhouse') === 'shed' ? 'bad' : 'normal'}>
-          Greenhouse 🌱 {f.greenhouseM2} m²{status('greenhouse') === 'off' ? ' · off' : status('greenhouse') === 'shed' ? ' · no power' : ''}
+        <Pill x={gh.x} y={gh.y} icon={Sprout} tone={status('greenhouse') === 'shed' ? 'bad' : 'normal'}>
+          Greenhouse {f.greenhouseM2} m²{status('greenhouse') === 'off' ? ' · off' : status('greenhouse') === 'shed' ? ' · no power' : ''}
         </Pill>
       )}
       {badgesUnder('greenhouse', gh.x, gh.foot)}
 
-      <Pill x={hab.x} y={hab.y} tone={worn ? 'warn' : 'normal'}>
-        Habitat{f.shieldingLevel > 0 ? ` 🛡️ ${f.shieldingLevel}/${BALANCE.MAX_SHIELDING_LEVEL}` : ''}
-        {worn ? ` ⚠️ ${Math.round(f.condition * 100)}%` : ''}
+      <Pill x={hab.x} y={hab.y} icon={Home} tone={worn ? 'warn' : 'normal'}>
+        Habitat
+        {f.shieldingLevel > 0 && (
+          <span className="flex items-center gap-1 text-slate-300">
+            <Shield size={20} aria-hidden /> {f.shieldingLevel}/{BALANCE.MAX_SHIELDING_LEVEL}
+          </span>
+        )}
+        {worn && (
+          <span className="flex items-center gap-1 text-amber-300">
+            <TriangleAlert size={20} aria-hidden /> {Math.round(f.condition * 100)}%
+          </span>
+        )}
       </Pill>
       {badgesUnder('habitat', hab.x, hab.foot)}
 
-      {f.reactorKW > 0 && <Pill x={rea.x} y={rea.y}>Reactor ⚡ {f.reactorKW} kW</Pill>}
+      {f.reactorKW > 0 && (
+        <Pill x={rea.x} y={rea.y} icon={Zap}>
+          Reactor {f.reactorKW} kW
+        </Pill>
+      )}
       {game.scenario.isruAvailable && f.isruUnits > 0 && (
-        <Pill x={o2Pad.x + 40} y={o2Pad.y - 60} tone={status('isru') === 'shed' ? 'bad' : 'normal'}>
+        <Pill x={o2Pad.x + 40} y={o2Pad.y - 60} icon={Wind} tone={status('isru') === 'shed' ? 'bad' : 'normal'}>
           O₂ makers ×{f.isruUnits}{status('isru') === 'off' ? ' · off' : status('isru') === 'shed' ? ' · no power' : ''}
         </Pill>
       )}
       {badgesUnder('o2', o2Pad.x + 40, o2Pad.y - 8)}
 
-      <Pill x={lab.x} y={lab.y} tone={status('lab') === 'shed' ? 'bad' : 'normal'}>
+      <Pill x={lab.x} y={lab.y} icon={FlaskConical} tone={status('lab') === 'shed' ? 'bad' : 'normal'}>
         Lab{status('lab') === 'off' ? ' · off' : status('lab') === 'shed' ? ' · no power' : ''}
       </Pill>
       {badgesUnder('lab', lab.x, lab.foot)}
 
       {crewAt.has('field') && (
         <>
-          <Pill x={FIELD_SPOT.x} y={FIELD_SPOT.y - 60}>Field work 🪨</Pill>
+          <Pill x={FIELD_SPOT.x} y={FIELD_SPOT.y - 60} icon={Pickaxe}>Field work</Pill>
           {badgesUnder('field', FIELD_SPOT.x, FIELD_SPOT.y)}
         </>
       )}

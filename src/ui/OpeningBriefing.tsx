@@ -1,6 +1,6 @@
-import { TriangleAlert } from 'lucide-react'
-import type { Decisions, GameState } from '../sim/types.ts'
-import { OPENINGS } from './labels.ts'
+import { Play, TriangleAlert } from 'lucide-react'
+import type { CrewTask, Decisions, GameState } from '../sim/types.ts'
+import { OPENINGS, TASK_ICONS, TASK_LABELS } from './labels.ts'
 
 // The first-90-seconds guide. One problem, one fix, shown in place: no
 // tutorial to read. It disappears once the player has seen the fix work.
@@ -31,9 +31,28 @@ export function OpeningBriefing({ game, decisions, onDismiss }: { game: GameStat
         <p className="text-base font-bold text-yellow-100">{opening.title}</p>
         <p className="mt-1 text-slate-200">{opening.problem}</p>
         <p className="mt-1 font-semibold text-yellow-100">
-          {fixed ? 'Good. Now press Advance sol ▶ and see what happens.' : opening.fix}
+          {fixed ? (
+            <>
+              Good. Now press Advance sol <Play size={14} className="inline align-[-1px]" aria-hidden /> and see what happens.
+            </>
+          ) : (
+            <>
+              {opening.fix.before} <FixTask task={opening.fixTask} /> {opening.fix.after}
+            </>
+          )}
         </p>
       </div>
     </div>
+  )
+}
+
+// The task the briefing is pointing at, shown the way its button is, so a
+// player can match the words to the thing they have to press.
+function FixTask({ task }: { task: CrewTask }) {
+  const Icon = TASK_ICONS[task]
+  return (
+    <span className="whitespace-nowrap rounded bg-yellow-300/20 px-1.5 py-0.5">
+      <Icon size={14} className="inline align-[-2px]" aria-hidden /> {TASK_LABELS[task].label}
+    </span>
   )
 }

@@ -1,3 +1,4 @@
+import { Apple, Clock, Droplet, Globe, Moon, Radiation, Trophy, Wind, Zap, type LucideIcon } from 'lucide-react'
 import type { Dispatch } from 'react'
 import { c } from '../sim/constants.ts'
 import type { GameState, LossReason, ScenarioId } from '../sim/types.ts'
@@ -36,7 +37,11 @@ export function StartScreen({ dispatch }: { dispatch: Dispatch<Action> }) {
               onClick={() => start(id)}
               className="rounded-2xl border border-slate-700 bg-slate-900 p-5 text-left hover:border-yellow-300"
             >
-              <p className="text-4xl" aria-hidden>{id === 'moon' ? '🌕' : '🔴'}</p>
+              {id === 'moon' ? (
+                <Moon size={36} className="text-amber-200" aria-hidden />
+              ) : (
+                <Globe size={36} className="text-red-400" aria-hidden />
+              )}
               <h2 className="mt-2 text-xl font-bold">{sc.name}</h2>
               <p className="mt-1 text-sm text-slate-300">{SCENARIO_BLURBS[id]}</p>
               <p className="mt-3 text-sm text-violet-300">
@@ -51,7 +56,7 @@ export function StartScreen({ dispatch }: { dispatch: Dispatch<Action> }) {
 }
 
 interface LossInfo {
-  icon: string
+  icon: LucideIcon
   title: string
   whatHappened: (g: GameState) => string
   realWorld: string
@@ -64,16 +69,16 @@ const pctOf = (x: number) => `${Math.round(x * 100)}%`
 // spaceflight. Figures come from constants.ts so they match the game.
 const LOSS_INFO: Record<LossReason, LossInfo> = {
   water: {
-    icon: '💧',
+    icon: Droplet,
     title: 'The crew ran out of water',
     whatHappened: (g) =>
       `By sol ${g.sol - 1} the base was at ${pctOf(g.facilities.condition)} condition, so the recycler was losing water faster than the crew could replace it.`,
     realWorld:
       `Each astronaut uses about ${c('CREW_WATER_L_PER_DAY')} L of water a day. Water is heavy to launch, so the ISS recycles about ${pctOf(c('WATER_RECOVERY_FRACTION'))} of it, from sweat and urine too. A recycler only works if someone keeps it running.`,
-    tryNext: 'Keep someone on 🔧 Maintenance whenever the base condition drops.',
+    tryNext: 'Keep someone on Maintenance whenever the base condition drops.',
   },
   oxygen: {
-    icon: '🫁',
+    icon: Wind,
     title: 'The crew ran out of oxygen',
     whatHappened: (g) =>
       g.scenario.isruAvailable
@@ -84,7 +89,7 @@ const LOSS_INFO: Record<LossReason, LossInfo> = {
     tryNext: 'Build O₂ makers early, and keep enough solar power to run them through dust storms.',
   },
   food: {
-    icon: '🥔',
+    icon: Apple,
     title: 'The crew ran out of food',
     whatHappened: (g) => `The greenhouse was ${g.facilities.greenhouseM2} m², and deliveries could not keep up with four hungry astronauts.`,
     realWorld:
@@ -92,7 +97,7 @@ const LOSS_INFO: Record<LossReason, LossInfo> = {
     tryNext: 'Grow the greenhouse, and keep it powered when you can.',
   },
   power: {
-    icon: '⚡',
+    icon: Zap,
     title: 'Life support lost power',
     whatHappened: (g) =>
       g.scenario.dayNightCycle
@@ -103,7 +108,7 @@ const LOSS_INFO: Record<LossReason, LossInfo> = {
     tryNext: 'Switch off the lab and greenhouse at night or in a storm, and build panels before storms hit.',
   },
   radiation: {
-    icon: '☢️',
+    icon: Radiation,
     title: 'An astronaut passed their radiation limit',
     whatHappened: (g) => {
       const m = g.crew.reduce((a, b) => (b.doseMSv - b.careerDoseLimitMSv > a.doseMSv - a.careerDoseLimitMSv ? b : a))
@@ -114,7 +119,7 @@ const LOSS_INFO: Record<LossReason, LossInfo> = {
     tryNext: 'Pile regolith, shelter from solar storms, and give spacewalks to the crew with the lowest dose.',
   },
   missionTimeout: {
-    icon: '⏱️',
+    icon: Clock,
     title: 'The mission clock ran out',
     whatHappened: (g) => `The crew survived, but finished with ${g.sciencePoints} of the ${g.scenario.scienceTarget} science points needed.`,
     realWorld:
@@ -127,10 +132,13 @@ export function EndScreen({ game, dispatch }: { game: GameState; dispatch: Dispa
   const o = game.outcome
   const won = o.status === 'won'
   const info = o.status === 'lost' ? LOSS_INFO[o.reason] : null
+  const LossIcon = info?.icon ?? Trophy
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-4" role="dialog" aria-modal="true" aria-labelledby="end-title">
       <div className={`w-full max-w-lg rounded-2xl border bg-slate-900 p-6 ${won ? 'border-emerald-400' : 'border-red-500'}`}>
-        <p className="text-center text-5xl" aria-hidden>{won ? '🏆' : info!.icon}</p>
+        <p className="flex justify-center" aria-hidden>
+          {won ? <Trophy size={52} className="text-yellow-300" /> : <LossIcon size={52} className="text-red-400" />}
+        </p>
         <h2 id="end-title" className="mt-2 text-center text-2xl font-bold">
           {won ? 'Mission accomplished!' : info!.title}
         </h2>
