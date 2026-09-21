@@ -5,6 +5,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { POLICIES } from '../../scripts/policies.ts'
 import { advanceSol } from '../sim/advanceSol.ts'
+import { lightInfo, nightAhead } from '../sim/forecast.ts'
 import { newGame } from '../sim/newGame.ts'
 import { mars } from '../sim/scenarios/mars.ts'
 import { moon } from '../sim/scenarios/moon.ts'
@@ -111,14 +112,23 @@ describe('advanceSol', () => {
 describe('opening crisis', () => {
   const FIX = { moon: 'maintenance', mars: 'isru' } as const
 
-  function playOpening(scenario: Scenario, seed: number, followBriefing: boolean, sols: number): GameState {
+  function playOpening(
+    scenario: Scenario,
+    seed: number,
+    followBriefing: boolean,
+    sols: number,
+    rationAtNight = false,
+  ): GameState {
     const tasks = [...OPENINGS[scenario.id].inheritedTasks]
     if (followBriefing) tasks[1] = FIX[scenario.id] // move one scientist to the fix
     let state = newGame(scenario, seed)
     while (state.outcome.status === 'playing' && state.sol < scenario.start.sol + sols) {
+      // A player who reads the power meter switches the optional systems
+      // off once the Sun goes down.
+      const dark = rationAtNight && !lightInfo(scenario, state.sol).isDaylight
       state = advanceSol(state, {
         assignments: Object.fromEntries(state.crew.map((m, i) => [m.id, tasks[i]])),
-        power: { lab: true, greenhouse: true, isru: true },
+        power: { lab: !dark, greenhouse: !dark, isru: true },
         eventChoiceId: state.pendingEvent?.defaultChoiceId,
       })
     }
@@ -126,7 +136,7 @@ describe('opening crisis', () => {
   }
 
   for (const scenario of [moon, mars]) {
-    it(`${scenario.id}: following the briefing survives the first 12 sols`, () => {
+    it(`${scenario.id}: following the briefing survives the opening crisis`, () => {
       for (let seed = 1; seed <= 30; seed++) {
         assert.equal(playOpening(scenario, seed, true, 12).outcome.status, 'playing', `seed ${seed}`)
       }
@@ -138,4 +148,41 @@ describe('opening crisis', () => {
       }
     })
   }
+
+  // The Moon's second lesson: the long night has to be planned for. The
+  // game must warn while there is still daylight to act in, and switching
+  // the optional systems off must be enough to get through.
+  it('moon: the coming night is announced with time to prepare', () => {
+    let state = newGame(moon, 1)
+    const warnings: number[] = []
+    while (state.outcome.status === 'playing' && state.sol < moon.start.sol + 6) {
+      const ahead = nightAhead(state)
+      if (ahead) warnings.push(ahead.inSols)
+      state = advanceSol(state, {
+        assignments: Object.fromEntries(state.crew.map((m) => [m.id, 'labScience' as const])),
+        power: { lab: true, greenhouse: true, isru: true },
+      })
+    }
+    // Counts down to nightfall, and says the battery needs a real reserve.
+    assert.deepEqual(warnings.slice(0, 5), [5, 4, 3, 2, 1])
+    assert.ok(nightAhead(newGame(moon, 1))!.reserveKWh > 100)
+  })
+
+  it('moon: switching the lab and greenhouse off at night survives it', () => {
+    // 25 sols covers the water crisis and the whole first night, including
+    // seeds where two solar flares stall the repairs.
+    for (let seed = 1; seed <= 30; seed++) {
+      const end = playOpening(moon, seed, true, 25, true)
+      assert.equal(end.outcome.status, 'playing', `seed ${seed} ended: ${JSON.stringify(end.outcome)}`)
+    }
+  })
+
+  it('moon: leaving everything on through the night loses power', () => {
+    let lost = 0
+    for (let seed = 1; seed <= 20; seed++) {
+      const end = playOpening(moon, seed, true, 25, false)
+      if (end.outcome.status === 'lost' && end.outcome.reason === 'power') lost++
+    }
+    assert.ok(lost >= 15, `expected most runs to lose power, got ${lost}/20`)
+  })
 })

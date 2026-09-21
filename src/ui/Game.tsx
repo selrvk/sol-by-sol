@@ -9,6 +9,7 @@ import { loadSavedUiState, reducer, saveUiState, SCENARIOS } from './gameReducer
 import { OPENINGS } from './labels.ts'
 import { MissionLog } from './MissionLog.tsx'
 import { OpeningBriefing } from './OpeningBriefing.tsx'
+import { useSolEffects } from './useSolEffects.ts'
 import { ResourcePanel } from './ResourcePanel.tsx'
 import { EndScreen, StartScreen } from './Screens.tsx'
 import { TopBar } from './TopBar.tsx'
@@ -21,6 +22,7 @@ export function Game() {
   const [ui, dispatch] = useReducer(reducer, undefined, loadSavedUiState)
   const [briefingDismissedFor, setBriefingDismissedFor] = useState<number | null>(null)
   const { game, previous, decisions, history } = ui
+  const solEffects = useSolEffects(game)
 
   useEffect(() => saveUiState(ui), [ui])
 
@@ -64,7 +66,7 @@ export function Game() {
             </div>
           )}
           <div className="relative order-2 overflow-hidden rounded-2xl border border-slate-800 lg:order-none">
-            <BaseView game={game} decisions={decisions} />
+            <BaseView game={game} decisions={decisions} effects={solEffects} />
             <label className="absolute left-3 top-3">
               <span className="sr-only">World</span>
               <select

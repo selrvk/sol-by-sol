@@ -11,3 +11,72 @@
 @media (prefers-reduced-motion: reduce) {
   .shed-pulse { animation: none; filter: drop-shadow(0 0 10px rgb(239 68 68 / 0.9)); }
 }
+
+/* --- One-shot feedback after pressing Advance --- */
+
+/* The per-sol change pops so the eye catches it. */
+@keyframes delta-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+.delta-pop { animation: delta-pop 0.5s ease-out; transform-origin: right center; }
+
+/* The newest mission log line slides in. */
+@keyframes log-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+.log-in { animation: log-in 0.45s ease-out; }
+
+/* A building's windows flicker out when its power is cut. */
+@keyframes flicker-out {
+  0%, 100% { opacity: 1; }
+  12%, 36%, 62% { opacity: 0.25; }
+  24%, 48%, 80% { opacity: 1; }
+}
+.flicker-out { animation: flicker-out 1.1s ease-in-out; }
+
+/* A solar flare washes the scene red once. */
+@keyframes flare-flash {
+  0% { opacity: 0; }
+  12% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+.flare-flash { animation: flare-flash 1.6s ease-out; }
+
+/* The cargo lander comes down and settles. */
+@keyframes lander-descend {
+  0% { transform: translateY(-420px); opacity: 0; }
+  15% { opacity: 1; }
+  70% { transform: translateY(0); }
+  78% { transform: translateY(-8px); }
+  100% { transform: translateY(0); }
+}
+.lander-descend { animation: lander-descend 2.2s cubic-bezier(0.3, 0.7, 0.3, 1) both; }
+
+@keyframes thruster {
+  0%, 100% { opacity: 0.9; transform: scaleY(1); }
+  50% { opacity: 0.45; transform: scaleY(0.6); }
+}
+.thruster { animation: thruster 0.12s ease-in-out infinite; transform-origin: top center; }
+
+/* Lit windows breathe gently through the night. */
+@keyframes night-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.93; }
+}
+.night-breathe { animation: night-breathe 5s ease-in-out infinite; }
+
+/* Stars twinkle once the Sun is down. */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.9; }
+}
+.twinkle { animation: twinkle 3.2s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .delta-pop, .log-in, .flicker-out, .flare-flash, .lander-descend, .thruster, .night-breathe, .twinkle {
+    animation: none;
+  }
+}

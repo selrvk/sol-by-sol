@@ -23,7 +23,7 @@ export function MissionLog({ log }: { log: GameEvent[] }) {
   return (
     <ol aria-label="Mission log" className="max-h-44 space-y-1 overflow-y-auto pr-1 text-sm">
       {entries.map((e, i) => (
-        <li key={`${e.sol}-${i}`} className={`flex gap-2 ${e.sol === latestSol ? 'text-slate-100' : 'text-slate-500'}`}>
+        <li key={`${e.sol}-${i}`} className={`flex gap-2 ${e.sol === latestSol ? 'text-slate-100' : 'text-slate-500'} ${i === 0 ? 'log-in' : ''}`}>
           <span className="w-14 shrink-0 tabular-nums text-slate-500">Sol {e.sol}</span>
           <span aria-hidden>{ICONS[e.kind]}</span>
           <span>{e.kind === 'eventStart' ? `Alert: ${e.message}` : e.message}</span>

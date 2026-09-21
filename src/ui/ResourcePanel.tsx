@@ -2,9 +2,10 @@ import { Apple, Droplet, Radiation, Users, Zap } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { advanceSol } from '../sim/advanceSol.ts'
 import { BALANCE } from '../sim/balance.ts'
-import { lifeSupportReserveKWh } from '../sim/forecast.ts'
+import { lifeSupportReserveKWh, nightAhead } from '../sim/forecast.ts'
 import type { Decisions, GameState } from '../sim/types.ts'
 import { METER_WHY, POWER_LABELS } from './labels.ts'
+import { AnimatedValue } from './AnimatedValue.tsx'
 import { WhyTooltip } from './WhyTooltip.tsx'
 
 interface Props {
@@ -45,6 +46,16 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
   const reserve = lifeSupportReserveKWh(game)
   const reserveKWh = Math.ceil(reserve.reserveKWh)
   const reserveShort = reserve.hardSols > 0 && r.storedPowerKWh < reserveKWh
+  // Warn while there is still daylight to act in: the whole night's life
+  // support has to come out of the battery.
+  const ahead = nightAhead(game, decisions)
+  const battery = game.facilities.batteryCapacityKWh
+  const nightWarning = !ahead || ahead.inSols > 5
+    ? null
+    : ahead.plannedKWh > battery
+      ? `Night in ${ahead.inSols} sol${ahead.inSols === 1 ? '' : 's'}. Running everything through ${ahead.nightSols} dark sols would need about ` +
+        `${Math.ceil(ahead.plannedKWh)} kWh, more than the ${battery} kWh battery holds. Switch the lab and greenhouse off at night: life support alone needs about ${Math.ceil(ahead.reserveKWh)} kWh.`
+      : `Night in ${ahead.inSols} sol${ahead.inSols === 1 ? '' : 's'}: about ${Math.ceil(ahead.plannedKWh)} kWh of battery will see this plan through ${ahead.nightSols} dark sols.`
   const reserveLine =
     reserve.hardSols > 0 && reserveKWh > 0
       ? `Life support needs ${reserveKWh} kWh of battery to reach ${game.environment.dustStormSolsLeft > 0 && game.environment.isDaylight ? 'the end of the storm' : 'sunrise'}.` +
@@ -73,32 +84,35 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       <Meter
         name="Power"
         forecast={isForecast}
+        tick={game.sol}
         highlight={highlight === 'power'}
         icon={<Badge tone="amber"><Zap size={20} fill="currentColor" /></Badge>}
-        value={`${Math.round(r.storedPowerKWh)} kWh`}
+        value={<AnimatedValue value={r.storedPowerKWh} suffix=" kWh" />}
         fill={r.storedPowerKWh / game.facilities.batteryCapacityKWh}
         delta={d?.storedPowerKWh}
         unit="kWh"
         amount={r.storedPowerKWh}
         why={METER_WHY.power(game.scenario)}
         detail={
+          (nightWarning ? nightWarning + ' ' : '') +
           (reserveLine ? reserveLine + ' ' : '') +
           (report
             ? `${isForecast ? 'Next sol' : 'Last sol'}: made ${Math.round(report.powerGeneratedKWh)}, needed ${Math.round(report.powerDemandKWh)}` +
               (report.shedLoads.length ? ` · switched off: ${report.shedLoads.map((l) => POWER_LABELS[l]).join(', ')}` : '')
             : `Battery holds ${game.facilities.batteryCapacityKWh} kWh`)
         }
-        warn={reserveShort || (report ? report.shedLoads.length > 0 : false)}
+        warn={reserveShort || nightWarning !== null || (report ? report.shedLoads.length > 0 : false)}
       />
       <Meter
         name="Oxygen"
         icon={<Badge tone="sky"><span className="text-sm font-bold">O₂</span></Badge>}
-        value={`${Math.round(r.oxygenKg)} kg`}
+        value={<AnimatedValue value={r.oxygenKg} suffix=" kg" />}
         fill={r.oxygenKg / Math.max(start.oxygenKg, r.oxygenKg)}
         delta={d?.oxygenKg}
         unit="kg"
         amount={r.oxygenKg}
         forecast={isForecast}
+        tick={game.sol}
         highlight={highlight === 'oxygen'}
         why={METER_WHY.oxygen(game.scenario)}
         detail={o2Line}
@@ -106,12 +120,13 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       <Meter
         name="Water"
         icon={<Badge tone="blue"><Droplet size={20} fill="currentColor" /></Badge>}
-        value={`${Math.round(r.waterL)} L`}
+        value={<AnimatedValue value={r.waterL} suffix=" L" />}
         fill={r.waterL / Math.max(start.waterL, r.waterL)}
         delta={d?.waterL}
         unit="L"
         amount={r.waterL}
         forecast={isForecast}
+        tick={game.sol}
         highlight={highlight === 'water'}
         why={METER_WHY.water(game.scenario)}
         detail={recyclerLine}
@@ -120,12 +135,13 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       <Meter
         name="Food"
         icon={<Badge tone="green"><Apple size={20} fill="currentColor" /></Badge>}
-        value={`${Math.round(r.foodKg)} kg`}
+        value={<AnimatedValue value={r.foodKg} suffix=" kg" />}
         fill={r.foodKg / Math.max(start.foodKg, r.foodKg)}
         delta={d?.foodKg}
         unit="kg"
         amount={r.foodKg}
         forecast={isForecast}
+        tick={game.sol}
         highlight={highlight === 'food'}
         why={METER_WHY.food(game.scenario)}
         detail={`Greenhouse ${game.facilities.greenhouseM2} m²`}
@@ -133,9 +149,10 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       <Meter
         name="Radiation"
         forecast={isForecast}
+        tick={game.sol}
         highlight={highlight === 'radiation'}
         icon={<Badge tone="yellow"><Radiation size={20} /></Badge>}
-        value={`${Math.round(worst.doseMSv)} / ${worst.careerDoseLimitMSv} mSv`}
+        value={<><AnimatedValue value={worst.doseMSv} /> / {worst.careerDoseLimitMSv} mSv</>}
         fill={worst.doseMSv / worst.careerDoseLimitMSv}
         invert
         delta={doseDelta}
@@ -146,6 +163,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       <Meter
         name="Crew time"
         forecast={isForecast}
+        tick={game.sol}
         highlight={highlight === 'crew time'}
         icon={<Badge tone="indigo"><Users size={20} /></Badge>}
         value={`${hoursAssigned} / ${hoursAvailable} h`}
@@ -170,7 +188,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
 interface MeterProps {
   name: string
   icon: ReactNode
-  value: string
+  value: ReactNode
   fill: number
   delta?: number
   unit?: string
@@ -180,11 +198,12 @@ interface MeterProps {
   invert?: boolean  // higher is worse (radiation)
   neutral?: boolean // no good/bad colouring
   warn?: boolean
+  tick?: number       // changes each sol, so the delta animation replays
   forecast?: boolean  // delta is a forecast for the next sol, not last sol
   highlight?: boolean
 }
 
-function Meter({ name, icon, value, fill, delta, unit, amount, why, detail, invert, neutral, warn, forecast, highlight }: MeterProps) {
+function Meter({ name, icon, value, fill, delta, unit, amount, why, detail, invert, neutral, warn, forecast, highlight, tick }: MeterProps) {
   const solsLeft = amount !== undefined && delta !== undefined && delta < -0.01 ? Math.floor(amount / -delta) : null
   // While a resource is draining, the bar shows how long it will last
   // (full = 40+ sols), so a crisis looks like one even when the stock is
@@ -211,7 +230,7 @@ function Meter({ name, icon, value, fill, delta, unit, amount, why, detail, inve
       <div className="mt-1 flex flex-wrap justify-between gap-x-2 text-[11px] text-slate-400">
         <span className={warn ? 'text-amber-300' : ''}>{detail}</span>
         {delta !== undefined && Math.abs(delta) >= 0.05 && (
-          <span className={`ml-auto whitespace-nowrap tabular-nums ${(invert ? delta > 0 : delta < 0) ? 'text-red-300' : 'text-emerald-300'}`}>
+          <span key={tick} className={`delta-pop ml-auto whitespace-nowrap tabular-nums ${(invert ? delta > 0 : delta < 0) ? 'text-red-300' : 'text-emerald-300'}`}>
             {forecast ? 'next sol: ' : ''}
             {delta > 0 ? '+' : ''}
             {delta.toFixed(1)} {unit}/sol{solsLeft !== null && solsLeft < 60 ? ` · ~${solsLeft} sols left` : ''}

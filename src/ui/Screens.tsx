@@ -6,8 +6,12 @@ import { SCENARIOS } from './gameReducer.ts'
 import { SCENARIO_BLURBS } from './labels.ts'
 
 // A fresh seed per game. The sim itself never calls Math.random: the seed
-// is shown on the end screen so a game can be replayed exactly.
+// is shown on the end screen so a game can be replayed exactly. Passing
+// ?seed=123 in the address replays a particular mission, which is handy for
+// sharing a run or reproducing a bug.
 function newSeed(): number {
+  const asked = Number(new URLSearchParams(window.location.search).get('seed'))
+  if (Number.isFinite(asked) && asked > 0) return Math.floor(asked)
   return Math.floor(Math.random() * 2 ** 31)
 }
 

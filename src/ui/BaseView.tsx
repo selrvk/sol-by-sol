@@ -10,6 +10,7 @@ import { BALANCE } from '../sim/balance.ts'
 import { lightInfo } from '../sim/forecast.ts'
 import type { CrewMember, CrewTask, Decisions, GameState, PowerLoad } from '../sim/types.ts'
 import { CREW_PORTRAITS } from './labels.ts'
+import type { SolEffects } from './useSolEffects.ts'
 
 const W = 1585
 const H = 992
@@ -68,13 +69,48 @@ function spriteBox(pad: PadId, s: Sprite) {
 
 // A building with day and night art stacked and cross-faded, so nightfall
 // is a smooth change and the night image is already loaded when needed.
-function Building({ pad, sprite, night, status = 'on' }: { pad: PadId; sprite: Sprite; night: boolean; status?: Status }) {
+function Building({ pad, sprite, night, status = 'on', flicker = false }: { pad: PadId; sprite: Sprite; night: boolean; status?: Status; flicker?: boolean }) {
   const box = spriteBox(pad, sprite)
   const filter = status === 'off' ? 'grayscale(1) brightness(0.55)' : undefined
+  const cls = [status === 'shed' ? 'shed-pulse' : '', flicker ? 'flicker-out' : ''].filter(Boolean).join(' ')
   return (
-    <g className={status === 'shed' ? 'shed-pulse' : undefined} style={{ filter }}>
+    <g className={cls || undefined} style={{ filter }}>
       <image href={`${ART}/buildings/${sprite.name}-day.webp`} {...box} style={{ opacity: night ? 0 : 1, transition: 'opacity 1.2s' }} />
-      <image href={`${ART}/buildings/${sprite.name}-night.webp`} {...box} style={{ opacity: night ? 1 : 0, transition: 'opacity 1.2s' }} />
+      <g className={night ? 'night-breathe' : undefined}>
+        <image href={`${ART}/buildings/${sprite.name}-night.webp`} {...box} style={{ opacity: night ? 1 : 0, transition: 'opacity 1.2s' }} />
+      </g>
+    </g>
+  )
+}
+
+// Stars for the night sky: fixed positions above the terrain's edge, so they
+// only ever sit in the empty sky, never on the ground.
+const STARS = (() => {
+  const above = (x: number, y: number) => y < (x < 782 ? 424 - 0.5083 * (x - 3) : 28 + 0.4819 * (x - 782)) - 12
+  const out: { x: number; y: number; r: number; delay: number }[] = []
+  for (let i = 0; i < 90 && out.length < 34; i++) {
+    const x = 130 + ((i * 271) % 1330)
+    const y = 145 + ((i * 137) % 300)
+    if (above(x, y)) out.push({ x, y, r: i % 4 === 0 ? 3 : 2, delay: (i % 7) * 0.45 })
+  }
+  return out
+})()
+
+// A cargo lander touching down: only drawn on the sol it arrives.
+function CargoLander({ x, y }: { x: number; y: number }) {
+  return (
+    <g transform={`translate(${x}, ${y})`}>
+      <g className="lander-descend">
+        <ellipse cx={0} cy={46} rx={54} ry={14} fill="#0f172a" opacity={0.45} />
+        <path d="M-34 28 L-46 48 M34 28 L46 48 M-16 30 L-22 50 M16 30 L22 50" stroke="#94a3b8" strokeWidth={5} strokeLinecap="round" />
+        <rect x={-40} y={-16} width={80} height={46} rx={10} fill="#e2e8f0" stroke="#475569" strokeWidth={4} />
+        <rect x={-40} y={-2} width={80} height={8} fill="#f97316" />
+        <rect x={-24} y={-30} width={48} height={16} rx={6} fill="#cbd5e1" stroke="#475569" strokeWidth={3} />
+        <g className="thruster">
+          <path d="M-14 30 L0 62 L14 30 Z" fill="#fbbf24" opacity={0.9} />
+          <path d="M-7 30 L0 48 L7 30 Z" fill="#fef3c7" />
+        </g>
+      </g>
     </g>
   )
 }
@@ -116,7 +152,7 @@ function CrewBadges({ x, y, crew }: { x: number; y: number; crew: CrewMember[] }
   )
 }
 
-export function BaseView({ game, decisions }: { game: GameState; decisions: Decisions }) {
+export function BaseView({ game, decisions, effects }: { game: GameState; decisions: Decisions; effects?: SolEffects }) {
   const f = game.facilities
   const env = game.environment
   const isMars = game.scenario.id === 'mars'
@@ -176,22 +212,30 @@ export function BaseView({ game, decisions }: { game: GameState; decisions: Deci
         />
       )}
 
-      {/* Night: darken the ground. Buildings switch to their own night art. */}
-      <rect width={W} height={H} fill="#0a1433" style={{ opacity: night ? 0.55 : 0, transition: 'opacity 1.2s', mixBlendMode: 'multiply' }} />
-
-      {/* Solar panels have no night art: they just go dark with the ground. */}
+      {/* Solar panels have no night art. Drawing them before the night tint
+          means they darken with the ground, with nothing to animate. */}
       {f.solarArrayM2 > 0 && (
         <image
           href={`${ART}/buildings/solar.webp`}
           {...spriteBox('solar', SPRITES.solar)}
-          style={{ filter: night ? 'brightness(0.45) saturate(0.7)' : storm ? 'brightness(0.7)' : undefined, transition: 'filter 1.2s' }}
+          style={{ filter: storm ? 'brightness(0.7)' : undefined }}
         />
       )}
 
-      {f.greenhouseM2 > 0 && <Building pad="greenhouse" sprite={SPRITES.greenhouse} night={night} status={status('greenhouse')} />}
+      {/* Night: darken the ground and the panels; buildings light up. */}
+      <rect width={W} height={H} fill="#0a1433" style={{ opacity: night ? 0.55 : 0, transition: 'opacity 1.2s', mixBlendMode: 'multiply' }} />
+      <g style={{ opacity: night ? 1 : 0, transition: 'opacity 1.6s' }}>
+        {STARS.map((s, i) => (
+          <circle key={i} className="twinkle" cx={s.x} cy={s.y} r={s.r} fill="#e2e8f0" style={{ animationDelay: `${s.delay}s` }} />
+        ))}
+      </g>
+
+      {f.greenhouseM2 > 0 && (
+        <Building pad="greenhouse" sprite={SPRITES.greenhouse} night={night} status={status('greenhouse')} flicker={effects?.powerCut && status('greenhouse') === 'shed'} />
+      )}
       <Building pad="habitat" sprite={SPRITES.habitat} night={night} />
       {f.reactorKW > 0 && <Building pad="reactor" sprite={SPRITES.reactor} night={night} />}
-      <Building pad="lab" sprite={SPRITES.lab} night={night} status={status('lab')} />
+      <Building pad="lab" sprite={SPRITES.lab} night={night} status={status('lab')} flicker={effects?.powerCut && status('lab') === 'shed'} />
 
       {/* O₂ makers (Mars) have no art yet: simple tanks on the free pad. */}
       {game.scenario.isruAvailable && f.isruUnits > 0 && (
@@ -212,6 +256,12 @@ export function BaseView({ game, decisions }: { game: GameState; decisions: Deci
           })}
         </g>
       )}
+
+      {/* A cargo lander comes down on resupply sols. */}
+      {effects?.resupply && <CargoLander key={game.sol} x={880} y={700} />}
+
+      {/* A solar flare washes the scene red once, before the alert opens. */}
+      {effects?.flare && <rect key={game.sol} className="flare-flash" width={W} height={H} fill="#ef4444" />}
 
       {/* Weather and emergencies tint the whole scene. */}
       {storm && <rect width={W} height={H} fill="#b45309" opacity={0.3} />}
