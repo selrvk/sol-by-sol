@@ -1,16 +1,22 @@
-import { Clock, FlaskConical, Moon, Orbit, Package, ShieldAlert, Sun, Tornado, type LucideIcon } from 'lucide-react'
+import { FlaskConical, LogOut, Moon, Orbit, Package, ShieldAlert, Sun, Tornado, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { lightInfo, nextResupplySol } from '../sim/forecast.ts'
 import type { GameState } from '../sim/types.ts'
 import { MissionPatch } from './icons.tsx'
 
+// One reading in the bar. On a phone the caption is dropped and the value
+// sits next to its icon, which is the difference between a four-row bar and
+// a one-row one.
 function Stat({ icon: Icon, label, children, iconClass = 'text-slate-300' }: { icon: LucideIcon; label: string; children: ReactNode; iconClass?: string }) {
   return (
-    <div className="flex items-center gap-2.5 border-slate-700/70 sm:border-l sm:pl-4">
-      <Icon size={22} className={iconClass} aria-hidden />
+    <div className="flex items-center gap-1.5 border-slate-700/70 sm:gap-2.5 sm:border-l sm:pl-4">
+      <Icon size={18} className={`shrink-0 sm:h-[22px] sm:w-[22px] ${iconClass}`} aria-hidden />
       <div className="leading-tight">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-        <div className="text-sm">{children}</div>
+        <p className="hidden text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:block">{label}</p>
+        <div className="text-sm">
+          <span className="sr-only">{label}: </span>
+          {children}
+        </div>
       </div>
     </div>
   )
@@ -26,6 +32,13 @@ export function TopBar({ game, onQuit }: { game: GameState; onQuit: () => void }
   const behind = science < timeUsed - 0.05
   const env = game.environment
   const earned = game.lastReport?.scienceEarned ?? 0
+  const score = (
+    <>
+      {game.sciencePoints} / {sc.scienceTarget}
+      {earned > 0 && <span className="ml-1 text-violet-300">(+{earned})</span>}
+      {behind && <span className="ml-2 text-amber-300">behind schedule</span>}
+    </>
+  )
 
   // Describe the sol about to be played, and when the light changes next.
   const light = lightInfo(sc, game.sol)
@@ -41,22 +54,26 @@ export function TopBar({ game, onQuit }: { game: GameState; onQuit: () => void }
   const cargo = nextResupplySol(sc, game.sol)
 
   return (
-    <header className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-slate-800 bg-[#0a1226] px-4 py-3">
-      <div className="flex items-center gap-2.5 pr-2">
-        <MissionPatch />
-        <p className="text-sm font-extrabold uppercase leading-tight tracking-wide">
+    <header className="shrink-0 border-b border-slate-800 bg-[#0a1226] px-3 py-2 sm:px-4 sm:py-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-4 sm:gap-y-3">
+      <div className="flex items-center gap-2.5 pr-1 sm:pr-2">
+        <MissionPatch size={32} />
+        <p className="hidden text-sm font-extrabold uppercase leading-tight tracking-wide sm:block">
           Junior Astronaut
           <br />
           Mission Trainer
         </p>
       </div>
+      {/* Sol x of y already says how long is left, so the old "sols left"
+          reading was the same number twice. It comes back only when the
+          deadline is close enough to matter. */}
       <Stat icon={Orbit} label="Sol" iconClass="text-sky-300">
         <span className="text-lg font-bold tabular-nums">
           {shownSol} <span className="text-slate-500">/ {sc.missionLengthSols}</span>
         </span>
-      </Stat>
-      <Stat icon={Clock} label="Mission clock">
-        <span className={`font-semibold tabular-nums ${solsLeft <= 15 ? 'text-amber-300' : ''}`}>{solsLeft} sols left</span>
+        {solsLeft <= 15 && (
+          <span className="ml-1.5 whitespace-nowrap text-xs font-semibold text-amber-300">{plural(solsLeft)} left</span>
+        )}
       </Stat>
       <Stat icon={sky.icon} label="Sky" iconClass={sky.cls}>
         <span className="font-semibold">{sky.text}</span>
@@ -67,27 +84,35 @@ export function TopBar({ game, onQuit }: { game: GameState; onQuit: () => void }
           <span className="font-semibold tabular-nums">sol {cargo}</span>
         </Stat>
       )}
-      <div className="flex min-w-56 flex-1 items-center gap-2.5 border-slate-700/70 sm:border-l sm:pl-4">
-        <FlaskConical size={22} className="text-violet-300" aria-hidden />
-        <div className="flex-1">
-          <div className="flex justify-between text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+      {/* Science: caption above the bar where there is room, and a single
+          line of icon, bar and score on a phone, sharing that row with Quit
+          so neither costs a row of its own. */}
+      <div className="order-last flex w-full min-w-0 items-center gap-3 sm:contents">
+      <div className="flex min-w-0 flex-1 items-center gap-2 border-slate-700/70 sm:min-w-56 sm:gap-2.5 sm:border-l sm:pl-4">
+        <FlaskConical size={18} className="shrink-0 text-violet-300 sm:h-[22px] sm:w-[22px]" aria-hidden />
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:block">
+          <div className="hidden justify-between text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:flex">
             <span>Science</span>
-            <span className="text-sm normal-case tracking-normal text-slate-100 tabular-nums">
-              {game.sciencePoints} / {sc.scienceTarget}
-              {earned > 0 && <span className="ml-1 text-violet-300">(+{earned})</span>}
-              {behind && <span className="ml-2 text-amber-300">behind schedule</span>}
-            </span>
+            <span className="text-sm normal-case tracking-normal text-slate-100 tabular-nums">{score}</span>
           </div>
-          <div className="relative mt-1 h-2.5 overflow-hidden rounded-full bg-slate-700">
+          <div className="relative h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-700 sm:mt-1">
             <div className="h-full rounded-full bg-violet-400 transition-all" style={{ width: `${science * 100}%` }} />
             {/* where you'd need to be to finish on time */}
             <div className="absolute top-0 h-full w-0.5 bg-white/70" style={{ left: `${timeUsed * 100}%` }} title="Mission time used" />
           </div>
+          <span className="shrink-0 text-sm tabular-nums sm:hidden">
+            <span className="sr-only">Science: </span>
+            {score}
+          </span>
         </div>
       </div>
-      <button type="button" onClick={onQuit} className="text-xs text-slate-400 underline hover:text-slate-200">
-        Quit
+      <button type="button" onClick={onQuit} className="shrink-0 text-slate-400 hover:text-slate-200" title="Quit mission">
+        <LogOut size={16} aria-hidden className="sm:hidden" />
+        <span className="hidden text-xs underline sm:inline">Quit</span>
+        <span className="sr-only">Quit mission</span>
       </button>
+      </div>
+      </div>
     </header>
   )
 }

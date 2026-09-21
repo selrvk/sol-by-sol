@@ -43,10 +43,10 @@ function groundAt(u: number, v: number) {
 // building from looking like it is sliding off the edge at night.
 const PADS = {
   solar: { u: 0.22, v: 0.25 },
-  habitat: { u: 0.5, v: 0.5 },
-  reactor: { u: 0.22, v: 0.8 },
-  greenhouse: { u: 0.8, v: 0.25 },
-  lab: { u: 0.78, v: 0.78 },
+  habitat: { u: 0.45, v: 0.5 },
+  reactor: { u: 0.22, v: 0.78 },
+  greenhouse: { u: 0.8, v: 0.24 },
+  lab: { u: 0.64, v: 0.83 },
 } as const
 type PadId = keyof typeof PADS
 

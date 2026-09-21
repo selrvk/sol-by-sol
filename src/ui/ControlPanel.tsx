@@ -12,14 +12,13 @@ interface Props {
   highlightAdvance?: boolean
 }
 
-// Power switches and the Advance button: the bottom of the right column.
-export function ControlPanel({ game, decisions, dispatch, highlightAdvance }: Props) {
+// What each system costs to run, and whether it is switched on.
+export function PowerSwitches({ game, decisions, dispatch }: Omit<Props, 'highlightAdvance'>) {
   const demand = loadDemandKWh(game.scenario, game.facilities)
   const switches = (['lab', 'greenhouse', 'isru'] as const).filter((l) => l !== 'isru' || game.scenario.isruAvailable)
-  const waitingForEvent = game.pendingEvent !== null && !decisions.eventChoiceId
 
   return (
-    <section aria-label="Power and advance" className="space-y-3">
+    <section aria-label="Power switches">
       <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
         <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-300">
           <Power size={16} className="text-amber-300" aria-hidden /> Power switches
@@ -55,9 +54,16 @@ export function ControlPanel({ game, decisions, dispatch, highlightAdvance }: Pr
         </ul>
         <p className="mt-1 text-[11px] text-slate-500">kWh per sol. If there isn't enough power, the lab switches off first.</p>
       </div>
+    </section>
+  )
+}
 
-      {/* On phones the button is pinned to the bottom of the screen so the
-          player never has to scroll to reach it. */}
+// The one button the whole game turns on, so it is never somewhere the
+// player has to go looking: pinned to the bottom of the screen on phones,
+// and held at the foot of the status column on desktop.
+export function AdvanceButton({ game, decisions, dispatch, highlightAdvance }: Props) {
+  const waitingForEvent = game.pendingEvent !== null && !decisions.eventChoiceId
+  return (
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-800 bg-slate-950/95 p-3 lg:static lg:border-0 lg:bg-transparent lg:p-0">
         <button
           type="button"
@@ -75,6 +81,5 @@ export function ControlPanel({ game, decisions, dispatch, highlightAdvance }: Pr
         </button>
         <p className="mt-1 hidden text-center text-[11px] text-slate-500 lg:block">or press Enter</p>
       </div>
-    </section>
   )
 }

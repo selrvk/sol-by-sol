@@ -2,7 +2,7 @@ import { ChartLine, Globe, Moon } from 'lucide-react'
 import { lazy, Suspense, useEffect, useReducer, useState } from 'react'
 import type { ScenarioId } from '../sim/types.ts'
 import { BaseView } from './BaseView.tsx'
-import { ControlPanel } from './ControlPanel.tsx'
+import { AdvanceButton, PowerSwitches } from './ControlPanel.tsx'
 import { CrewPanel } from './CrewPanel.tsx'
 import { EventModal } from './EventModal.tsx'
 import { loadSavedUiState, reducer, saveUiState, SCENARIOS } from './gameReducer.ts'
@@ -21,6 +21,8 @@ const TrendCharts = lazy(() => import('./TrendCharts.tsx').then((m) => ({ defaul
 export function Game() {
   const [ui, dispatch] = useReducer(reducer, undefined, loadSavedUiState)
   const [briefingDismissedFor, setBriefingDismissedFor] = useState<number | null>(null)
+  // Which astronaut's task picker is open (phones only).
+  const [pickerFor, setPickerFor] = useState<string | null>(null)
   const { game, previous, decisions, history } = ui
   const solEffects = useSolEffects(game)
 
@@ -48,7 +50,11 @@ export function Game() {
   const onFirstSol = game.sol === game.scenario.start.sol
 
   return (
-    <div className="flex min-h-screen flex-col">
+    // On desktop the app fills the screen and never scrolls as a page: each
+    // column scrolls inside itself. That keeps the Advance button and the
+    // meters on screen on a short laptop, instead of below the fold. Phones
+    // keep ordinary page scrolling.
+    <div className="flex min-h-screen flex-col lg:h-screen lg:overflow-hidden">
       <TopBar
         game={game}
         onQuit={() => {
@@ -58,8 +64,8 @@ export function Game() {
       {/* Two columns on large screens. On phones the columns dissolve
           (display: contents) so sections can be re-ordered: the meters come
           right after the map, where the briefing points. */}
-      <main className="flex flex-1 flex-col gap-4 p-4 pb-28 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:pb-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <div className="contents lg:block lg:min-w-0 lg:space-y-4">
+      <main className="flex flex-1 flex-col gap-4 p-4 pb-28 lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_22rem] lg:overflow-hidden lg:pb-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <div className="contents lg:block lg:h-full lg:min-h-0 lg:min-w-0 lg:space-y-4 lg:overflow-y-auto lg:pr-1">
           {showBriefing && (
             <div className="order-1 lg:order-none">
             <OpeningBriefing game={game} decisions={decisions} onDismiss={() => setBriefingDismissedFor(game.rng.seed)} />
@@ -101,6 +107,8 @@ export function Game() {
             dispatch={dispatch}
             highlightTask={showBriefing && !fixChosen ? opening.fixTask : undefined}
             showAdvice={!(showBriefing && onFirstSol)}
+            pickerFor={pickerFor}
+            onPickerChange={setPickerFor}
           />
           </div>
           <div className="order-6 lg:order-none">
@@ -117,13 +125,19 @@ export function Game() {
             </div>
           </details>
         </div>
-        <div className="contents lg:block lg:space-y-4">
-          <div className="order-3 lg:order-none">
-          <ResourcePanel game={game} previous={previous} decisions={decisions} highlight={showBriefing && onFirstSol ? opening.meter : undefined} />
+        {/* The status column stays put while the map and crew scroll, and
+            never grows past the screen: the meters scroll inside it, and the
+            Advance button is held at its foot so it is always in reach. */}
+        <div className="contents lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:gap-4">
+          <div className="contents lg:block lg:min-h-0 lg:flex-1 lg:space-y-4 lg:overflow-y-auto">
+            <div className="order-3 lg:order-none">
+              <ResourcePanel game={game} previous={previous} decisions={decisions} highlight={showBriefing && onFirstSol ? opening.meter : undefined} />
+            </div>
+            <div className="order-5 lg:order-none">
+              <PowerSwitches game={game} decisions={decisions} dispatch={dispatch} />
+            </div>
           </div>
-          <div className="order-5 lg:order-none">
-          <ControlPanel game={game} decisions={decisions} dispatch={dispatch} highlightAdvance={showBriefing && onFirstSol && fixChosen} />
-          </div>
+          <AdvanceButton game={game} decisions={decisions} dispatch={dispatch} highlightAdvance={showBriefing && onFirstSol && fixChosen} />
         </div>
       </main>
       {game.pendingEvent && !decisions.eventChoiceId && game.outcome.status === 'playing' && (

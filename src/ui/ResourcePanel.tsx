@@ -53,13 +53,13 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
   const nightWarning = !ahead || ahead.inSols > 5
     ? null
     : ahead.plannedKWh > battery
-      ? `Night in ${ahead.inSols} sol${ahead.inSols === 1 ? '' : 's'}. Running everything through ${ahead.nightSols} dark sols would need about ` +
-        `${Math.ceil(ahead.plannedKWh)} kWh, more than the ${battery} kWh battery holds. Switch the lab and greenhouse off at night: life support alone needs about ${Math.ceil(ahead.reserveKWh)} kWh.`
-      : `Night in ${ahead.inSols} sol${ahead.inSols === 1 ? '' : 's'}: about ${Math.ceil(ahead.plannedKWh)} kWh of battery will see this plan through ${ahead.nightSols} dark sols.`
+      ? `Night in ${ahead.inSols} sol${ahead.inSols === 1 ? '' : 's'}: this plan needs ~${Math.ceil(ahead.plannedKWh)} kWh through ${ahead.nightSols} dark sols, ` +
+        `but the battery holds ${battery}. Switch the lab and greenhouse off at night — life support alone needs ~${Math.ceil(ahead.reserveKWh)} kWh.`
+      : `Night in ${ahead.inSols} sol${ahead.inSols === 1 ? '' : 's'}: ~${Math.ceil(ahead.plannedKWh)} kWh of battery sees this plan through ${ahead.nightSols} dark sols.`
   const reserveLine =
     reserve.hardSols > 0 && reserveKWh > 0
-      ? `Life support needs ${reserveKWh} kWh of battery to reach ${game.environment.dustStormSolsLeft > 0 && game.environment.isDaylight ? 'the end of the storm' : 'sunrise'}.` +
-        (reserveShort ? ' Not enough: switch things off!' : '')
+      ? `Life support needs ${reserveKWh} kWh to reach ${game.environment.dustStormSolsLeft > 0 && game.environment.isDaylight ? 'the end of the storm' : 'sunrise'}.` +
+        (reserveShort ? ' Not enough — switch things off!' : '')
       : null
   const units = game.facilities.isruUnits
   const nextUnits = forecast?.facilities.isruUnits
@@ -70,14 +70,14 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       : `${units} O₂ maker${units === 1 ? '' : 's'} running`
   const recyclerLine =
     nextCond !== null
-      ? `Recycler working at ${cond}% → ${nextCond}% next sol`
+      ? `Recycler ${cond}% → ${nextCond}% next sol`
       : prevCond !== null && prevCond !== cond
-        ? `Recycler working at ${cond}% (was ${prevCond}%)`
-        : `Recycler working at ${cond}%`
+        ? `Recycler ${cond}% (was ${prevCond}%)`
+        : `Recycler at ${cond}%`
   const repairShifts = game.environment.busyShifts + game.environment.busyEvaShifts
   const lastRepairs = game.lastReport?.repairShifts ?? 0
   return (
-    <section aria-label="Mission status" className="space-y-2.5 rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
+    <section aria-label="Mission status" className="space-y-2 rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
       <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-300">
         <Users size={16} className="text-sky-300" aria-hidden /> Mission status
       </h2>
@@ -86,26 +86,25 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
         forecast={isForecast}
         tick={game.sol}
         highlight={highlight === 'power'}
-        icon={<Badge tone="amber"><Zap size={20} fill="currentColor" /></Badge>}
+        icon={<Badge tone="amber"><Zap size={17} fill="currentColor" /></Badge>}
         value={<AnimatedValue value={r.storedPowerKWh} suffix=" kWh" />}
         fill={r.storedPowerKWh / game.facilities.batteryCapacityKWh}
         delta={d?.storedPowerKWh}
         unit="kWh"
         amount={r.storedPowerKWh}
         why={METER_WHY.power(game.scenario)}
+        warning={nightWarning ?? reserveLine}
         detail={
-          (nightWarning ? nightWarning + ' ' : '') +
-          (reserveLine ? reserveLine + ' ' : '') +
-          (report
+          report
             ? `${isForecast ? 'Next sol' : 'Last sol'}: made ${Math.round(report.powerGeneratedKWh)}, needed ${Math.round(report.powerDemandKWh)}` +
-              (report.shedLoads.length ? ` · switched off: ${report.shedLoads.map((l) => POWER_LABELS[l]).join(', ')}` : '')
-            : `Battery holds ${game.facilities.batteryCapacityKWh} kWh`)
+              (report.shedLoads.length ? ` · off: ${report.shedLoads.map((l) => POWER_LABELS[l]).join(', ')}` : '')
+            : `Battery holds ${game.facilities.batteryCapacityKWh} kWh`
         }
         warn={reserveShort || nightWarning !== null || (report ? report.shedLoads.length > 0 : false)}
       />
       <Meter
         name="Oxygen"
-        icon={<Badge tone="sky"><span className="text-sm font-bold">O₂</span></Badge>}
+        icon={<Badge tone="sky"><span className="text-xs font-bold">O₂</span></Badge>}
         value={<AnimatedValue value={r.oxygenKg} suffix=" kg" />}
         fill={r.oxygenKg / Math.max(start.oxygenKg, r.oxygenKg)}
         delta={d?.oxygenKg}
@@ -119,7 +118,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       />
       <Meter
         name="Water"
-        icon={<Badge tone="blue"><Droplet size={20} fill="currentColor" /></Badge>}
+        icon={<Badge tone="blue"><Droplet size={17} fill="currentColor" /></Badge>}
         value={<AnimatedValue value={r.waterL} suffix=" L" />}
         fill={r.waterL / Math.max(start.waterL, r.waterL)}
         delta={d?.waterL}
@@ -134,7 +133,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       />
       <Meter
         name="Food"
-        icon={<Badge tone="green"><Apple size={20} fill="currentColor" /></Badge>}
+        icon={<Badge tone="green"><Apple size={17} fill="currentColor" /></Badge>}
         value={<AnimatedValue value={r.foodKg} suffix=" kg" />}
         fill={r.foodKg / Math.max(start.foodKg, r.foodKg)}
         delta={d?.foodKg}
@@ -151,7 +150,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
         forecast={isForecast}
         tick={game.sol}
         highlight={highlight === 'radiation'}
-        icon={<Badge tone="yellow"><Radiation size={20} /></Badge>}
+        icon={<Badge tone="yellow"><Radiation size={17} /></Badge>}
         value={<><AnimatedValue value={worst.doseMSv} /> / {worst.careerDoseLimitMSv} mSv</>}
         fill={worst.doseMSv / worst.careerDoseLimitMSv}
         invert
@@ -165,7 +164,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
         forecast={isForecast}
         tick={game.sol}
         highlight={highlight === 'crew time'}
-        icon={<Badge tone="indigo"><Users size={20} /></Badge>}
+        icon={<Badge tone="indigo"><Users size={17} /></Badge>}
         value={`${hoursAssigned} / ${hoursAvailable} h`}
         fill={hoursAvailable ? hoursAssigned / hoursAvailable : 0}
         why={METER_WHY.crewTime(game.scenario)}
@@ -173,10 +172,10 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
           game.environment.shelterSolsLeft > 0
             ? 'Sheltering from a solar storm: no work this sol'
             : repairShifts > 0
-              ? `${repairShifts} shift${repairShifts > 1 ? 's' : ''} still owed to repairs (taken from science first)`
+              ? `${repairShifts} shift${repairShifts > 1 ? 's' : ''} owed to repairs, taken from science first`
               : lastRepairs > 0
-                ? `Last sol, ${lastRepairs} shift${lastRepairs > 1 ? 's' : ''} went to repairs instead of the plan`
-                : 'Hours of work planned for the next sol'
+                ? `Last sol ${lastRepairs} shift${lastRepairs > 1 ? 's' : ''} went to repairs, not the plan`
+                : 'Planned for the next sol'
         }
         warn={repairShifts > 0 || lastRepairs > 0}
         neutral
@@ -195,6 +194,7 @@ interface MeterProps {
   amount?: number // for a "sols left" estimate from the last sol's change
   why: Parameters<typeof WhyTooltip>[0]['why']
   detail?: string
+  warning?: string | null // shown on its own line, and may wrap
   invert?: boolean  // higher is worse (radiation)
   neutral?: boolean // no good/bad colouring
   warn?: boolean
@@ -203,7 +203,7 @@ interface MeterProps {
   highlight?: boolean
 }
 
-function Meter({ name, icon, value, fill, delta, unit, amount, why, detail, invert, neutral, warn, forecast, highlight, tick }: MeterProps) {
+function Meter({ name, icon, value, fill, delta, unit, amount, why, detail, warning, invert, neutral, warn, forecast, highlight, tick }: MeterProps) {
   const solsLeft = amount !== undefined && delta !== undefined && delta < -0.01 ? Math.floor(amount / -delta) : null
   // While a resource is draining, the bar shows how long it will last
   // (full = 40+ sols), so a crisis looks like one even when the stock is
@@ -214,7 +214,7 @@ function Meter({ name, icon, value, fill, delta, unit, amount, why, detail, inve
   const bar = neutral ? 'bg-sky-400' : danger ? 'bg-red-500' : caution ? 'bg-amber-400' : 'bg-emerald-400'
 
   return (
-    <div className={`flex gap-3 rounded-xl border p-2.5 ${danger && !neutral ? 'border-red-500/60 bg-red-950/30' : 'border-slate-700/80 bg-slate-950/50'} ${highlight ? 'ring-2 ring-yellow-300' : ''}`}>
+    <div className={`flex gap-2.5 rounded-xl border p-2 ${danger && !neutral ? 'border-red-500/60 bg-red-950/30' : 'border-slate-700/80 bg-slate-950/50'} ${highlight ? 'ring-2 ring-yellow-300' : ''}`}>
       {icon}
       <div className="min-w-0 flex-1">
       <div className="flex items-center justify-between gap-2 text-sm">
@@ -224,13 +224,16 @@ function Meter({ name, icon, value, fill, delta, unit, amount, why, detail, inve
           <WhyTooltip why={why} />
         </span>
       </div>
-      <div className="mt-1.5 h-2 overflow-hidden rounded bg-slate-700" role="meter" aria-valuenow={Math.round(f * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={name}>
+      <div className="mt-1 h-2 overflow-hidden rounded bg-slate-700" role="meter" aria-valuenow={Math.round(f * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={name}>
         <div className={`h-full ${bar} transition-all`} style={{ width: `${f * 100}%` }} />
       </div>
-      <div className="mt-1 flex flex-wrap justify-between gap-x-2 text-[11px] text-slate-400">
+      {/* A warning gets its own line, above the running detail, so a long
+          one does not push the numbers around. */}
+      {warning && <p className="mt-1 text-[11px] font-semibold text-amber-300">{warning}</p>}
+      <div className="mt-0.5 flex flex-wrap items-baseline justify-between gap-x-2 text-[11px] leading-tight text-slate-400">
         <span className={warn ? 'text-amber-300' : ''}>{detail}</span>
         {delta !== undefined && Math.abs(delta) >= 0.05 && (
-          <span key={tick} className={`delta-pop ml-auto whitespace-nowrap tabular-nums ${(invert ? delta > 0 : delta < 0) ? 'text-red-300' : 'text-emerald-300'}`}>
+          <span key={tick} className={`delta-pop ml-auto shrink-0 whitespace-nowrap tabular-nums ${(invert ? delta > 0 : delta < 0) ? 'text-red-300' : 'text-emerald-300'}`}>
             {forecast ? 'next sol: ' : ''}
             {delta > 0 ? '+' : ''}
             {delta.toFixed(1)} {unit}/sol{solsLeft !== null && solsLeft < 60 ? ` · ~${solsLeft} sols left` : ''}
@@ -254,7 +257,7 @@ const BADGE_TONES = {
 // The round icon badge at the left of each meter.
 function Badge({ tone, children }: { tone: keyof typeof BADGE_TONES; children: ReactNode }) {
   return (
-    <span aria-hidden className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ring-1 ${BADGE_TONES[tone]}`}>
+    <span aria-hidden className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1 ${BADGE_TONES[tone]}`}>
       {children}
     </span>
   )
