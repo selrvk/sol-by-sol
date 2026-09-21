@@ -1,7 +1,7 @@
 import { ChartLine, Globe, Moon } from 'lucide-react'
 import { lazy, Suspense, useEffect, useReducer, useState } from 'react'
 import type { ScenarioId } from '../sim/types.ts'
-import { BaseView } from './BaseView.tsx'
+import { BaseSummary, BaseView } from './BaseView.tsx'
 import { AdvanceButton, PowerSwitches } from './ControlPanel.tsx'
 import { CrewPanel } from './CrewPanel.tsx'
 import { EventModal } from './EventModal.tsx'
@@ -73,6 +73,7 @@ export function Game() {
           )}
           <div className="relative order-2 overflow-hidden rounded-2xl border border-slate-800 lg:order-none">
             <BaseView game={game} decisions={decisions} effects={solEffects} />
+            <BaseSummary game={game} />
             <label className="absolute left-3 top-3 flex items-center">
               <span className="sr-only">World</span>
               {/* A native <option> can only hold text, so the world's icon

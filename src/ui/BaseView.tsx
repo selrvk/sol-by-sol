@@ -54,6 +54,20 @@ type PadId = keyof typeof PADS
 // proportion to each other and to the ground.
 const BUILDING_SCALE = 0.62
 
+// Radius of a crew portrait on the map, shared by the badge and its mask.
+const BADGE_R = 26
+
+// Buildings that light the ground at night, and the switch that decides
+// whether they are lit at all. The habitat and the reactor are never
+// switched off; the solar field has its own lamps.
+const LIT_PADS: { pad: PadId; load?: Exclude<PowerLoad, 'lifeSupport'> }[] = [
+  { pad: 'habitat' },
+  { pad: 'reactor' },
+  { pad: 'solar' },
+  { pad: 'greenhouse', load: 'greenhouse' },
+  { pad: 'lab', load: 'lab' },
+]
+
 // Each building image: its natural size, and where the centre of its stone
 // platform sits inside that image (measured from the art by
 // art/process.py's sibling measurements). The platform centre is what gets
@@ -144,14 +158,34 @@ function CargoLander({ x, y }: { x: number; y: number }) {
 // A pill-shaped label, like a map marker, centred at (x, y). It holds real
 // elements rather than SVG text, so the icons are the same lucide set the
 // rest of the UI uses.
-function Pill({ x, y, icon: Icon, children, tone = 'normal' }: { x: number; y: number; icon?: LucideIcon; children: ReactNode; tone?: 'normal' | 'warn' | 'bad' }) {
+//
+// The map is drawn in its own coordinates and scaled to fit, so a label
+// that reads well on a desktop is about 6px tall on a phone. Labels are
+// therefore much larger below `lg`, and the routine ones (`quiet`) are
+// hidden there and shown as readable text under the map instead. What is
+// left on a phone is the labels that report a problem.
+function Pill({
+  x,
+  y,
+  icon: Icon,
+  children,
+  tone = 'normal',
+  quiet = false,
+}: {
+  x: number
+  y: number
+  icon?: LucideIcon
+  children: ReactNode
+  tone?: 'normal' | 'warn' | 'bad'
+  quiet?: boolean
+}) {
   const border = tone === 'bad' ? 'border-red-400' : tone === 'warn' ? 'border-amber-300' : 'border-sky-300/60'
   const iconTone = tone === 'bad' ? 'text-red-300' : tone === 'warn' ? 'text-amber-300' : 'text-sky-300'
   return (
-    <foreignObject x={x - 220} y={y - 28} width={440} height={56} style={{ overflow: 'visible' }}>
+    <foreignObject x={x - 220} y={y - 28} width={440} height={56} className={quiet ? 'hidden lg:block' : undefined} style={{ overflow: 'visible' }}>
       <div className="flex h-full items-center justify-center">
-        <div className={`flex items-center gap-1.5 whitespace-nowrap rounded-xl border-2 ${border} bg-slate-900/85 px-4 py-1 text-[24px] font-semibold text-white shadow-lg`}>
-          {Icon && <Icon size={22} className={`shrink-0 ${iconTone}`} aria-hidden />}
+        <div className={`flex items-center gap-1.5 whitespace-nowrap rounded-xl border-2 ${border} bg-slate-900/85 px-4 py-1 text-[44px] font-semibold text-white shadow-lg lg:text-[24px]`}>
+          {Icon && <Icon className={`h-[40px] w-[40px] shrink-0 lg:h-[22px] lg:w-[22px] ${iconTone}`} aria-hidden />}
           {children}
         </div>
       </div>
@@ -163,7 +197,7 @@ function Pill({ x, y, icon: Icon, children, tone = 'normal' }: { x: number; y: n
 // Anyone outside is wearing their helmet, which is the same cue the crew
 // cards use.
 function CrewBadges({ x, y, crew, evaIds }: { x: number; y: number; crew: CrewMember[]; evaIds: ReadonlySet<string> }) {
-  const r = 22
+  const r = BADGE_R
   const start = x - ((crew.length - 1) * (r * 2 + 6)) / 2
   return (
     <g>
@@ -230,8 +264,16 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
       <defs>
         {/* Round mask for the crew portraits on the map. */}
         <clipPath id="crew-badge-clip">
-          <circle r={22} />
+          <circle r={BADGE_R} />
         </clipPath>
+        {/* The pool of light a lit building throws on the ground. The Moon
+            has no air for light to glow in, so the only thing to see at
+            night is the ground it lands on. */}
+        <radialGradient id="lamp-pool">
+          <stop offset="0" stopColor="#fde68a" stopOpacity="0.5" />
+          <stop offset="0.45" stopColor="#fbbf24" stopOpacity="0.22" />
+          <stop offset="1" stopColor="#f59e0b" stopOpacity="0" />
+        </radialGradient>
       </defs>
 
       {/* Sky first, then the slab. The terrain art is cut out, so the rust
@@ -247,6 +289,19 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
 
       {/* Night: darken the ground and the panels; buildings light up. */}
       <rect width={W} height={H} fill="#0a1433" style={{ opacity: night ? 0.55 : 0, transition: 'opacity 1.2s', mixBlendMode: 'multiply' }} />
+      {/* Lamplight on the regolith. A building with no power throws none,
+          so a dark patch of ground is a real signal, not decoration. */}
+      <g style={{ opacity: night ? 1 : 0, transition: 'opacity 1.6s' }}>
+        {LIT_PADS.map(({ pad, load }) => {
+          if (pad === 'solar' && f.solarArrayM2 === 0) return null
+          if (pad === 'reactor' && f.reactorKW === 0 && !game.scenario.isruAvailable) return null
+          if (pad === 'greenhouse' && f.greenhouseM2 === 0) return null
+          if (load && status(load) !== 'on') return null
+          const g = groundAt(PADS[pad].u, PADS[pad].v)
+          const rx = SPRITES[pad].px[0] * BUILDING_SCALE * 0.95
+          return <ellipse key={pad} cx={g.x} cy={g.y} rx={rx} ry={rx * 0.52} fill="url(#lamp-pool)" />
+        })}
+      </g>
       <g style={{ opacity: night ? 1 : 0, transition: 'opacity 1.6s' }}>
         {STARS.map((s, i) => (
           <circle key={i} className="twinkle" cx={s.x} cy={s.y} r={s.r} fill="#e2e8f0" style={{ animationDelay: `${s.delay}s` }} />
@@ -299,61 +354,96 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
 
       {/* Labels and crew, drawn last so nothing covers them. */}
       {f.solarArrayM2 > 0 && (
-        <Pill x={sol.x} y={sol.y} icon={Sun}>
+        <Pill x={sol.x} y={sol.y} icon={Sun} quiet>
           Solar {f.solarArrayM2} m²
         </Pill>
       )}
       {badgesUnder('solar', sol.x, sol.foot)}
 
       {f.greenhouseM2 > 0 && (
-        <Pill x={gh.x} y={gh.y} icon={Sprout} tone={status('greenhouse') === 'shed' ? 'bad' : 'normal'}>
+        <Pill x={gh.x} y={gh.y} icon={Sprout} tone={status('greenhouse') === 'shed' ? 'bad' : 'normal'} quiet={status('greenhouse') === 'on'}>
           Greenhouse {f.greenhouseM2} m²{status('greenhouse') === 'off' ? ' · off' : status('greenhouse') === 'shed' ? ' · no power' : ''}
         </Pill>
       )}
       {badgesUnder('greenhouse', gh.x, gh.foot)}
 
-      <Pill x={hab.x} y={hab.y} icon={Home} tone={worn ? 'warn' : 'normal'}>
+      <Pill x={hab.x} y={hab.y} icon={Home} tone={worn ? 'warn' : 'normal'} quiet={!worn}>
         Habitat
         {f.shieldingLevel > 0 && (
           <span className="flex items-center gap-1 text-slate-300">
-            <Shield size={20} aria-hidden /> {f.shieldingLevel}/{BALANCE.MAX_SHIELDING_LEVEL}
+            <Shield className="h-[36px] w-[36px] lg:h-[20px] lg:w-[20px]" aria-hidden /> {f.shieldingLevel}/{BALANCE.MAX_SHIELDING_LEVEL}
           </span>
         )}
         {worn && (
           <span className="flex items-center gap-1 text-amber-300">
-            <TriangleAlert size={20} aria-hidden /> {Math.round(f.condition * 100)}%
+            <TriangleAlert className="h-[36px] w-[36px] lg:h-[20px] lg:w-[20px]" aria-hidden /> {Math.round(f.condition * 100)}%
           </span>
         )}
       </Pill>
       {badgesUnder('habitat', hab.x, hab.foot)}
 
       {f.reactorKW > 0 && (
-        <Pill x={rea.x} y={rea.y} icon={Zap}>
+        <Pill x={rea.x} y={rea.y} icon={Zap} quiet>
           Reactor {f.reactorKW} kW
         </Pill>
       )}
       {game.scenario.isruAvailable && f.isruUnits > 0 && (
-        <Pill x={o2Pad.x + 40} y={o2Pad.y - 60} icon={Wind} tone={status('isru') === 'shed' ? 'bad' : 'normal'}>
+        <Pill x={o2Pad.x + 40} y={o2Pad.y - 60} icon={Wind} tone={status('isru') === 'shed' ? 'bad' : 'normal'} quiet={status('isru') === 'on'}>
           O₂ makers ×{f.isruUnits}{status('isru') === 'off' ? ' · off' : status('isru') === 'shed' ? ' · no power' : ''}
         </Pill>
       )}
       {badgesUnder('o2', o2Pad.x + 40, o2Pad.y - 8)}
 
-      <Pill x={lab.x} y={lab.y} icon={FlaskConical} tone={status('lab') === 'shed' ? 'bad' : 'normal'}>
+      <Pill x={lab.x} y={lab.y} icon={FlaskConical} tone={status('lab') === 'shed' ? 'bad' : 'normal'} quiet={status('lab') === 'on'}>
         Lab{status('lab') === 'off' ? ' · off' : status('lab') === 'shed' ? ' · no power' : ''}
       </Pill>
       {badgesUnder('lab', lab.x, lab.foot)}
 
       {crewAt.has('field') && (
         <>
-          <Pill x={FIELD_SPOT.x} y={FIELD_SPOT.y - 60} icon={Pickaxe}>Field work</Pill>
+          <Pill x={FIELD_SPOT.x} y={FIELD_SPOT.y - 60} icon={Pickaxe} quiet>
+            Field work
+          </Pill>
           {badgesUnder('field', FIELD_SPOT.x, FIELD_SPOT.y)}
         </>
       )}
 
-      <text x={VIEW.x + VIEW.w - 24} y={VIEW.y + VIEW.h - 20} textAnchor="end" className="fill-slate-300 text-[22px]" style={{ paintOrder: 'stroke', stroke: '#0f172a', strokeWidth: 5 }}>
+      <text x={VIEW.x + VIEW.w - 24} y={VIEW.y + VIEW.h - 20} textAnchor="end" className="hidden fill-slate-300 text-[22px] lg:block" style={{ paintOrder: 'stroke', stroke: '#0f172a', strokeWidth: 5 }}>
         condition {Math.round(f.condition * 100)}% · shielding {f.shieldingLevel}/{BALANCE.MAX_SHIELDING_LEVEL}
       </text>
     </svg>
+  )
+}
+
+// The figures the map's own labels carry on a wide screen, as readable text
+// for a phone, where those labels would be about 6px tall. Nothing here is
+// new information: it is the quiet half of the map, spelled out.
+export function BaseSummary({ game }: { game: GameState }) {
+  const f = game.facilities
+  const worn = f.condition < 0.6
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300 lg:hidden">
+      {f.solarArrayM2 > 0 && (
+        <span className="flex items-center gap-1">
+          <Sun size={13} className="text-yellow-300" aria-hidden /> {f.solarArrayM2} m²
+        </span>
+      )}
+      {f.reactorKW > 0 && (
+        <span className="flex items-center gap-1">
+          <Zap size={13} className="text-amber-300" aria-hidden /> {f.reactorKW} kW
+        </span>
+      )}
+      {game.scenario.isruAvailable && (
+        <span className="flex items-center gap-1">
+          <Wind size={13} className="text-sky-300" aria-hidden /> O₂ ×{f.isruUnits}
+        </span>
+      )}
+      <span className="flex items-center gap-1">
+        <Shield size={13} className="text-sky-300" aria-hidden /> {f.shieldingLevel}/{BALANCE.MAX_SHIELDING_LEVEL}
+      </span>
+      <span className={`flex items-center gap-1 ${worn ? 'text-amber-300' : ''}`}>
+        <Home size={13} aria-hidden /> {Math.round(f.condition * 100)}%
+      </span>
+    </div>
   )
 }
