@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+/* The page canvas itself. Without this the dark background is painted only
+   by a div, so an overscroll bounce -- or any area the app does not cover --
+   shows the browser's default white. `color-scheme` keeps scrollbars and
+   native controls dark for the same reason. */
+html,
+body {
+  background-color: #020617; /* slate-950, matching the app's own background */
+}
+
+html {
+  color-scheme: dark;
+}
+
 /* A building cut off for lack of power pulses red. */
 @keyframes shed-pulse {
   0%, 100% { filter: drop-shadow(0 0 0 rgb(239 68 68 / 0)); }

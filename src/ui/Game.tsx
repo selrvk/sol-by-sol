@@ -65,7 +65,7 @@ export function Game() {
           (display: contents) so sections can be re-ordered: the meters come
           right after the map, where the briefing points. */}
       <main className="flex flex-1 flex-col gap-4 p-4 pb-28 lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_22rem] lg:overflow-hidden lg:pb-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <div className="contents lg:block lg:h-full lg:min-h-0 lg:min-w-0 lg:space-y-4 lg:overflow-y-auto lg:pr-1">
+        <div className="contents lg:block lg:h-full lg:min-h-0 lg:min-w-0 lg:space-y-4 lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
           {showBriefing && (
             <div className="order-1 lg:order-none">
             <OpeningBriefing game={game} decisions={decisions} onDismiss={() => setBriefingDismissedFor(game.rng.seed)} />
@@ -130,7 +130,7 @@ export function Game() {
             never grows past the screen: the meters scroll inside it, and the
             Advance button is held at its foot so it is always in reach. */}
         <div className="contents lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:gap-4">
-          <div className="contents lg:block lg:min-h-0 lg:flex-1 lg:space-y-4 lg:overflow-y-auto">
+          <div className="contents lg:block lg:min-h-0 lg:flex-1 lg:space-y-4 lg:overflow-y-auto lg:overscroll-contain">
             <div className="order-3 lg:order-none">
               <ResourcePanel game={game} previous={previous} decisions={decisions} highlight={showBriefing && onFirstSol ? opening.meter : undefined} />
             </div>
