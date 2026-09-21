@@ -2,17 +2,16 @@
 
     python3 art/process.py        (needs Pillow: pip install pillow)
 
-- Buildings: the AI exports have a solid white background, not real
-  transparency. Everything near-white that touches the image edge is
-  treated as background (white details inside a building are kept), the
-  edge is eased by one pixel to avoid a light halo on dark ground, and the
-  result is saved as a transparent WebP.
+- Buildings: two sheets, day and night, each holding the same five
+  buildings in the same places. The exported alpha is soft (the bodies sit
+  around 250, with a wide faint halo), so it is thresholded to a clean
+  edge. Day and night share one crop box per building, so nothing shifts
+  when night falls.
 - Terrain: re-encoded as WebP, which is a fraction of the PNG's size.
-- Crew: the portrait sheet is split into four avatars, cropped to the face.
-  The crop deliberately stops above the chest, which also keeps the NASA
-  insignia on the suits out of the game.
+- Crew: two portrait sheets, bare-headed and helmeted, split into discs.
 
-Output goes to public/art/, which is what the game loads.
+Output goes to public/art/, which is what the game loads. The previous
+generation of art is kept in art/source/v1 and is no longer processed.
 """
 
 import collections
@@ -24,62 +23,64 @@ ROOT = Path(__file__).resolve().parent
 SRC = ROOT / 'source'
 OUT = ROOT.parent / 'public' / 'art'
 
-BUILDINGS = {
-    'habitat-day': 'Habitat-Day.png',
-    'habitat-night': 'Habitat-Night.png',
-    'lab-day': 'Lab-Day.png',
-    'lab-night': 'Lab-Night.png',
-    'greenhouse-day': 'Greenhouse-Day.png',
-    'greenhouse-night': 'Greenhouse-Night.png',
-    'reactor-day': 'Reactor-Day.png',
-    'reactor-night': 'Reactor-Night.png',
-    'solar': 'Solar-Panels.png',
-}
+# The five buildings on each sheet, in reading order: top row then bottom.
+BUILDING_NAMES = ['habitat', 'reactor', 'solar', 'greenhouse', 'lab']
+BUILDING_SHEETS = {'day': 'buildings-day.png', 'night': 'buildings-night.png'}
 
 
-def background_mask(im: Image.Image, threshold: int = 235) -> Image.Image:
-    """Flood-fill near-white pixels connected to the border. 255 = background."""
+def sharpen_alpha(im: Image.Image) -> Image.Image:
+    """Turn the soft exported alpha into a clean edge with a 1px feather.
+
+    The building bodies come out around alpha 250 and the halo below 60,
+    so a ramp between the two keeps the shapes and drops the haze that
+    would otherwise glow against the dark ground.
+    """
+    im = im.convert('RGBA')
+    a = im.split()[3].point(lambda v: 0 if v < 120 else (255 if v > 200 else int((v - 120) * 255 / 80)))
+    im.putalpha(a)
+    return im
+
+
+def sprite_boxes(im: Image.Image, min_pixels: int = 20000) -> list[tuple[int, int, int, int]]:
+    """Bounding boxes of the separate shapes on a sheet, in reading order."""
+    a = im.split()[3].load()
     w, h = im.size
-    px = im.load()
-    mask = Image.new('L', (w, h), 0)
-    m = mask.load()
-    queue = collections.deque()
-    for x in range(w):
-        queue.extend([(x, 0), (x, h - 1)])
-    for y in range(h):
-        queue.extend([(0, y), (w - 1, y)])
-    while queue:
-        x, y = queue.popleft()
-        if m[x, y] or min(px[x, y]) < threshold:
-            continue
-        m[x, y] = 255
-        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
-            if 0 <= nx < w and 0 <= ny < h and not m[nx, ny]:
-                queue.append((nx, ny))
-    return mask
-
-
-def cut_out(src: Path) -> Image.Image:
-    im = Image.open(src).convert('RGB')
-    w, h = im.size
-    bg = background_mask(im)
-    # Grow the background by a pixel, then soften: removes the white fringe.
-    alpha = bg.filter(ImageFilter.MaxFilter(3)).point(lambda v: 255 - v).filter(ImageFilter.GaussianBlur(0.7))
-    px, a = im.load(), alpha.load()
-    out = Image.new('RGBA', (w, h))
-    o = out.load()
-    for y in range(h):
-        for x in range(w):
-            al = a[x, y]
-            if al == 0:
-                o[x, y] = (0, 0, 0, 0)
+    seen = [[False] * h for _ in range(w)]
+    found = []
+    for sy in range(0, h, 3):
+        for sx in range(0, w, 3):
+            if seen[sx][sy] or a[sx, sy] < 128:
                 continue
-            r, g, b = px[x, y]
-            if al < 255:  # un-mix the white background from edge pixels
-                f = al / 255
-                r, g, b = (max(0, min(255, int((c - 255 * (1 - f)) / f))) for c in (r, g, b))
-            o[x, y] = (r, g, b, al)
-    return out
+            queue = collections.deque([(sx, sy)])
+            seen[sx][sy] = True
+            box = [sx, sy, sx, sy]
+            count = 0
+            while queue:
+                x, y = queue.popleft()
+                count += 1
+                box = [min(box[0], x), min(box[1], y), max(box[2], x), max(box[3], y)]
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < w and 0 <= ny < h and not seen[nx][ny] and a[nx, ny] >= 128:
+                        seen[nx][ny] = True
+                        queue.append((nx, ny))
+            if count > min_pixels:
+                found.append(tuple(box))
+    return sorted(found, key=lambda b: (b[1] // 300, b[0]))  # top row, then bottom
+
+
+def cut_buildings() -> None:
+    (OUT / 'buildings').mkdir(parents=True, exist_ok=True)
+    sheets = {k: sharpen_alpha(Image.open(SRC / 'buildings' / f)) for k, f in BUILDING_SHEETS.items()}
+    boxes = {k: sprite_boxes(im) for k, im in sheets.items()}
+    for k, b in boxes.items():
+        if len(b) != len(BUILDING_NAMES):
+            raise SystemExit(f'{k} sheet: found {len(b)} buildings, expected {len(BUILDING_NAMES)}')
+    # One box per building, covering both sheets, so the night version sits
+    # exactly where the day one does. The night lamps glow a little wider.
+    for i, name in enumerate(BUILDING_NAMES):
+        box = union(boxes['day'][i], boxes['night'][i])
+        for k, im in sheets.items():
+            save(im.crop(box), OUT / 'buildings' / f'{name}-{k}.webp')
 
 
 def save(im: Image.Image, dst: Path) -> None:
@@ -152,22 +153,43 @@ def crop_crew() -> None:
             save(disc, OUT / 'crew' / f'{name}{suffix}.webp')
 
 
+def cut_terrain() -> None:
+    """Drop the render's flat sky, leaving the slab on transparency.
+
+    The game draws its own sky behind it, and Mars is the same slab under a
+    rust filter: with the sky gone, that filter needs no hand-drawn mask
+    around the slab to stay off the background.
+    """
+    im = Image.open(SRC / 'terrain' / 'moon-terrain.png').convert('RGB')
+    w, h = im.size
+    px = im.load()
+    sky = px[2, 2]
+    near_sky = lambda p: all(abs(p[i] - sky[i]) < 26 for i in range(3))
+    # Flood from the border, so dark rock enclosed by the slab is kept.
+    mask = Image.new('L', (w, h), 255)
+    m = mask.load()
+    queue = collections.deque()
+    for x in range(w):
+        queue.extend([(x, 0), (x, h - 1)])
+    for y in range(h):
+        queue.extend([(0, y), (w - 1, y)])
+    while queue:
+        x, y = queue.popleft()
+        if m[x, y] == 0 or not near_sky(px[x, y]):
+            continue
+        m[x, y] = 0
+        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            if 0 <= nx < w and 0 <= ny < h and m[nx, ny]:
+                queue.append((nx, ny))
+    out = im.convert('RGBA')
+    out.putalpha(mask.filter(ImageFilter.GaussianBlur(0.6)))
+    save(out, OUT / 'moon-terrain.webp')
+
+
 def main() -> None:
-    (OUT / 'buildings').mkdir(parents=True, exist_ok=True)
-    cuts = {name: cut_out(SRC / 'buildings' / file) for name, file in BUILDINGS.items()}
-    # Trim empty margins. Day and night versions share one crop box so they
-    # line up exactly when the scene swaps between them.
-    for name, im in cuts.items():
-        box = im.getbbox()
-        if name.endswith(('-day', '-night')):
-            base = name.rsplit('-', 1)[0]
-            box = union(cuts[f'{base}-day'].getbbox(), cuts[f'{base}-night'].getbbox())
-        save(im.crop(box), OUT / 'buildings' / f'{name}.webp')
+    cut_buildings()
     crop_crew()
-    terrain = Image.open(SRC / 'moon_terrain.png').convert('RGB')
-    dst = OUT / 'moon-terrain.webp'
-    terrain.save(dst, 'WEBP', quality=82, method=6)
-    print(f'{dst.name}: {terrain.size[0]}x{terrain.size[1]}, {dst.stat().st_size // 1024} KB')
+    cut_terrain()
 
 
 if __name__ == '__main__':

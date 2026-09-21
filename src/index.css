@@ -37,13 +37,16 @@
 }
 .flicker-out { animation: flicker-out 1.1s ease-in-out; }
 
-/* A solar flare washes the scene red once. */
+/* A solar flare washes the scene red once. The rest of the time this rect
+   must be invisible: it stays mounted for a moment after the flash, and
+   under reduced motion it never animates at all, so opacity 0 is the base
+   state and the animation only borrows it. */
 @keyframes flare-flash {
   0% { opacity: 0; }
   12% { opacity: 0.85; }
   100% { opacity: 0; }
 }
-.flare-flash { animation: flare-flash 1.6s ease-out; }
+.flare-flash { opacity: 0; animation: flare-flash 1.6s ease-out; }
 
 /* The cargo lander comes down and settles. */
 @keyframes lander-descend {
