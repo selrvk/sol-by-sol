@@ -136,6 +136,59 @@ const STARS = (() => {
   return out
 })()
 
+// Sunlight travelling across the solar array, while it is actually making
+// power: it stops at night and under a dust storm, which is the point.
+// Masked by the array's own artwork, so the light falls on the panels and
+// not on the ground beside them.
+function PanelGlint({ box }: { box: { x: number; y: number; width: number; height: number } }) {
+  const band = box.width * 0.2
+  const lean = box.height * 0.5 // the scene's 2:1 isometric
+  return (
+    <g mask="url(#solar-mask)">
+      <g className="panel-glint" style={{ ['--glint-travel' as string]: `${box.width * 0.9}px` }}>
+        <polygon
+          points={`${box.x + lean},${box.y} ${box.x + lean + band},${box.y} ${box.x + band},${box.y + box.height} ${box.x},${box.y + box.height}`}
+          fill="#e0f2fe"
+          opacity={0.42}
+        />
+      </g>
+    </g>
+  )
+}
+
+// Dust blowing across during a Martian storm. Fixed offsets, so it does not
+// reshuffle on every render.
+const DUST = [...Array(22)].map((_, i) => ({
+  y: 70 + ((i * 173) % 800),
+  r: 6 + (i % 3) * 4,
+  delay: (i % 11) * 0.85,
+  time: 6.5 + (i % 5) * 1.6,
+  peak: 0.22 + (i % 4) * 0.11,
+}))
+
+function DustDrift() {
+  return (
+    <g aria-hidden>
+      {DUST.map((d, i) => (
+        <ellipse
+          key={i}
+          className="dust-drift"
+          cx={0}
+          cy={d.y}
+          rx={d.r * 3.2}
+          ry={d.r}
+          fill="#e7b489"
+          style={{
+            animationDelay: `${d.delay}s`,
+            ['--dust-time' as string]: `${d.time}s`,
+            ['--dust-peak' as string]: d.peak,
+          }}
+        />
+      ))}
+    </g>
+  )
+}
+
 // A cargo lander touching down: only drawn on the sol it arrives.
 function CargoLander({ x, y }: { x: number; y: number }) {
   return (
@@ -193,6 +246,10 @@ function Pill({
   )
 }
 
+// A steady per-astronaut offset, so four people standing together are not
+// a chorus line.
+const bobDelay = (id: string) => ((id.charCodeAt(0) * 7) % 11) * 0.25
+
 // Who is working here: a row of portraits (initials if the art is missing).
 // Anyone outside is wearing their helmet, which is the same cue the crew
 // cards use.
@@ -205,6 +262,11 @@ function CrewBadges({ x, y, crew, evaIds }: { x: number; y: number; crew: CrewMe
         const src = portraitFor(m.id, evaIds.has(m.id))
         return (
           <g key={m.id} transform={`translate(${start + i * (r * 2 + 6)}, ${y})`}>
+            {/* The bob lives on an inner group: the outer one is holding the
+                position, and a CSS transform would replace it. The offset
+                comes from who they are, not from where they are standing,
+                so the crew do not bob in unison when they share a building. */}
+            <g className="crew-bob" style={{ animationDelay: `${bobDelay(m.id)}s` }}>
             <circle r={r} fill="#fde047" stroke="#0f172a" strokeWidth={4} />
             {src ? (
               <image href={src} x={-r} y={-r} width={r * 2} height={r * 2} clipPath="url(#crew-badge-clip)" preserveAspectRatio="xMidYMid slice" />
@@ -214,6 +276,7 @@ function CrewBadges({ x, y, crew, evaIds }: { x: number; y: number; crew: CrewMe
               </text>
             )}
             <circle r={r} fill="none" stroke="#0f172a" strokeWidth={4} />
+            </g>
           </g>
         )
       })}
@@ -269,6 +332,11 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
         {/* The pool of light a lit building throws on the ground. The Moon
             has no air for light to glow in, so the only thing to see at
             night is the ground it lands on. */}
+        {/* The array's own shape, so its glint falls on the panels and not
+            on the ground beside them. */}
+        <mask id="solar-mask" maskUnits="userSpaceOnUse" style={{ maskType: 'alpha' }} {...spriteBox('solar', SPRITES.solar)}>
+          <image href={`${ART}/buildings/solar-day.webp`} {...spriteBox('solar', SPRITES.solar)} />
+        </mask>
         <radialGradient id="lamp-pool">
           <stop offset="0" stopColor="#fde68a" stopOpacity="0.5" />
           <stop offset="0.45" stopColor="#fbbf24" stopOpacity="0.22" />
@@ -313,6 +381,8 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
       {f.solarArrayM2 > 0 && (
         <g style={{ filter: storm ? 'brightness(0.7)' : undefined }}>
           <Building pad="solar" sprite={SPRITES.solar} night={night} />
+          {/* Only while the array is actually making power. */}
+          {!night && !storm && <PanelGlint box={spriteBox('solar', SPRITES.solar)} />}
         </g>
       )}
       <Building pad="habitat" sprite={SPRITES.habitat} night={night} />
@@ -349,7 +419,12 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
       {effects?.flare && <rect key={game.sol} className="flare-flash" width={W} height={H} fill="#ef4444" />}
 
       {/* Weather and emergencies tint the whole scene. */}
-      {storm && <rect width={W} height={H} fill="#b45309" opacity={0.3} />}
+      {storm && (
+        <>
+          <rect width={W} height={H} fill="#b45309" opacity={0.3} />
+          <DustDrift />
+        </>
+      )}
       {sheltering && <rect width={W} height={H} fill="#dc2626" opacity={0.12} />}
 
       {/* Labels and crew, drawn last so nothing covers them. */}

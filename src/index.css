@@ -91,12 +91,45 @@ html {
 }
 .twinkle { animation: twinkle 3.2s ease-in-out infinite; }
 
+/* --- Ambient life in the scene --- */
+
+/* Sunlight travelling across the solar array. The distance is the array's
+   own width, handed in as a custom property, so it works in the SVG's
+   coordinates whatever size the sprite is. */
+@keyframes panel-glint {
+  0% { transform: translateX(calc(var(--glint-travel) * -0.35)); opacity: 0; }
+  12% { opacity: 0.85; }
+  70% { opacity: 0.85; }
+  100% { transform: translateX(var(--glint-travel)); opacity: 0; }
+}
+/* Invisible at rest, like .flare-flash: under reduced motion these never
+   animate, and a band of white sitting still over the panels would be a
+   defect rather than an effect. */
+.panel-glint { opacity: 0; animation: panel-glint 7s ease-in-out infinite; }
+
+/* Dust blowing across during a Martian storm. */
+@keyframes dust-drift {
+  0% { transform: translate(-120px, 0); opacity: 0; }
+  15% { opacity: var(--dust-peak, 0.5); }
+  80% { opacity: var(--dust-peak, 0.5); }
+  100% { transform: translate(1750px, -60px); opacity: 0; }
+}
+.dust-drift { opacity: 0; animation: dust-drift var(--dust-time, 9s) linear infinite; }
+
+/* Crew shifting their weight, so the base does not look abandoned. */
+@keyframes crew-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3.5px); }
+}
+.crew-bob { animation: crew-bob 2.8s ease-in-out infinite; }
+
 /* Putting a helmet on: the EVA portrait fades over the indoor one when a
    crew member is assigned outside. */
 .portrait-fade { transition: opacity 400ms ease; }
 
 @media (prefers-reduced-motion: reduce) {
-  .delta-pop, .log-in, .flicker-out, .flare-flash, .lander-descend, .thruster, .night-breathe, .twinkle {
+  .delta-pop, .log-in, .flicker-out, .flare-flash, .lander-descend, .thruster, .night-breathe, .twinkle,
+  .panel-glint, .dust-drift, .crew-bob {
     animation: none;
   }
   .portrait-fade { transition: none; }
