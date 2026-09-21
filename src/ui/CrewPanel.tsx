@@ -6,7 +6,7 @@ import { gcrDoseMSv } from '../sim/radiation.ts'
 import type { CrewTask, Decisions, GameState } from '../sim/types.ts'
 import type { Action } from './gameReducer.ts'
 import { CrewAvatar } from './icons.tsx'
-import { TASK_ICONS, TASK_LABELS } from './labels.ts'
+import { CREW_PORTRAITS, TASK_ICONS, TASK_LABELS } from './labels.ts'
 
 interface Props {
   game: GameState
@@ -96,7 +96,7 @@ export function CrewPanel({ game, decisions, dispatch, highlightTask, showAdvice
           return (
             <div key={m.id} className="rounded-xl border border-slate-700/80 bg-slate-950/50 p-2.5">
               <div className="flex items-center gap-2.5">
-                <CrewAvatar index={index} initial={m.name[0]} />
+                <CrewAvatar index={index} initial={m.name[0]} src={CREW_PORTRAITS[m.id]} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="font-semibold">{m.name}</span>

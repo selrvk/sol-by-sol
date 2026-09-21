@@ -8,6 +8,9 @@
   edge is eased by one pixel to avoid a light halo on dark ground, and the
   result is saved as a transparent WebP.
 - Terrain: re-encoded as WebP, which is a fraction of the PNG's size.
+- Crew: the portrait sheet is split into four avatars, cropped to the face.
+  The crop deliberately stops above the chest, which also keeps the NASA
+  insignia on the suits out of the game.
 
 Output goes to public/art/, which is what the game loads.
 """
@@ -88,6 +91,53 @@ def union(a, b):
     return (min(a[0], b[0]), min(a[1], b[1]), max(a[2], b[2]), max(a[3], b[3]))
 
 
+# The portrait sheet: four discs on a flat background.
+CREW_SHEET = SRC / 'people' / 'peopleicons.png'
+CREW_NAMES = ['crew-1', 'crew-2', 'crew-3', 'crew-4']
+
+
+def crew_discs(im: Image.Image) -> list[tuple[int, int, int]]:
+    """Find the portrait discs: (centre x, centre y, radius)."""
+    w, h = im.size
+    px = im.load()
+    bg = px[5, 5]
+    is_bg = lambda p: all(abs(p[i] - bg[i]) < 24 for i in range(3))
+    seen = [[False] * h for _ in range(w)]
+    found = []
+    for sy in range(0, h, 4):
+        for sx in range(0, w, 4):
+            if seen[sx][sy] or is_bg(px[sx, sy]):
+                continue
+            queue = collections.deque([(sx, sy)])
+            seen[sx][sy] = True
+            box = [sx, sy, sx, sy]
+            count = 0
+            while queue:
+                x, y = queue.popleft()
+                count += 1
+                box = [min(box[0], x), min(box[1], y), max(box[2], x), max(box[3], y)]
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < w and 0 <= ny < h and not seen[nx][ny] and not is_bg(px[nx, ny]):
+                        seen[nx][ny] = True
+                        queue.append((nx, ny))
+            if count > 5000:
+                found.append(((box[0] + box[2]) // 2, (box[1] + box[3]) // 2, (box[2] - box[0] + box[3] - box[1]) // 4))
+    return sorted(found, key=lambda d: (d[1] // 100, d[0]))  # reading order
+
+
+def crop_crew() -> None:
+    if not CREW_SHEET.exists():
+        return
+    im = Image.open(CREW_SHEET).convert('RGB')
+    discs = crew_discs(im)
+    (OUT / 'crew').mkdir(parents=True, exist_ok=True)
+    for name, (cx, cy, r) in zip(CREW_NAMES, discs):
+        half = int(r * 0.62)          # stays inside the disc: no empty corners
+        cy -= int(r * 0.20)           # centre on the face, above the suit badge
+        face = im.crop((cx - half, cy - half, cx + half, cy + half)).resize((256, 256), Image.LANCZOS)
+        save(face, OUT / 'crew' / f'{name}.webp')
+
+
 def main() -> None:
     (OUT / 'buildings').mkdir(parents=True, exist_ok=True)
     cuts = {name: cut_out(SRC / 'buildings' / file) for name, file in BUILDINGS.items()}
@@ -99,6 +149,7 @@ def main() -> None:
             base = name.rsplit('-', 1)[0]
             box = union(cuts[f'{base}-day'].getbbox(), cuts[f'{base}-night'].getbbox())
         save(im.crop(box), OUT / 'buildings' / f'{name}.webp')
+    crop_crew()
     terrain = Image.open(SRC / 'moon_terrain.png').convert('RGB')
     dst = OUT / 'moon-terrain.webp'
     terrain.save(dst, 'WEBP', quality=82, method=6)

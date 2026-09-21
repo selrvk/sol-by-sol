@@ -1,11 +1,27 @@
-// The drawn crew avatar and mission patch. Presentation only.
+// The crew avatar and mission patch. Presentation only.
+
+import { useState } from 'react'
 
 // Suit accent colours, one per crew member, so each is easy to spot.
 const SUIT = ['#38bdf8', '#f97316', '#a78bfa', '#34d399']
 
-// A drawn astronaut helmet, used until portrait art exists.
-export function CrewAvatar({ index, initial, size = 44 }: { index: number; initial: string; size?: number }) {
+// A crew portrait, falling back to a drawn helmet if the art is missing.
+export function CrewAvatar({ index, initial, size = 44, src }: { index: number; initial: string; size?: number; src?: string }) {
   const accent = SUIT[index % SUIT.length]
+  const [failed, setFailed] = useState(false)
+  if (src && !failed) {
+    return (
+      <img
+        src={src}
+        alt=""
+        width={size}
+        height={size}
+        onError={() => setFailed(true)}
+        className="shrink-0 rounded-full object-cover ring-2"
+        style={{ width: size, height: size, boxShadow: `0 0 0 2px ${accent}` }}
+      />
+    )
+  }
   const id = `visor-${index}`
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden className="shrink-0">

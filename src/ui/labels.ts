@@ -15,6 +15,15 @@ export const TASK_LABELS: Record<CrewTask, { label: string; short: string; icon:
   rest: { label: 'Rest', short: 'Rest', icon: '💤', hint: 'No work' },
 }
 
+// Crew portraits, cropped from the art sheet by art/process.py. Keyed by
+// crew id, so swapping who looks like whom is a one-line change.
+export const CREW_PORTRAITS: Record<string, string> = {
+  ada: '/art/crew/crew-1.webp',
+  kofi: '/art/crew/crew-2.webp',
+  mei: '/art/crew/crew-3.webp',
+  luis: '/art/crew/crew-4.webp',
+}
+
 export const TASK_ICONS: Record<CrewTask, LucideIcon> = {
   labScience: FlaskConical,
   fieldScience: Pickaxe,

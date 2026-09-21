@@ -8,7 +8,8 @@
 import type { ReactNode } from 'react'
 import { BALANCE } from '../sim/balance.ts'
 import { lightInfo } from '../sim/forecast.ts'
-import type { CrewTask, Decisions, GameState, PowerLoad } from '../sim/types.ts'
+import type { CrewMember, CrewTask, Decisions, GameState, PowerLoad } from '../sim/types.ts'
+import { CREW_PORTRAITS } from './labels.ts'
 
 const W = 1585
 const H = 992
@@ -92,17 +93,23 @@ function Pill({ x, y, children, tone = 'normal' }: { x: number; y: number; child
   )
 }
 
-function CrewBadges({ x, y, initials }: { x: number; y: number; initials: string[] }) {
-  const r = 20
-  const start = x - ((initials.length - 1) * (r * 2 + 6)) / 2
+// Who is working here: a row of portraits (initials if the art is missing).
+function CrewBadges({ x, y, crew }: { x: number; y: number; crew: CrewMember[] }) {
+  const r = 22
+  const start = x - ((crew.length - 1) * (r * 2 + 6)) / 2
   return (
     <g>
-      {initials.map((init, i) => (
-        <g key={init + i} transform={`translate(${start + i * (r * 2 + 6)}, ${y})`}>
+      {crew.map((m, i) => (
+        <g key={m.id} transform={`translate(${start + i * (r * 2 + 6)}, ${y})`}>
           <circle r={r} fill="#fde047" stroke="#0f172a" strokeWidth={4} />
-          <text y={8} textAnchor="middle" className="fill-slate-900 text-[22px] font-bold">
-            {init}
-          </text>
+          {CREW_PORTRAITS[m.id] ? (
+            <image href={CREW_PORTRAITS[m.id]} x={-r} y={-r} width={r * 2} height={r * 2} clipPath="url(#crew-badge-clip)" preserveAspectRatio="xMidYMid slice" />
+          ) : (
+            <text y={8} textAnchor="middle" className="fill-slate-900 text-[22px] font-bold">
+              {m.name[0]}
+            </text>
+          )}
+          <circle r={r} fill="none" stroke="#0f172a" strokeWidth={4} />
         </g>
       ))}
     </g>
@@ -127,14 +134,14 @@ export function BaseView({ game, decisions }: { game: GameState; decisions: Deci
   }
 
   // Who is where. Sheltering crew are all inside the habitat.
-  const crewAt = new Map<string, string[]>()
+  const crewAt = new Map<string, CrewMember[]>()
   for (const m of game.crew) {
     const task = sheltering ? 'rest' : (decisions.assignments[m.id] ?? 'rest')
     const place = TASK_PLACE[task]
-    crewAt.set(place, [...(crewAt.get(place) ?? []), m.name[0]])
+    crewAt.set(place, [...(crewAt.get(place) ?? []), m])
   }
   const badgesUnder = (place: string, x: number, y: number) =>
-    crewAt.has(place) ? <CrewBadges x={x} y={y} initials={crewAt.get(place)!} /> : null
+    crewAt.has(place) ? <CrewBadges x={x} y={y} crew={crewAt.get(place)!} /> : null
 
   const hab = labelAt('habitat', SPRITES.habitat)
   const lab = labelAt('lab', SPRITES.lab)
@@ -147,6 +154,10 @@ export function BaseView({ game, decisions }: { game: GameState; decisions: Deci
   return (
     <svg viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`} className="h-auto w-full bg-[#0c1633]" role="img" aria-label={`The ${isMars ? 'Mars' : 'lunar'} outpost`}>
       <defs>
+        {/* Round mask for the crew portraits on the map. */}
+        <clipPath id="crew-badge-clip">
+          <circle r={22} />
+        </clipPath>
         {/* The terrain slab's outline, so Mars recolouring stays on the ground. */}
         <clipPath id="slab">
           <polygon points="782,28 1583,414 1583,470 792,992 3,478 3,424" />
