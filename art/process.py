@@ -92,12 +92,19 @@ def union(a, b):
 
 
 # The portrait sheet: four discs on a flat background.
-CREW_SHEET = SRC / 'people' / 'peopleicons.png'
+# Two sheets of the same four astronauts in the same accent colours: one
+# bare-headed, one with helmets on. The game shows the helmet when that
+# astronaut is assigned outside, so the crew card says at a glance who is
+# on a spacewalk.
+CREW_SHEETS = {
+    '': SRC / 'people' / 'crewpeeps.png',
+    '-eva': SRC / 'people' / 'crewpeeps-w-helmet.png',
+}
 CREW_NAMES = ['crew-1', 'crew-2', 'crew-3', 'crew-4']
 
 
-def crew_discs(im: Image.Image) -> list[tuple[int, int, int]]:
-    """Find the portrait discs: (centre x, centre y, radius)."""
+def crew_discs(im: Image.Image) -> list[tuple[int, int, int, int]]:
+    """Find the portrait discs, as (left, top, right, bottom) boxes."""
     w, h = im.size
     px = im.load()
     bg = px[5, 5]
@@ -121,21 +128,28 @@ def crew_discs(im: Image.Image) -> list[tuple[int, int, int]]:
                         seen[nx][ny] = True
                         queue.append((nx, ny))
             if count > 5000:
-                found.append(((box[0] + box[2]) // 2, (box[1] + box[3]) // 2, (box[2] - box[0] + box[3] - box[1]) // 4))
-    return sorted(found, key=lambda d: (d[1] // 100, d[0]))  # reading order
+                found.append(tuple(box))
+    return sorted(found, key=lambda b: (b[1] // 100, b[0]))  # reading order
 
 
 def crop_crew() -> None:
-    if not CREW_SHEET.exists():
-        return
-    im = Image.open(CREW_SHEET).convert('RGB')
-    discs = crew_discs(im)
+    """Cut each sheet into four square avatars.
+
+    These suits carry no agency insignia, so the whole disc is kept rather
+    than a tight crop of the face. The square is centred on the disc and
+    sized to its larger side, so the round CSS mask in the game lands
+    exactly on the painted circle.
+    """
     (OUT / 'crew').mkdir(parents=True, exist_ok=True)
-    for name, (cx, cy, r) in zip(CREW_NAMES, discs):
-        half = int(r * 0.62)          # stays inside the disc: no empty corners
-        cy -= int(r * 0.20)           # centre on the face, above the suit badge
-        face = im.crop((cx - half, cy - half, cx + half, cy + half)).resize((256, 256), Image.LANCZOS)
-        save(face, OUT / 'crew' / f'{name}.webp')
+    for suffix, sheet in CREW_SHEETS.items():
+        if not sheet.exists():
+            continue
+        im = Image.open(sheet).convert('RGB')
+        for name, (x0, y0, x1, y1) in zip(CREW_NAMES, crew_discs(im)):
+            cx, cy = (x0 + x1) // 2, (y0 + y1) // 2
+            half = max(x1 - x0, y1 - y0) // 2
+            disc = im.crop((cx - half, cy - half, cx + half, cy + half)).resize((256, 256), Image.LANCZOS)
+            save(disc, OUT / 'crew' / f'{name}{suffix}.webp')
 
 
 def main() -> None:

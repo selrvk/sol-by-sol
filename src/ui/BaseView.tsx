@@ -6,10 +6,11 @@
 // sits on one of the five pads marked on the terrain.
 
 import type { ReactNode } from 'react'
+import { EVA_TASKS } from '../sim/advanceSol.ts'
 import { BALANCE } from '../sim/balance.ts'
 import { lightInfo } from '../sim/forecast.ts'
 import type { CrewMember, CrewTask, Decisions, GameState, PowerLoad } from '../sim/types.ts'
-import { CREW_PORTRAITS } from './labels.ts'
+import { portraitFor } from './labels.ts'
 import type { SolEffects } from './useSolEffects.ts'
 
 const W = 1585
@@ -130,24 +131,29 @@ function Pill({ x, y, children, tone = 'normal' }: { x: number; y: number; child
 }
 
 // Who is working here: a row of portraits (initials if the art is missing).
-function CrewBadges({ x, y, crew }: { x: number; y: number; crew: CrewMember[] }) {
+// Anyone outside is wearing their helmet, which is the same cue the crew
+// cards use.
+function CrewBadges({ x, y, crew, evaIds }: { x: number; y: number; crew: CrewMember[]; evaIds: ReadonlySet<string> }) {
   const r = 22
   const start = x - ((crew.length - 1) * (r * 2 + 6)) / 2
   return (
     <g>
-      {crew.map((m, i) => (
-        <g key={m.id} transform={`translate(${start + i * (r * 2 + 6)}, ${y})`}>
-          <circle r={r} fill="#fde047" stroke="#0f172a" strokeWidth={4} />
-          {CREW_PORTRAITS[m.id] ? (
-            <image href={CREW_PORTRAITS[m.id]} x={-r} y={-r} width={r * 2} height={r * 2} clipPath="url(#crew-badge-clip)" preserveAspectRatio="xMidYMid slice" />
-          ) : (
-            <text y={8} textAnchor="middle" className="fill-slate-900 text-[22px] font-bold">
-              {m.name[0]}
-            </text>
-          )}
-          <circle r={r} fill="none" stroke="#0f172a" strokeWidth={4} />
-        </g>
-      ))}
+      {crew.map((m, i) => {
+        const src = portraitFor(m.id, evaIds.has(m.id))
+        return (
+          <g key={m.id} transform={`translate(${start + i * (r * 2 + 6)}, ${y})`}>
+            <circle r={r} fill="#fde047" stroke="#0f172a" strokeWidth={4} />
+            {src ? (
+              <image href={src} x={-r} y={-r} width={r * 2} height={r * 2} clipPath="url(#crew-badge-clip)" preserveAspectRatio="xMidYMid slice" />
+            ) : (
+              <text y={8} textAnchor="middle" className="fill-slate-900 text-[22px] font-bold">
+                {m.name[0]}
+              </text>
+            )}
+            <circle r={r} fill="none" stroke="#0f172a" strokeWidth={4} />
+          </g>
+        )
+      })}
     </g>
   )
 }
@@ -171,13 +177,15 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
 
   // Who is where. Sheltering crew are all inside the habitat.
   const crewAt = new Map<string, CrewMember[]>()
+  const evaIds = new Set<string>()
   for (const m of game.crew) {
     const task = sheltering ? 'rest' : (decisions.assignments[m.id] ?? 'rest')
+    if (EVA_TASKS.has(task)) evaIds.add(m.id)
     const place = TASK_PLACE[task]
     crewAt.set(place, [...(crewAt.get(place) ?? []), m])
   }
   const badgesUnder = (place: string, x: number, y: number) =>
-    crewAt.has(place) ? <CrewBadges x={x} y={y} crew={crewAt.get(place)!} /> : null
+    crewAt.has(place) ? <CrewBadges x={x} y={y} crew={crewAt.get(place)!} evaIds={evaIds} /> : null
 
   const hab = labelAt('habitat', SPRITES.habitat)
   const lab = labelAt('lab', SPRITES.lab)

@@ -1,25 +1,45 @@
 // The crew avatar and mission patch. Presentation only.
 
 import { useState } from 'react'
+import { CREW_PORTRAITS } from './labels.ts'
 
-// Suit accent colours, one per crew member, so each is easy to spot.
-const SUIT = ['#38bdf8', '#f97316', '#a78bfa', '#34d399']
+// Fallback suit accents, used only when a crew member has no portrait art.
+const SUIT = ['#2f72d9', '#31ac90', '#f8a24b', '#6665e3']
 
-// A crew portrait, falling back to a drawn helmet if the art is missing.
-export function CrewAvatar({ index, initial, size = 44, src }: { index: number; initial: string; size?: number; src?: string }) {
-  const accent = SUIT[index % SUIT.length]
+interface AvatarProps {
+  index: number
+  initial: string
+  size?: number
+  crewId?: string
+  onEva?: boolean
+}
+
+// A crew portrait. Both the indoor and the helmeted version are drawn, one
+// over the other, and cross-faded: assigning someone outside visibly puts
+// their helmet on. Drawing both also means neither has to load mid-swap.
+// Falls back to a drawn helmet if the art is missing.
+export function CrewAvatar({ index, initial, size = 44, crewId, onEva = false }: AvatarProps) {
+  const art = crewId ? CREW_PORTRAITS[crewId] : undefined
+  const accent = art?.accent ?? SUIT[index % SUIT.length]
   const [failed, setFailed] = useState(false)
-  if (src && !failed) {
+  if (art && !failed) {
     return (
-      <img
-        src={src}
-        alt=""
-        width={size}
-        height={size}
-        onError={() => setFailed(true)}
-        className="shrink-0 rounded-full object-cover ring-2"
+      <span
+        className="relative shrink-0 overflow-hidden rounded-full"
         style={{ width: size, height: size, boxShadow: `0 0 0 2px ${accent}` }}
-      />
+      >
+        {/* alt="" on both: the card already says in words who is outside. */}
+        <img src={art.inside} alt="" width={size} height={size} onError={() => setFailed(true)} className="absolute inset-0 h-full w-full object-cover" />
+        <img
+          src={art.eva}
+          alt=""
+          width={size}
+          height={size}
+          onError={() => setFailed(true)}
+          className="portrait-fade absolute inset-0 h-full w-full object-cover"
+          style={{ opacity: onEva ? 1 : 0 }}
+        />
+      </span>
     )
   }
   const id = `visor-${index}`

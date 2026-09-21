@@ -75,8 +75,13 @@
 }
 .twinkle { animation: twinkle 3.2s ease-in-out infinite; }
 
+/* Putting a helmet on: the EVA portrait fades over the indoor one when a
+   crew member is assigned outside. */
+.portrait-fade { transition: opacity 400ms ease; }
+
 @media (prefers-reduced-motion: reduce) {
   .delta-pop, .log-in, .flicker-out, .flare-flash, .lander-descend, .thruster, .night-breathe, .twinkle {
     animation: none;
   }
+  .portrait-fade { transition: none; }
 }
