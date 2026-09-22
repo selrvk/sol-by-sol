@@ -153,14 +153,13 @@ def crop_crew() -> None:
             save(disc, OUT / 'crew' / f'{name}{suffix}.webp')
 
 
-def cut_terrain() -> None:
+def cut_terrain(name: str) -> None:
     """Drop the render's flat sky, leaving the slab on transparency.
 
-    The game draws its own sky behind it, and Mars is the same slab under a
-    rust filter: with the sky gone, that filter needs no hand-drawn mask
-    around the slab to stay off the background.
+    The game draws its own sky behind it, so the slab needs no hand-drawn
+    mask around it to sit on that sky cleanly.
     """
-    im = Image.open(SRC / 'terrain' / 'moon-terrain.png').convert('RGB')
+    im = Image.open(SRC / 'terrain' / f'{name}.png').convert('RGB')
     w, h = im.size
     px = im.load()
     sky = px[2, 2]
@@ -183,13 +182,14 @@ def cut_terrain() -> None:
                 queue.append((nx, ny))
     out = im.convert('RGBA')
     out.putalpha(mask.filter(ImageFilter.GaussianBlur(0.6)))
-    save(out, OUT / 'moon-terrain.webp')
+    save(out, OUT / f'{name}.webp')
 
 
 def main() -> None:
     cut_buildings()
     crop_crew()
-    cut_terrain()
+    for terrain in sorted(SRC.glob('terrain/*.png')):
+        cut_terrain(terrain.stem)
 
 
 if __name__ == '__main__':

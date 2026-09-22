@@ -10,7 +10,7 @@ import type { ReactNode } from 'react'
 import { EVA_TASKS } from '../sim/advanceSol.ts'
 import { BALANCE } from '../sim/balance.ts'
 import { lightInfo } from '../sim/forecast.ts'
-import type { CrewMember, CrewTask, Decisions, GameState, PowerLoad } from '../sim/types.ts'
+import type { CrewMember, CrewTask, Decisions, GameState, PowerLoad, ScenarioId } from '../sim/types.ts'
 import { portraitFor } from './labels.ts'
 import type { SolEffects } from './useSolEffects.ts'
 
@@ -21,32 +21,49 @@ const ART = '/art'
 // with just enough sky above the back corner for the stars.
 const VIEW = { x: 130, y: 60, w: 1330, h: 760 }
 
-// The terrain's top surface, from the three corners of its painted diamond
+// Each world's terrain art, and the three corners of its painted diamond
 // (the front corner follows from the other three). A spot on the ground is
 // given as (u, v): u runs from the back corner towards the left one, v
 // towards the right one, so (0,0) is the back corner and (1,1) the front.
 // Placing buildings this way keeps them on the same ground plane the
 // terrain is drawn in, which is what makes them look planted rather than
 // pasted on.
-const GROUND = { north: [781, 51], west: [11, 420], east: [1576, 476] } as const
+//
+// The two slabs are not the same shape -- Mars sits lower and is a little
+// smaller -- so the corners are measured per world rather than shared. The
+// (u, v) positions below are the same for both, which is what lets one
+// layout serve both worlds.
+interface Terrain {
+  art: string
+  north: readonly [number, number]
+  west: readonly [number, number]
+  east: readonly [number, number]
+}
 
-function groundAt(u: number, v: number) {
-  const [nx, ny] = GROUND.north
-  const [wx, wy] = GROUND.west
-  const [ex, ey] = GROUND.east
+const TERRAIN: Record<ScenarioId, Terrain> = {
+  moon: { art: 'moon-terrain.webp', north: [781, 51], west: [11, 420], east: [1576, 476] },
+  mars: { art: 'mars-terrain.webp', north: [788, 102], west: [37, 438], east: [1552, 463] },
+}
+
+function groundAt(t: Terrain, u: number, v: number) {
+  const [nx, ny] = t.north
+  const [wx, wy] = t.west
+  const [ex, ey] = t.east
   return { x: nx + u * (wx - nx) + v * (ex - nx), y: ny + u * (wy - ny) + v * (ey - ny) }
 }
 
 // Where each building stands: the habitat in the middle with the other four
 // around it, bare ground between them. Every stone platform keeps at least
-// ~80px of clearance from the slab's rocky rim, which is what stops a
-// building from looking like it is sliding off the edge at night.
+// ~80px of clearance from the slab's rocky rim on both worlds, which is
+// what stops a building from looking like it is sliding off the edge at
+// night. The clearance is measured against Mars, the smaller slab, and the
+// crew standing at a building's door count as part of its footprint.
 const PADS = {
   solar: { u: 0.22, v: 0.25 },
   habitat: { u: 0.45, v: 0.5 },
   reactor: { u: 0.22, v: 0.78 },
-  greenhouse: { u: 0.8, v: 0.24 },
-  lab: { u: 0.64, v: 0.83 },
+  greenhouse: { u: 0.74, v: 0.26 },
+  lab: { u: 0.64, v: 0.79 },
 } as const
 type PadId = keyof typeof PADS
 
@@ -96,12 +113,12 @@ const TASK_PLACE: Record<CrewTask, PadId | 'field' | 'o2'> = {
   isru: 'o2',
   rest: 'habitat',
 }
-const FIELD_SPOT = groundAt(0.8, 0.52) // open ground between the greenhouse and the lab
+const FIELD_UV = { u: 0.8, v: 0.52 } // open ground between the greenhouse and the lab
 
 type Status = 'on' | 'off' | 'shed'
 
-function spriteBox(pad: PadId, s: Sprite) {
-  const g = groundAt(PADS[pad].u, PADS[pad].v)
+function spriteBox(t: Terrain, pad: PadId, s: Sprite) {
+  const g = groundAt(t, PADS[pad].u, PADS[pad].v)
   const width = s.px[0] * BUILDING_SCALE
   const height = s.px[1] * BUILDING_SCALE
   return { x: g.x - s.anchor[0] * width, y: g.y - s.anchor[1] * height, width, height }
@@ -109,8 +126,8 @@ function spriteBox(pad: PadId, s: Sprite) {
 
 // A building with day and night art stacked and cross-faded, so nightfall
 // is a smooth change and the night image is already loaded when needed.
-function Building({ pad, sprite, night, status = 'on', flicker = false }: { pad: PadId; sprite: Sprite; night: boolean; status?: Status; flicker?: boolean }) {
-  const box = spriteBox(pad, sprite)
+function Building({ terrain, pad, sprite, night, status = 'on', flicker = false }: { terrain: Terrain; pad: PadId; sprite: Sprite; night: boolean; status?: Status; flicker?: boolean }) {
+  const box = spriteBox(terrain, pad, sprite)
   const filter = status === 'off' ? 'grayscale(1) brightness(0.55)' : undefined
   const cls = [status === 'shed' ? 'shed-pulse' : '', flicker ? 'flicker-out' : ''].filter(Boolean).join(' ')
   return (
@@ -123,18 +140,37 @@ function Building({ pad, sprite, night, status = 'on', flicker = false }: { pad:
   )
 }
 
-// Stars for the night sky: fixed positions above the terrain's edge, so they
-// only ever sit in the empty sky, never on the ground.
-const STARS = (() => {
-  const above = (x: number, y: number) => y < (x < 781 ? 420 - 0.4792 * (x - 11) : 51 + 0.5346 * (x - 781)) - 14
-  const out: { x: number; y: number; r: number; delay: number }[] = []
+interface Star {
+  x: number
+  y: number
+  r: number
+  delay: number
+}
+
+// Stars for the night sky: fixed positions above the terrain's own skyline,
+// so they only ever sit in the empty sky, never on the ground. The skyline
+// is the slab's two back edges, which differ per world, so the field is
+// worked out once per terrain and kept.
+const starFields = new Map<string, Star[]>()
+
+function starsFor(t: Terrain): Star[] {
+  const cached = starFields.get(t.art)
+  if (cached) return cached
+  const [nx, ny] = t.north
+  const [wx, wy] = t.west
+  const [ex, ey] = t.east
+  const leftSlope = (wy - ny) / (wx - nx)
+  const rightSlope = (ey - ny) / (ex - nx)
+  const above = (x: number, y: number) => y < ny + (x < nx ? leftSlope * (x - nx) : rightSlope * (x - nx)) - 14
+  const out: Star[] = []
   for (let i = 0; i < 90 && out.length < 34; i++) {
     const x = 130 + ((i * 271) % 1330)
     const y = 145 + ((i * 137) % 300)
     if (above(x, y)) out.push({ x, y, r: i % 4 === 0 ? 3 : 2, delay: (i % 7) * 0.45 })
   }
+  starFields.set(t.art, out)
   return out
-})()
+}
 
 // Sunlight travelling across the solar array, while it is actually making
 // power: it stops at night and under a dust storm, which is the point.
@@ -288,6 +324,8 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
   const f = game.facilities
   const env = game.environment
   const isMars = game.scenario.id === 'mars'
+  const terrain = TERRAIN[game.scenario.id]
+  const fieldSpot = groundAt(terrain, FIELD_UV.u, FIELD_UV.v)
   const night = !lightInfo(game.scenario, game.sol).isDaylight
   const storm = env.dustStormSolsLeft > 0
   const sheltering = env.shelterSolsLeft > 0
@@ -298,8 +336,8 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
   // Where a building's label and its crew stand: the label floats just
   // clear of the building's top, the crew gather at its front door.
   const labelAt = (pad: PadId, s: Sprite) => {
-    const b = spriteBox(pad, s)
-    return { x: groundAt(PADS[pad].u, PADS[pad].v).x, y: b.y - 6, foot: b.y + b.height + 6 }
+    const b = spriteBox(terrain, pad, s)
+    return { x: groundAt(terrain, PADS[pad].u, PADS[pad].v).x, y: b.y - 6, foot: b.y + b.height + 6 }
   }
 
   // Who is where. Sheltering crew are all inside the habitat.
@@ -320,7 +358,7 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
   const sol = labelAt('solar', SPRITES.solar)
   const rea = labelAt('reactor', SPRITES.reactor)
   const worn = f.condition < 0.6
-  const o2Pad = groundAt(PADS.reactor.u, PADS.reactor.v) // Mars has no reactor: its O₂ makers use that pad
+  const o2Pad = groundAt(terrain, PADS.reactor.u, PADS.reactor.v) // Mars has no reactor: its O₂ makers use that pad
 
   return (
     <svg viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`} className="h-auto w-full bg-[#0c1633]" role="img" aria-label={`The ${isMars ? 'Mars' : 'lunar'} outpost`}>
@@ -334,8 +372,8 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
             night is the ground it lands on. */}
         {/* The array's own shape, so its glint falls on the panels and not
             on the ground beside them. */}
-        <mask id="solar-mask" maskUnits="userSpaceOnUse" style={{ maskType: 'alpha' }} {...spriteBox('solar', SPRITES.solar)}>
-          <image href={`${ART}/buildings/solar-day.webp`} {...spriteBox('solar', SPRITES.solar)} />
+        <mask id="solar-mask" maskUnits="userSpaceOnUse" style={{ maskType: 'alpha' }} {...spriteBox(terrain, 'solar', SPRITES.solar)}>
+          <image href={`${ART}/buildings/solar-day.webp`} {...spriteBox(terrain, 'solar', SPRITES.solar)} />
         </mask>
         <radialGradient id="lamp-pool">
           <stop offset="0" stopColor="#fde68a" stopOpacity="0.5" />
@@ -347,13 +385,7 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
       {/* Sky first, then the slab. The terrain art is cut out, so the rust
           filter for Mars lands on the ground and nowhere else. */}
       <rect x={VIEW.x} y={VIEW.y} width={VIEW.w} height={VIEW.h} fill="#0c1633" />
-      <image
-        href={`${ART}/moon-terrain.webp`}
-        width={W}
-        height={H}
-        // Until there is Mars art: the same slab, tinted rust.
-        style={isMars ? { filter: 'sepia(1) saturate(2.6) hue-rotate(-20deg) brightness(0.8) contrast(1.05)' } : undefined}
-      />
+      <image href={`${ART}/${terrain.art}`} width={W} height={H} />
 
       {/* Night: darken the ground and the panels; buildings light up. */}
       <rect width={W} height={H} fill="#0a1433" style={{ opacity: night ? 0.55 : 0, transition: 'opacity 1.2s', mixBlendMode: 'multiply' }} />
@@ -365,13 +397,13 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
           if (pad === 'reactor' && f.reactorKW === 0 && !game.scenario.isruAvailable) return null
           if (pad === 'greenhouse' && f.greenhouseM2 === 0) return null
           if (load && status(load) !== 'on') return null
-          const g = groundAt(PADS[pad].u, PADS[pad].v)
+          const g = groundAt(terrain, PADS[pad].u, PADS[pad].v)
           const rx = SPRITES[pad].px[0] * BUILDING_SCALE * 0.95
           return <ellipse key={pad} cx={g.x} cy={g.y} rx={rx} ry={rx * 0.52} fill="url(#lamp-pool)" />
         })}
       </g>
       <g style={{ opacity: night ? 1 : 0, transition: 'opacity 1.6s' }}>
-        {STARS.map((s, i) => (
+        {starsFor(terrain).map((s, i) => (
           <circle key={i} className="twinkle" cx={s.x} cy={s.y} r={s.r} fill="#e2e8f0" style={{ animationDelay: `${s.delay}s` }} />
         ))}
       </g>
@@ -380,17 +412,17 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
           one if they ever meet. */}
       {f.solarArrayM2 > 0 && (
         <g style={{ filter: storm ? 'brightness(0.7)' : undefined }}>
-          <Building pad="solar" sprite={SPRITES.solar} night={night} />
+          <Building terrain={terrain} pad="solar" sprite={SPRITES.solar} night={night} />
           {/* Only while the array is actually making power. */}
-          {!night && !storm && <PanelGlint box={spriteBox('solar', SPRITES.solar)} />}
+          {!night && !storm && <PanelGlint box={spriteBox(terrain, 'solar', SPRITES.solar)} />}
         </g>
       )}
-      <Building pad="habitat" sprite={SPRITES.habitat} night={night} />
-      {f.reactorKW > 0 && <Building pad="reactor" sprite={SPRITES.reactor} night={night} />}
+      <Building terrain={terrain} pad="habitat" sprite={SPRITES.habitat} night={night} />
+      {f.reactorKW > 0 && <Building terrain={terrain} pad="reactor" sprite={SPRITES.reactor} night={night} />}
       {f.greenhouseM2 > 0 && (
-        <Building pad="greenhouse" sprite={SPRITES.greenhouse} night={night} status={status('greenhouse')} flicker={effects?.powerCut && status('greenhouse') === 'shed'} />
+        <Building terrain={terrain} pad="greenhouse" sprite={SPRITES.greenhouse} night={night} status={status('greenhouse')} flicker={effects?.powerCut && status('greenhouse') === 'shed'} />
       )}
-      <Building pad="lab" sprite={SPRITES.lab} night={night} status={status('lab')} flicker={effects?.powerCut && status('lab') === 'shed'} />
+      <Building terrain={terrain} pad="lab" sprite={SPRITES.lab} night={night} status={status('lab')} flicker={effects?.powerCut && status('lab') === 'shed'} />
 
       {/* O₂ makers (Mars) have no art yet: simple tanks on the free pad. */}
       {game.scenario.isruAvailable && f.isruUnits > 0 && (
@@ -476,10 +508,10 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
 
       {crewAt.has('field') && (
         <>
-          <Pill x={FIELD_SPOT.x} y={FIELD_SPOT.y - 60} icon={Pickaxe} quiet>
+          <Pill x={fieldSpot.x} y={fieldSpot.y - 60} icon={Pickaxe} quiet>
             Field work
           </Pill>
-          {badgesUnder('field', FIELD_SPOT.x, FIELD_SPOT.y)}
+          {badgesUnder('field', fieldSpot.x, fieldSpot.y)}
         </>
       )}
 
