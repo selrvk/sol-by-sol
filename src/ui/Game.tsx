@@ -9,6 +9,7 @@ import { loadSavedUiState, reducer, saveUiState, SCENARIOS } from './gameReducer
 import { OPENINGS } from './labels.ts'
 import { MissionLog } from './MissionLog.tsx'
 import { OpeningBriefing } from './OpeningBriefing.tsx'
+import { PhoneTabs, type Attention, type Pane } from './PhoneTabs.tsx'
 import { useSolEffects } from './useSolEffects.ts'
 import { ResourcePanel } from './ResourcePanel.tsx'
 import { EndScreen, StartScreen } from './Screens.tsx'
@@ -23,6 +24,9 @@ export function Game() {
   const [briefingDismissedFor, setBriefingDismissedFor] = useState<number | null>(null)
   // Which astronaut's task picker is open (phones only).
   const [pickerFor, setPickerFor] = useState<string | null>(null)
+  // Which group of panels a phone is showing. Desktop ignores this and
+  // shows everything at once.
+  const [pane, setPane] = useState<Pane>('mission')
   const { game, previous, decisions, history } = ui
   const solEffects = useSolEffects(game)
 
@@ -49,6 +53,23 @@ export function Game() {
   const fixChosen = Object.values(decisions.assignments).includes(opening.fixTask)
   const onFirstSol = game.sol === game.scenario.start.sol
 
+  // A phone only shows one pane at a time; a wide screen shows the lot.
+  const inPane = (p: Pane) => (pane === p ? '' : 'hidden lg:block')
+
+  // What is worth a dot on a tab the player is not looking at. Read straight
+  // off game state, so it cannot disagree with the panels themselves.
+  const lastSol = game.sol - 1
+  const shed = (game.lastReport?.shedLoads.length ?? 0) > 0
+  const doseHigh = game.crew.some((m) => m.doseMSv > 0.85 * m.careerDoseLimitMSv)
+  const worn = game.facilities.condition < 0.6
+  const attention: Partial<Record<Pane, Attention>> = {
+    ...((shed || doseHigh) && { mission: 'bad' as Attention }),
+    ...(!shed && !doseHigh && worn && { mission: 'warn' as Attention }),
+    ...(game.log.some((e) => e.sol === lastSol && (e.kind === 'eventStart' || e.kind === 'loadShed' || e.kind === 'dustStormStart')) && {
+      base: 'warn' as Attention,
+    }),
+  }
+
   return (
     // On desktop the app fills the screen and never scrolls as a page: each
     // column scrolls inside itself. That keeps the Advance button and the
@@ -64,14 +85,14 @@ export function Game() {
       {/* Two columns on large screens. On phones the columns dissolve
           (display: contents) so sections can be re-ordered: the meters come
           right after the map, where the briefing points. */}
-      <main className="flex flex-1 flex-col gap-4 p-4 pb-28 lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_22rem] lg:overflow-hidden lg:pb-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      <main className="flex flex-1 flex-col gap-4 p-4 pb-40 lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_22rem] lg:overflow-hidden lg:pb-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="contents lg:block lg:h-full lg:min-h-0 lg:min-w-0 lg:space-y-4 lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
           {showBriefing && (
             <div className="order-1 lg:order-none">
             <OpeningBriefing game={game} decisions={decisions} onDismiss={() => setBriefingDismissedFor(game.rng.seed)} />
             </div>
           )}
-          <div className="relative order-2 overflow-hidden rounded-2xl border border-slate-800 lg:order-none">
+          <div className={`relative order-2 overflow-hidden rounded-2xl border border-slate-800 lg:order-none ${inPane('base')}`}>
             <BaseView game={game} decisions={decisions} effects={solEffects} />
             <BaseSummary game={game} />
             <label className="absolute left-3 top-3 flex items-center">
@@ -101,7 +122,7 @@ export function Game() {
               </select>
             </label>
           </div>
-          <div className="order-4 lg:order-none">
+          <div className={`order-4 lg:order-none ${inPane('mission')}`}>
           <CrewPanel
             game={game}
             decisions={decisions}
@@ -112,10 +133,10 @@ export function Game() {
             onPickerChange={setPickerFor}
           />
           </div>
-          <div className="order-6 lg:order-none">
+          <div className={`order-6 lg:order-none ${inPane('base')}`}>
             <MissionLog log={game.log} />
           </div>
-          <details className="group order-7 rounded-2xl border border-slate-800 bg-slate-900/50 p-3 lg:order-none" open={history.length > 1}>
+          <details className={`group order-7 rounded-2xl border border-slate-800 bg-slate-900/50 p-3 lg:order-none ${inPane('trends')}`} open={history.length > 1}>
             <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-300">
               <ChartLine size={16} className="text-sky-300" aria-hidden /> Trends
             </summary>
@@ -131,14 +152,29 @@ export function Game() {
             Advance button is held at its foot so it is always in reach. */}
         <div className="contents lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:gap-4">
           <div className="contents lg:block lg:min-h-0 lg:flex-1 lg:space-y-4 lg:overflow-y-auto lg:overscroll-contain">
-            <div className="order-3 lg:order-none">
+            <div className={`order-3 lg:order-none ${inPane('mission')}`}>
               <ResourcePanel game={game} previous={previous} decisions={decisions} highlight={showBriefing && onFirstSol ? opening.meter : undefined} />
             </div>
-            <div className="order-5 lg:order-none">
+            <div className={`order-5 lg:order-none ${inPane('mission')}`}>
               <PowerSwitches game={game} decisions={decisions} dispatch={dispatch} />
             </div>
           </div>
-          <AdvanceButton game={game} decisions={decisions} dispatch={dispatch} highlightAdvance={showBriefing && onFirstSol && fixChosen} />
+          <AdvanceButton
+            game={game}
+            decisions={decisions}
+            dispatch={dispatch}
+            highlightAdvance={showBriefing && onFirstSol && fixChosen}
+            tabs={
+              <PhoneTabs
+                pane={pane}
+                attention={attention}
+                onChange={(next) => {
+                  setPane(next)
+                  window.scrollTo({ top: 0 })
+                }}
+              />
+            }
+          />
         </div>
       </main>
       {game.pendingEvent && !decisions.eventChoiceId && game.outcome.status === 'playing' && (

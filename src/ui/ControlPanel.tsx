@@ -1,5 +1,5 @@
 import { Play, Power } from 'lucide-react'
-import type { Dispatch } from 'react'
+import type { Dispatch, ReactNode } from 'react'
 import { loadDemandKWh } from '../sim/advanceSol.ts'
 import type { Decisions, GameState } from '../sim/types.ts'
 import type { Action } from './gameReducer.ts'
@@ -60,11 +60,14 @@ export function PowerSwitches({ game, decisions, dispatch }: Omit<Props, 'highli
 
 // The one button the whole game turns on, so it is never somewhere the
 // player has to go looking: pinned to the bottom of the screen on phones,
-// and held at the foot of the status column on desktop.
-export function AdvanceButton({ game, decisions, dispatch, highlightAdvance }: Props) {
+// and held at the foot of the status column on desktop. On a phone it also
+// carries the section tabs, so the two live in one bar instead of two
+// stacked fixtures that have to be kept in step.
+export function AdvanceButton({ game, decisions, dispatch, highlightAdvance, tabs }: Props & { tabs?: ReactNode }) {
   const waitingForEvent = game.pendingEvent !== null && !decisions.eventChoiceId
   return (
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-800 bg-slate-950/95 p-3 lg:static lg:border-0 lg:bg-transparent lg:p-0">
+        {tabs && <div className="mb-2 lg:hidden">{tabs}</div>}
         <button
           type="button"
           disabled={waitingForEvent}
