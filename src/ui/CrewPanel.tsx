@@ -91,7 +91,7 @@ export function CrewPanel({ game, decisions, dispatch, highlightTask, showAdvice
           <button
             type="button"
             onClick={() => dispatch({ type: 'swapTasks', a: swapAdvice!.out, b: swapAdvice!.in })}
-            className="flex items-center gap-1 rounded-lg bg-sky-300 px-2.5 py-1 text-xs font-semibold text-slate-900 hover:bg-sky-200"
+            className="flex items-center gap-1 rounded-lg bg-sky-300 px-2.5 py-1 text-xs font-semibold text-slate-900 hover:bg-sky-200 transition active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
           >
             <ArrowLeftRight size={14} aria-hidden /> Swap their jobs
           </button>
@@ -111,7 +111,7 @@ export function CrewPanel({ game, decisions, dispatch, highlightTask, showAdvice
                   type="button"
                   onClick={() => onPickerChange?.(m.id)}
                   aria-haspopup="dialog"
-                  className={`flex w-full items-center gap-2 rounded-lg border border-slate-700 px-2.5 py-2 text-left text-sm hover:border-slate-500 ${
+                  className={`flex w-full items-center gap-2 rounded-lg border border-slate-700 px-2.5 py-2 text-left text-sm hover:border-slate-500 transition active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 ${
                     highlightTask && (task === 'labScience' || task === 'fieldScience') ? 'animate-pulse ring-2 ring-yellow-300' : ''
                   }`}
                 >
@@ -244,7 +244,7 @@ function TaskButtons({
               dispatch({ type: 'assign', crewId, task: t })
               onPicked?.()
             }}
-            className={`relative flex rounded-lg border leading-none transition-colors ${
+            className={`relative flex rounded-lg border leading-none transition active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-100 ${
               big ? 'items-center gap-2 px-2.5 py-2.5 text-left' : 'flex-col items-center gap-1 px-1 py-1.5'
             } ${
               selected ? 'border-yellow-300 bg-yellow-300/15 text-yellow-100' : 'border-slate-700 text-slate-300 hover:border-slate-500 hover:bg-slate-800/60'
@@ -334,7 +334,7 @@ function TaskSheet({
         <button
           type="button"
           onClick={onClose}
-          className="mt-3 w-full rounded-xl border border-slate-600 py-2.5 text-sm font-semibold hover:border-slate-400"
+          className="mt-3 w-full rounded-xl border border-slate-600 py-2.5 text-sm font-semibold hover:border-slate-400 transition active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
         >
           Close
         </button>

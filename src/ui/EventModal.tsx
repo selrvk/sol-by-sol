@@ -7,7 +7,7 @@ export function EventModal({ event, dispatch }: { event: PendingEvent; dispatch:
   return (
     // A light backdrop, so the meters stay readable while the player decides.
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/35 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="event-title">
-      <div className="w-full max-w-lg rounded-2xl border border-amber-400/60 bg-slate-900 p-5 shadow-2xl">
+      <div className="end-in w-full max-w-lg rounded-2xl border border-amber-400/60 bg-slate-900 p-5 shadow-2xl">
         <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-amber-300">
           <TriangleAlert size={14} aria-hidden /> Alert
         </p>
@@ -20,7 +20,7 @@ export function EventModal({ event, dispatch }: { event: PendingEvent; dispatch:
               autoFocus={i === 0}
               type="button"
               onClick={() => dispatch({ type: 'chooseEvent', choiceId: ch.id })}
-              className="block w-full rounded-lg border border-slate-600 px-4 py-3 text-left hover:border-amber-300 hover:bg-amber-300/10"
+              className="block w-full rounded-lg border border-slate-600 px-4 py-3 text-left hover:border-amber-300 hover:bg-amber-300/10 transition active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
             >
               {ch.label}
             </button>

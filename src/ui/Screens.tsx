@@ -35,7 +35,7 @@ export function StartScreen({ dispatch }: { dispatch: Dispatch<Action> }) {
               key={id}
               type="button"
               onClick={() => start(id)}
-              className="rounded-2xl border border-slate-700 bg-slate-900 p-5 text-left hover:border-yellow-300"
+              className="rounded-2xl border border-slate-700 bg-slate-900 p-5 text-left transition hover:border-yellow-300 active:scale-[0.99] motion-reduce:transition-none motion-reduce:active:scale-100"
             >
               {id === 'moon' ? (
                 <Moon size={36} className="text-amber-200" aria-hidden />
@@ -135,9 +135,15 @@ export function EndScreen({ game, dispatch }: { game: GameState; dispatch: Dispa
   const LossIcon = info?.icon ?? Trophy
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-4" role="dialog" aria-modal="true" aria-labelledby="end-title">
-      <div className={`w-full max-w-lg rounded-2xl border bg-slate-900 p-6 ${won ? 'border-emerald-400' : 'border-red-500'}`}>
-        <p className="flex justify-center" aria-hidden>
-          {won ? <Trophy size={52} className="text-yellow-300" /> : <LossIcon size={52} className="text-red-400" />}
+      <div className={`end-in w-full max-w-lg rounded-2xl border bg-slate-900 p-6 ${won ? 'border-emerald-400' : 'border-red-500'}`}>
+        <p className="relative flex justify-center" aria-hidden>
+          {/* One burst of light behind the trophy, and nothing behind a loss. */}
+          {won && <span className="win-burst absolute inset-0 m-auto h-16 w-16 rounded-full bg-yellow-300/60 blur-lg" />}
+          {won ? (
+            <Trophy size={52} className="icon-pop relative text-yellow-300" />
+          ) : (
+            <LossIcon size={52} className="icon-settle relative text-red-400" />
+          )}
         </p>
         <h2 id="end-title" className="mt-2 text-center text-2xl font-bold">
           {won ? 'Mission accomplished!' : info!.title}
@@ -148,18 +154,16 @@ export function EndScreen({ game, dispatch }: { game: GameState; dispatch: Dispa
           </p>
         ) : (
           <div className="mt-4 space-y-3 text-sm">
-            <div>
-              <p className="font-semibold uppercase tracking-wider text-red-300">What went wrong</p>
-              <p className="text-slate-200">{info!.whatHappened(game)}</p>
-            </div>
-            <div>
-              <p className="font-semibold uppercase tracking-wider text-sky-300">Why it matters for real</p>
-              <p className="text-slate-200">{info!.realWorld}</p>
-            </div>
-            <div>
-              <p className="font-semibold uppercase tracking-wider text-yellow-300">Try next time</p>
-              <p className="text-slate-200">{info!.tryNext}</p>
-            </div>
+            {[
+              { head: 'What went wrong', tone: 'text-red-300', body: info!.whatHappened(game) },
+              { head: 'Why it matters for real', tone: 'text-sky-300', body: info!.realWorld },
+              { head: 'Try next time', tone: 'text-yellow-300', body: info!.tryNext },
+            ].map((part, i) => (
+              <div key={part.head} className="section-in" style={{ animationDelay: `${260 + i * 110}ms` }}>
+                <p className={`font-semibold uppercase tracking-wider ${part.tone}`}>{part.head}</p>
+                <p className="text-slate-200">{part.body}</p>
+              </div>
+            ))}
           </div>
         )}
         <MissionSummary game={game} />
@@ -167,10 +171,10 @@ export function EndScreen({ game, dispatch }: { game: GameState; dispatch: Dispa
           Sol {game.sol - 1} · science {game.sciencePoints}/{game.scenario.scienceTarget} · seed {game.rng.seed}
         </p>
         <div className="mt-4 flex justify-center gap-3">
-          <button type="button" onClick={() => dispatch({ type: 'restart' })} className="rounded-xl bg-yellow-300 px-5 py-3 font-bold text-slate-900 hover:bg-yellow-200">
+          <button type="button" onClick={() => dispatch({ type: 'restart' })} className="rounded-xl bg-yellow-300 px-5 py-3 font-bold text-slate-900 transition hover:bg-yellow-200 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100">
             Try again
           </button>
-          <button type="button" onClick={() => dispatch({ type: 'quit' })} className="rounded-xl border border-slate-600 px-5 py-3 font-semibold hover:border-slate-400">
+          <button type="button" onClick={() => dispatch({ type: 'quit' })} className="rounded-xl border border-slate-600 px-5 py-3 font-semibold transition hover:border-slate-400 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100">
             Choose world
           </button>
         </div>

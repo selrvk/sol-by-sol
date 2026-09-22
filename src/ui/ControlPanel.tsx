@@ -37,7 +37,7 @@ export function PowerSwitches({ game, decisions, dispatch }: Omit<Props, 'highli
                   role="switch"
                   aria-checked={on}
                   onClick={() => dispatch({ type: 'togglePower', load })}
-                  className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 ${on ? 'border-teal-400/60 bg-teal-400/10' : 'border-slate-700 text-slate-400'}`}
+                  className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 transition active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 ${on ? 'border-teal-400/60 bg-teal-400/10' : 'border-slate-700 text-slate-400'}`}
                 >
                   <span>{POWER_LABELS[load]}</span>
                   <span className="flex items-center gap-2 text-xs">
@@ -69,7 +69,7 @@ export function AdvanceButton({ game, decisions, dispatch, highlightAdvance }: P
           type="button"
           disabled={waitingForEvent}
           onClick={() => dispatch({ type: 'advance' })}
-          className={`flex w-full items-center justify-center gap-3 rounded-2xl bg-yellow-300 px-6 py-4 text-lg font-bold text-slate-900 shadow-lg shadow-yellow-300/10 hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-40 ${highlightAdvance ? 'animate-pulse ring-4 ring-yellow-300/60' : ''}`}
+          className={`flex w-full items-center justify-center gap-3 rounded-2xl bg-yellow-300 px-6 py-4 text-lg font-bold text-slate-900 shadow-lg shadow-yellow-300/10 hover:bg-yellow-200 disabled:cursor-not-allowed disabled:opacity-40 transition active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 disabled:active:scale-100 ${highlightAdvance ? 'animate-pulse ring-4 ring-yellow-300/60' : ''}`}
         >
           {waitingForEvent ? (
             'Answer the alert first'
