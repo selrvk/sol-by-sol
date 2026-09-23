@@ -69,10 +69,8 @@ export const EXPECTED: Record<ScenarioId, Record<string, Expectation[]>> = {
     'power-hog': [neverWins, mostlyLoses('power', 0.9)],
     cautious: [neverWins, mostlyLoses('missionTimeout', 0.9)],
     'rota-2m2f': [neverWins, mostlyLoses('food', 0.8)],
-    // A known gap, not a goal: see its description in policies.ts. Listed
-    // so that a change which fixes it is noticed as well as one that
-    // makes it worse.
-    'rota-1m3f': [wins(0.9)],
+    'rota-1m3f': [neverWins, mostlyLoses('water', 0.9)],
+    'day-night': [wins(0.9)],
   },
   mars: {
     balanced: [wins(0.9)],
@@ -82,6 +80,7 @@ export const EXPECTED: Record<ScenarioId, Record<string, Expectation[]>> = {
     cautious: [neverWins, mostlyLoses('missionTimeout', 0.9)],
     'rota-2m2f': [neverWins, mostlyLoses('oxygen', 0.9)],
     'rota-1m3f': [neverWins, mostlyLoses('oxygen', 0.9)],
+    'day-night': [neverWins, mostlyLoses('oxygen', 0.9)],
   },
 }
 

@@ -12,7 +12,7 @@ export const moon: Scenario = {
   name: 'Lunar outpost',
   hoursPerSol: HOURS_PER_SOL,
   missionLengthSols: 120,
-  scienceTarget: 550,
+  scienceTarget: 370,
   // Equatorial site, fixed horizontal panels: the mean of cos(sun angle)
   // over a lunar day is 2/π. 1361 W/m² × 24 h × 2/π ≈ 20.8 kWh/m² per sol.
   solarKWhPerM2PerSol: (c('SOLAR_FLUX_MOON') * HOURS_PER_SOL * (2 / Math.PI)) / 1000,
@@ -28,13 +28,19 @@ export const moon: Scenario = {
     intervalSols: 30,
     cargo: { storedPowerKWh: 0, oxygenKg: 90, waterL: 60, foodKg: 120 },
   },
+  // Moon dust is sharp and clings to everything; on Apollo it wore
+  // through suit fabric and jammed seals within a few moonwalks. How much
+  // each shift outside wears the base is balance.
+  evaDustWear: 0.025,
+  // Two weeks of dark and deep cold: outside work waits for sunrise.
+  outsideWorkAtNight: false,
   isruAvailable: false,
   // The player takes command mid-mission, on sol 40. The previous commander
   // put everyone on science and skipped repairs, so the base is worn out and
   // the water recycler is failing: the first thing to learn is maintenance.
   start: {
     sol: 40,
-    resources: { storedPowerKWh: 400, oxygenKg: 150, waterL: 110, foodKg: 300 },
+    resources: { storedPowerKWh: 400, oxygenKg: 150, waterL: 140, foodKg: 300 },
     facilities: {
       solarArrayM2: 140,
       // A 5 kWe unit (Kilopower covers 1–10 kWe). Slightly less than life

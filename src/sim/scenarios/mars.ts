@@ -27,6 +27,8 @@ export const mars: Scenario = {
   eventChancePerSol: 0.05,
   // Launch windows are ~26 months apart, longer than the mission: no resupply.
   resupply: null,
+  evaDustWear: 0,
+  outsideWorkAtNight: true,
   isruAvailable: true,
   // The player takes command mid-mission, on sol 40. Only one O₂ maker is
   // running and the crew breathes more than it makes: the first thing to

@@ -99,6 +99,13 @@ export interface Scenario {
   eventChancePerSol: number // all other events
   resupply: { intervalSols: number; cargo: ResourceLevels } | null
   isruAvailable: boolean
+  // Base condition lost for each shift worked outside: dust carried back
+  // in on suits and tools. Balance, not physics.
+  evaDustWear: number
+  // false: outside work gets nothing done at night (the lunar night is
+  // two weeks of dark and deep cold). Whoever goes out still takes the dose
+  // and brings the dust in. Only matters where there is a night.
+  outsideWorkAtNight: boolean
   // Full starting state, so a scenario can open mid-mission (Stage 5).
   start: {
     sol: number

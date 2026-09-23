@@ -264,9 +264,13 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
   let shiftsWorked = 0
   let scienceEarned = 0
   let maintenanceShifts = 0
+  let evaShifts = 0
+  const outsideWorks = daylight || scenario.outsideWorkAtNight
   for (const m of crew) {
+    if (onEva(m)) evaShifts++
     const task = taskFor(m)
     if (task !== 'rest' || busy.has(m.id)) shiftsWorked++
+    if (EVA_TASKS.has(task) && !outsideWorks) continue
     switch (task) {
       case 'labScience':
         if (powered.has('lab')) scienceEarned += BALANCE.LAB_SCIENCE_PER_SHIFT
@@ -295,7 +299,12 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
   }
   science += scienceEarned
 
-  fac.condition = clamp01(fac.condition - wearPerSol(fac) + BALANCE.MAINTENANCE_PER_SHIFT * maintenanceShifts)
+  fac.condition = clamp01(
+    fac.condition -
+      wearPerSol(fac) -
+      scenario.evaDustWear * evaShifts +
+      BALANCE.MAINTENANCE_PER_SHIFT * maintenanceShifts,
+  )
 
   if (scenario.resupply && sol > 0 && sol % scenario.resupply.intervalSols === 0) {
     const cargo = scenario.resupply.cargo

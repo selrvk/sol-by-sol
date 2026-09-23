@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { checkAll } from '../../scripts/expectations.ts'
 import { POLICIES } from '../../scripts/policies.ts'
-import { advanceSol } from '../sim/advanceSol.ts'
+import { advanceSol, EVA_TASKS } from '../sim/advanceSol.ts'
 import { resourceRates, taskEffects } from '../sim/effects.ts'
 import { lightInfo, nightAhead } from '../sim/forecast.ts'
 import { newGame } from '../sim/newGame.ts'
@@ -126,10 +126,13 @@ describe('opening crisis', () => {
     let state = newGame(scenario, seed)
     while (state.outcome.status === 'playing' && state.sol < scenario.start.sol + sols) {
       // A player who reads the power meter switches the optional systems
-      // off once the Sun goes down.
+      // off once the Sun goes down, and, as the task list warns, brings
+      // anyone working outside back in: outside work gets nothing done in
+      // the dark, and the dust they bring in still wears the base.
       const dark = rationAtNight && !lightInfo(scenario, state.sol).isDaylight
+      const tonight = tasks.map((t) => (dark && EVA_TASKS.has(t) ? 'labScience' : t))
       state = advanceSol(state, {
-        assignments: Object.fromEntries(state.crew.map((m, i) => [m.id, tasks[i]])),
+        assignments: Object.fromEntries(state.crew.map((m, i) => [m.id, tonight[i]])),
         power: { lab: !dark, greenhouse: !dark, isru: true },
         eventChoiceId: state.pendingEvent?.defaultChoiceId,
       })

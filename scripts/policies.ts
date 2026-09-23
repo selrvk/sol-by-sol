@@ -23,24 +23,28 @@
 //               builds. Moon: out of food just before the end. Mars:
 //               out of oxygen.
 //   rota-1m3f - one on maintenance, three on field science, every sol,
-//               never builds. Mars: out of oxygen.
-//               Moon: WINS, as reliably and as early as balanced. This is
-//               a known gap, not a goal. It used to starve, until the
-//               mid-mission opening (283cd92) gave the base a greenhouse
-//               and cargo started covering the food. Under the sourced
-//               physics nothing else you can build on the Moon pays back
-//               -- the greenhouse costs 10.5 kWh per m² per sol, cosmic
-//               rays barely notice shielding, panels are dark half the
-//               time -- so after the opening the Moon's crew decision comes
-//               down to maintenance vs science, and a fixed plan that gets
-//               that right does as well as an adaptive one. No single
-//               balance number separates the two without a cliff (starting
-//               food 230 kg: both win; 220: only balanced; 210: neither).
-//               It is not brainless: its power switches are the careful
-//               player's, and left all on it dies in the night.
+//               never builds. Mars: out of oxygen. Moon: out of water.
+//               It used to win the Moon as reliably as balanced: after the
+//               mid-mission opening (283cd92) the Moon's crew decision
+//               came down to maintenance vs science, and a fixed plan that
+//               got that right did as well as an adaptive one. Two rules
+//               closed it: outside work gets nothing done in the lunar
+//               night, and every shift outside brings dust in that wears
+//               the base. Going out every sol now costs repairs even on
+//               the sols it earns nothing.
+//   day-night - the plan the Moon rewards: one on maintenance and three
+//               outside by day; at night two on repairs and two in the lab.
+//               Moon: wins. Mars has no night, so it is rota-1m3f there:
+//               out of oxygen.
+//
+// Every fixed plan that ignores the night was also tried (all 35 mixes of
+// maintenance, field, lab and greenhouse, each with and without an opening
+// of extra repairs): the best, 1 maintenance, 2 field, 1 lab after the
+// opening repairs, wins about 1 Moon game in 7.
 
 import { BALANCE } from '../src/sim/balance.ts'
 import { c } from '../src/sim/constants.ts'
+import { lightInfo } from '../src/sim/forecast.ts'
 import type { CrewTask, Decisions, GameState } from '../src/sim/types.ts'
 
 export type Policy = (s: GameState) => Decisions
@@ -118,13 +122,21 @@ function supplyNeeds(s: GameState) {
   }
 }
 
-// Shared "keep the base alive" job list, most urgent first.
+// Outside work gets nothing done in the lunar night.
+const canWorkOutside = (s: GameState) => lightInfo(s.scenario, s.sol).isDaylight || s.scenario.outsideWorkAtNight
+
+// Shared "keep the base alive" job list, most urgent first. Building is
+// outside work, so at night it waits for sunrise.
 function upkeepJobs(s: GameState, opts: { shielding: boolean }): CrewTask[] {
   const f = s.facilities
   const { o2Short, foodShort } = supplyNeeds(s)
   const jobs: CrewTask[] = []
   if (f.condition < 0.95) jobs.push('maintenance')
   if (f.condition < 0.8) jobs.push('maintenance')
+  if (!canWorkOutside(s)) {
+    if (foodShort && f.greenhouseM2 < 16) jobs.push('greenhouse')
+    return jobs
+  }
   if (needsMorePower(s)) jobs.push('solar')
   // Build O₂ makers until they cover what the crew breathes.
   const o2Made = f.isruUnits * BALANCE.ISRU_KG_O2_PER_UNIT_PER_SOL
@@ -146,13 +158,24 @@ function assign(s: GameState, jobs: CrewTask[], leftover: (headroom: number) => 
   return assignments
 }
 
-const balanced: Policy = (s) => ({
-  assignments: assign(s, upkeepJobs(s, { shielding: true }), (headroom) =>
-    headroom > 100 ? 'fieldScience' : 'labScience',
-  ),
-  power: rationPower(s),
-  eventChoiceId: careful(s),
-})
+// Where a spare crew member does the most science today. Outside earns
+// less at night, and the lab earns nothing while it is switched off; with
+// neither worth it, they keep the base in repair instead.
+function scienceShift(s: GameState, power: Decisions['power'], headroom: number): CrewTask {
+  const lab = power.lab ? BALANCE.LAB_SCIENCE_PER_SHIFT : 0
+  const field = headroom > 100 && canWorkOutside(s) ? BALANCE.FIELD_SCIENCE_PER_SHIFT : 0
+  if (field === 0 && lab === 0) return 'maintenance'
+  return field > lab ? 'fieldScience' : 'labScience'
+}
+
+const balanced: Policy = (s) => {
+  const power = rationPower(s)
+  return {
+    assignments: assign(s, upkeepJobs(s, { shielding: true }), (headroom) => scienceShift(s, power, headroom)),
+    power,
+    eventChoiceId: careful(s),
+  }
+}
 
 const greedy: Policy = (s) => ({
   assignments: Object.fromEntries(s.crew.map((m) => [m.id, 'fieldScience' as CrewTask])),
@@ -200,4 +223,10 @@ export const POLICIES: Record<string, Policy> = {
   cautious,
   'rota-1m3f': rota(['maintenance', 'fieldScience', 'fieldScience', 'fieldScience']),
   'rota-2m2f': rota(['maintenance', 'maintenance', 'fieldScience', 'fieldScience']),
+  'day-night': (s) =>
+    rota(
+      canWorkOutside(s)
+        ? ['maintenance', 'fieldScience', 'fieldScience', 'fieldScience']
+        : ['maintenance', 'maintenance', 'labScience', 'labScience'],
+    )(s),
 }
