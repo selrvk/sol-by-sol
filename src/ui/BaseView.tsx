@@ -70,6 +70,18 @@ type PadId = keyof typeof PADS
 // proportion to each other and to the ground.
 const BUILDING_SCALE = 0.62
 
+// Mars daylight. The building art was painted in the Moon's cool greys, and
+// on Mars's orange ground it looked pasted on. Dust in the Martian air gives
+// daylight a warm, butterscotch cast, so on Mars the buildings are lit by
+// it: blue is cut most, green a little, and colour slightly softened, which
+// keeps each building's own hue (the green greenhouse, the blue lab) while
+// matching the light the ground is lit by. A tint, not a coat of dust, so
+// the buildings stay easy to tell apart.
+const MARS_LIGHT = '0.900 0.109 0.011 0 0  0.029 0.881 0.010 0 0  0.025 0.084 0.671 0 0  0 0 0 1 0'
+// The solar glint's colour, #e0f2fe, run through the same matrix. The glint
+// is drawn outside the filter (see below), so it carries the light itself.
+const GLINT = { moon: '#e0f2fe', mars: '#e7dec4' } as const
+
 // Radius of a crew portrait on the map, shared by the badge and its mask.
 const BADGE_R = 26
 
@@ -189,7 +201,7 @@ function starsFor(t: Terrain): Star[] {
 // power: it stops at night and under a dust storm, which is the point.
 // Masked by the array's own artwork, so the light falls on the panels and
 // not on the ground beside them.
-function PanelGlint({ box }: { box: { x: number; y: number; width: number; height: number } }) {
+function PanelGlint({ box, color }: { box: { x: number; y: number; width: number; height: number }; color: string }) {
   const band = box.width * 0.2
   const lean = box.height * 0.5 // the scene's 2:1 isometric
   return (
@@ -197,7 +209,7 @@ function PanelGlint({ box }: { box: { x: number; y: number; width: number; heigh
       <g className="panel-glint" style={{ ['--glint-travel' as string]: `${box.width * 0.9}px` }}>
         <polygon
           points={`${box.x + lean},${box.y} ${box.x + lean + band},${box.y} ${box.x + band},${box.y + box.height} ${box.x},${box.y + box.height}`}
-          fill="#e0f2fe"
+          fill={color}
           opacity={0.42}
         />
       </g>
@@ -338,6 +350,7 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
   const f = game.facilities
   const env = game.environment
   const isMars = game.scenario.id === 'mars'
+  const marsLight = isMars ? 'url(#mars-light)' : undefined
   const terrain = TERRAIN[game.scenario.id]
   const fieldSpot = groundAt(terrain, FIELD_UV.u, FIELD_UV.v)
   const night = !lightInfo(game.scenario, game.sol).isDaylight
@@ -389,6 +402,9 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
         <mask id="solar-mask" maskUnits="userSpaceOnUse" style={{ maskType: 'alpha' }} {...spriteBox(terrain, 'solar', SPRITES.solar)}>
           <image href={`${ART}/buildings/solar-day.webp`} {...spriteBox(terrain, 'solar', SPRITES.solar)} />
         </mask>
+        <filter id="mars-light" colorInterpolationFilters="sRGB">
+          <feColorMatrix type="matrix" values={MARS_LIGHT} />
+        </filter>
         <radialGradient id="lamp-pool">
           <stop offset="0" stopColor="#fde68a" stopOpacity="0.5" />
           <stop offset="0.45" stopColor="#fbbf24" stopOpacity="0.22" />
@@ -427,14 +443,24 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
       </g>
 
       {/* Buildings, drawn back to front so a nearer one overlaps a farther
-          one if they ever meet. */}
+          one if they ever meet. On Mars they are lit by its warm daylight
+          (MARS_LIGHT). The filter goes on an outer group of its own: a
+          building's own CSS filter (switched off, storm-dimmed) would
+          otherwise replace it. */}
       {f.solarArrayM2 > 0 && (
-        <g style={{ filter: storm ? 'brightness(0.7)' : undefined }}>
-          <Building terrain={terrain} pad="solar" sprite={SPRITES.solar} night={night} />
-          {/* Only while the array is actually making power. */}
-          {!night && !storm && <PanelGlint box={spriteBox(terrain, 'solar', SPRITES.solar)} />}
-        </g>
+        <>
+          <g filter={marsLight}>
+            <g style={{ filter: storm ? 'brightness(0.7)' : undefined }}>
+              <Building terrain={terrain} pad="solar" sprite={SPRITES.solar} night={night} />
+            </g>
+          </g>
+          {/* Only while the array is actually making power. Outside the Mars
+              light: it animates without end, and an animation inside a
+              filtered group makes the browser re-run the filter every frame. */}
+          {!night && !storm && <PanelGlint box={spriteBox(terrain, 'solar', SPRITES.solar)} color={GLINT[game.scenario.id]} />}
+        </>
       )}
+      <g filter={marsLight}>
       <Building terrain={terrain} pad="habitat" sprite={SPRITES.habitat} night={night} />
       {f.reactorKW > 0 && <Building terrain={terrain} pad="reactor" sprite={SPRITES.reactor} night={night} />}
       {f.greenhouseM2 > 0 && (
@@ -455,6 +481,7 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
           flicker={effects?.powerCut && status('isru') === 'shed'}
         />
       )}
+      </g>
 
       {/* A cargo lander comes down on resupply sols. */}
       {effects?.resupply && <CargoLander key={game.sol} x={880} y={700} />}
