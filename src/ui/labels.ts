@@ -2,6 +2,7 @@
 
 import { BedDouble, FlaskConical, Mountain, Pickaxe, Sprout, Sun, Wind, Wrench, type LucideIcon } from 'lucide-react'
 import { c, type ConstantKey, type CurveKey } from '../sim/constants.ts'
+import { EVA_TASKS } from '../sim/advanceSol.ts'
 import type { ResourceRates, TaskEffects } from '../sim/effects.ts'
 import type { CrewTask, GameState, PowerLoad, Scenario, ScenarioId } from '../sim/types.ts'
 
@@ -25,7 +26,7 @@ export const TASK_LABELS: Record<CrewTask, { label: string; short: string }> = {
 // this base's shielding, not an example. `warn` is set when the shift would
 // do nothing or next to nothing, and is shown in amber: a task at its limit,
 // lab science with the lab switched off, shielding where the air already
-// does the job.
+// does the job, any outside work in the lunar night.
 export interface TaskLine {
   does: string
   warn?: string
@@ -36,6 +37,17 @@ const whole = (x: number) => String(Math.round(x))
 const pct = (x: number) => `${one(x * 100)}%` // 0.029 -> "2.9%"
 
 export function describeTask(task: CrewTask, fx: TaskEffects): TaskLine {
+  const line = taskLine(task, fx)
+  if (!EVA_TASKS.has(task)) return line
+  // Outside work: the dust it brings in, and the night that stops it.
+  const dust = fx.outside.dustWear > 0 ? ` · brings in dust: −${pct(fx.outside.dustWear)} base condition` : ''
+  return {
+    does: line.does + dust,
+    warn: fx.outside.works ? line.warn : 'Too dark and cold outside at night: this shift gets nothing done until sunrise.',
+  }
+}
+
+function taskLine(task: CrewTask, fx: TaskEffects): TaskLine {
   switch (task) {
     case 'labScience':
       return {
@@ -46,8 +58,8 @@ export function describeTask(task: CrewTask, fx: TaskEffects): TaskLine {
       const f = fx.fieldScience
       return {
         does:
-          `+${f.science} science points · outside, so +${one(f.extraDoseMSv)} mSv radiation a sol` +
-          (f.stormExtraMSv >= 1 ? `, and +${whole(f.stormExtraMSv)} mSv more if a solar storm hits` : ''),
+          `+${f.science} science points · outside: +${one(f.extraDoseMSv)} mSv radiation a sol` +
+          (f.stormExtraMSv >= 1 ? ` (+${whole(f.stormExtraMSv)} mSv more in a solar storm)` : ''),
       }
     }
     case 'greenhouse': {
@@ -75,7 +87,8 @@ export function describeTask(task: CrewTask, fx: TaskEffects): TaskLine {
     }
     case 'maintenance': {
       const m = fx.maintenance
-      return { does: `+${pct(m.repair)} base condition (now ${whole(m.condition * 100)}%, wears ${pct(m.wear)} a sol) · sets water recycling and solar power` }
+      const fromDust = m.dustWear > 0 ? `, ${pct(m.dustWear)} of it dust from work outside` : ''
+      return { does: `+${pct(m.repair)} base condition (now ${whole(m.condition * 100)}%, wears ${pct(m.wear)} a sol${fromDust}) · sets water recycling and solar power` }
     }
     case 'isru': {
       const i = fx.isru
@@ -127,7 +140,7 @@ export const POWER_LABELS: Record<PowerLoad, string> = {
 }
 
 export const SCENARIO_BLURBS: Record<ScenarioId, string> = {
-  moon: 'Two weeks of sunlight, then two weeks of darkness. No air to stop radiation. Cargo landers visit every 30 sols.',
+  moon: 'Two weeks of sunlight, then two weeks of darkness, too cold and dark for work outside. No air to stop radiation. Cargo landers visit every 30 sols.',
   mars: 'Solar power only, and dust storms can dim the Sun for weeks. The thin air blocks some radiation. No resupply.',
 }
 
@@ -261,9 +274,13 @@ export const METER_RULES: Record<string, (g: GameState, r: ResourceRates) => Why
       : `Nothing on this base makes oxygen.${cargoLine(r, 'oxygenKg', 'kg')}`,
     down: `The crew breathes ${one(r.crewUse.oxygenKg)} kg a sol. Air leaks from some alerts.`,
   }),
-  water: (_g, r) => ({
+  water: (g, r) => ({
     up: `The recycler wins back ${one(r.recycledL)} L a sol: up to ${Math.round(r.recyclerMax * 100)}% of what is used, but only as much as the base condition allows.${cargoLine(r, 'waterL', 'L')}`,
     down: `The crew uses ${one(r.crewUse.waterL)} L a sol.`,
+    note:
+      `The base condition wears ${pct(r.wear)} a sol` +
+      (g.scenario.evaDustWear > 0 ? `, and ${pct(g.scenario.evaDustWear)} more for every shift outside: dust comes back in on suits and tools` : '') +
+      '. Maintenance repairs it.',
   }),
   food: (_g, r) => ({
     up: `The greenhouse grows ${one(r.greenhouseKg)} kg a sol while it has power.${cargoLine(r, 'foodKg', 'kg')}`,
@@ -308,7 +325,7 @@ export const OPENINGS: Record<ScenarioId, Opening> = {
     fix: { before: 'Give one astronaut the', after: 'task and watch the base condition in the Water box go up. Then press Advance sol.' },
     fixTask: 'maintenance',
     afterFix:
-      'Maintenance repairs the base, so the recycler wins back more water each sol. It takes a few sols to recover, and two astronauts on maintenance fix it faster. But every shift spent on repairs is a shift not spent on science. That trade-off is the whole game. Night is coming: the top bar shows when.',
+      'Maintenance repairs the base, so the recycler wins back more water each sol. It takes a few sols to recover, and two astronauts on maintenance fix it faster. But every shift spent on repairs is a shift not spent on science. That trade-off is the whole game. Night is coming, and the top bar shows when: in the dark, work outside stops.',
   },
   mars: {
     inheritedTasks: ['maintenance', 'fieldScience', 'labScience', 'fieldScience'],

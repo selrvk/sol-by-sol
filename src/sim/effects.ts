@@ -4,11 +4,11 @@
 // runs, so the numbers the player reads are the numbers the game uses; the
 // tests check a few of them against a real sol.
 
-import { crewUse, greenhouseFoodKg, loadDemandKWh, solarKWh, wearPerSol } from './advanceSol.ts'
+import { crewUse, EVA_TASKS, greenhouseFoodKg, loadDemandKWh, solarKWh, wearPerSol } from './advanceSol.ts'
 import { BALANCE } from './balance.ts'
 import { c } from './constants.ts'
 import { EVENTS } from './events.ts'
-import { nextResupplySol } from './forecast.ts'
+import { lightInfo, nextResupplySol } from './forecast.ts'
 import { gcrDoseMSv, speDoses } from './radiation.ts'
 import type { Decisions, Facilities, GameState, ResourceLevels } from './types.ts'
 
@@ -17,6 +17,9 @@ import type { Decisions, Facilities, GameState, ResourceLevels } from './types.t
 const TYPICAL_STORM_SCALE = (BALANCE.SPE_SCALE_MIN + BALANCE.SPE_SCALE_MAX) / 2
 
 export interface TaskEffects {
+  // Every outside task: whether it gets anything done this sol (not in the
+  // lunar night), and the base condition each shift outside costs in dust.
+  outside: { works: boolean; dustWear: number }
   labScience: { science: number; labOn: boolean }
   // Extra dose for working outside: every sol, and if a typical solar storm hits.
   fieldScience: { science: number; extraDoseMSv: number; stormExtraMSv: number }
@@ -32,7 +35,9 @@ export interface TaskEffects {
     canBeLost: boolean // on the Moon a moonquake can shake a level loose
     airShields: boolean // Mars: the atmosphere is already shielding the base
   }
-  maintenance: { repair: number; condition: number; wear: number }
+  // wear: this sol's, with this plan. dustWear: the part of it that is
+  // dust from the shifts planned outside.
+  maintenance: { repair: number; condition: number; wear: number; dustWear: number }
   isru: { kgO2: number; powerKWh: number; wear: number; crewBreathesKg: number }
   rest: Record<string, never>
 }
@@ -46,8 +51,14 @@ export function taskEffects(state: GameState, decisions: Decisions): TaskEffects
   const next = Math.min(BALANCE.MAX_SHIELDING_LEVEL, f.shieldingLevel + BALANCE.SHIELDING_LEVELS_PER_SHIFT)
   const evaFraction = BALANCE.SHIFT_HOURS / scenario.hoursPerSol
   const storm = speDoses(scenario, f, TYPICAL_STORM_SCALE)
+  const outsideShifts = Object.values(decisions.assignments).filter((t) => EVA_TASKS.has(t)).length
+  const dust = scenario.evaDustWear * outsideShifts
 
   return {
+    outside: {
+      works: lightInfo(scenario, state.sol).isDaylight || scenario.outsideWorkAtNight,
+      dustWear: scenario.evaDustWear,
+    },
     labScience: { science: BALANCE.LAB_SCIENCE_PER_SHIFT, labOn: decisions.power.lab },
     fieldScience: {
       science: BALANCE.FIELD_SCIENCE_PER_SHIFT,
@@ -76,7 +87,7 @@ export function taskEffects(state: GameState, decisions: Decisions): TaskEffects
       canBeLost: EVENTS.some((e) => e.id === 'moonquake' && e.scenarios.includes(scenario.id)),
       airShields: scenario.atmosphereGCm2 > 0,
     },
-    maintenance: { repair: BALANCE.MAINTENANCE_PER_SHIFT, condition: f.condition, wear: wearPerSol(f) },
+    maintenance: { repair: BALANCE.MAINTENANCE_PER_SHIFT, condition: f.condition, wear: wearPerSol(f) + dust, dustWear: dust },
     isru: {
       kgO2: BALANCE.ISRU_KG_O2_PER_UNIT_PER_SOL * BALANCE.ISRU_UNITS_PER_SHIFT,
       powerKWh: loadDemandKWh(scenario, withF({ isruUnits: BALANCE.ISRU_UNITS_PER_SHIFT })).isru,

@@ -68,7 +68,10 @@ export const initialUiState: UiState = {
 // The whole game state is plain data, so an unfinished mission can be kept
 // in the browser and picked up again after a refresh. Storage can be
 // unavailable (private mode, blocked site data), so every access is guarded.
-const SAVE_KEY = 'jamt-save-v1'
+// The save holds the scenario too, so bump the version whenever the
+// scenario's shape or rules change: a save from older rules is dropped
+// rather than played under the new ones. v2: Moon dust and night rule.
+const SAVE_KEY = 'jamt-save-v2'
 
 export function loadSavedUiState(): UiState {
   try {

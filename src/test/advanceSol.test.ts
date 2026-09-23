@@ -232,11 +232,29 @@ describe('what the UI says a task or resource does', () => {
 
   it('maintenance repairs what it says, and the base wears what it says', () => {
     const state = newGame(quiet(moon), 1)
-    const fx = taskEffects(state, plan(state)).maintenance
+    const fx = taskEffects(state, oneOn(state, 'rest')).maintenance
     const idle = advanceSol(state, oneOn(state, 'rest')).facilities.condition
     const fixed = advanceSol(state, oneOn(state, 'maintenance')).facilities.condition
     close(state.facilities.condition - idle, fx.wear)
     close(fixed - idle, fx.repair)
+  })
+
+  it('work outside wears the base by the dust it says, and gets nothing done at night', () => {
+    const day = newGame(quiet(moon), 1)
+    const outside = oneOn(day, 'fieldScience')
+    const fx = taskEffects(day, outside)
+    assert.ok(fx.outside.works && fx.outside.dustWear > 0)
+    const afterDay = advanceSol(day, outside)
+    close(day.facilities.condition - afterDay.facilities.condition, fx.maintenance.wear)
+    close(fx.maintenance.dustWear, fx.outside.dustWear)
+    assert.equal(afterDay.lastReport!.scienceEarned, fx.fieldScience.science)
+
+    let night = day
+    while (lightInfo(moon, night.sol).isDaylight) night = advanceSol(night, oneOn(night, 'rest'))
+    assert.equal(taskEffects(night, oneOn(night, 'fieldScience')).outside.works, false)
+    assert.equal(advanceSol(night, oneOn(night, 'fieldScience')).lastReport!.scienceEarned, 0)
+    const shielded = advanceSol(night, oneOn(night, 'shielding')).facilities.shieldingLevel
+    assert.equal(shielded, night.facilities.shieldingLevel)
   })
 
   it('lab science earns nothing with the lab switched off', () => {

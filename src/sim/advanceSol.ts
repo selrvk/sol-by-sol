@@ -183,8 +183,8 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
   if (daylight !== env.isDaylight) {
     log.push(
       daylight
-        ? { sol, kind: 'sunrise', message: 'Sunrise. The solar panels are producing again.' }
-        : { sol, kind: 'nightfall', message: 'Nightfall. No solar power until sunrise.' },
+        ? { sol, kind: 'sunrise', message: `Sunrise. The solar panels are producing again${scenario.outsideWorkAtNight ? '' : ', and work outside can start again'}.` }
+        : { sol, kind: 'nightfall', message: `Nightfall. No solar power${scenario.outsideWorkAtNight ? '' : ' and no work outside'} until sunrise.` },
     )
   }
   env.isDaylight = daylight
