@@ -72,7 +72,6 @@ export const SOURCE_LABELS: Record<ConstantKey | CurveKey, string> = {
   MARS_CLEAR_SOL_INSOLATION_KWH_M2: 'Solar energy on the Martian ground, clear day',
   DUST_STORM_SOLAR_FACTOR: 'Sunlight left during a big dust storm',
   SOLAR_PANEL_EFFICIENCY: 'Solar panel efficiency',
-  REACTOR_UNIT_KW: 'Kilopower reactor output (maximum)',
   LIFE_SUPPORT_KW: 'Life support power (ISS)',
   WATER_RECOVERY_FRACTION: 'Water the ISS recycler recovers',
   GREENHOUSE_YIELD_KG_M2_PER_DAY: 'Potato harvest per m² per day',
@@ -106,7 +105,7 @@ export const METER_WHY: Record<string, (s: Scenario) => MeterWhy> = {
             `Life support needs ${n('LIFE_SUPPORT_KW')} kW every hour of every day. Sunlight is strong on the Moon ` +
             `(${n('SOLAR_FLUX_MOON')} W on every square metre), but the night lasts ${n('LUNAR_NIGHT_HOURS')} hours. ` +
             `Your ${s.start.facilities.reactorKW} kW reactor can't quite cover life support alone, so the battery has to last until sunrise.`,
-          refs: [{ constant: 'LIFE_SUPPORT_KW' }, { constant: 'SOLAR_FLUX_MOON' }, { constant: 'LUNAR_NIGHT_HOURS' }, { constant: 'REACTOR_UNIT_KW' }, { constant: 'SOLAR_PANEL_EFFICIENCY' }],
+          refs: [{ constant: 'LIFE_SUPPORT_KW' }, { constant: 'SOLAR_FLUX_MOON' }, { constant: 'LUNAR_NIGHT_HOURS' }, { constant: 'SOLAR_PANEL_EFFICIENCY' }],
         }
       : {
           summary:

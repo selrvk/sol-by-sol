@@ -101,12 +101,6 @@ export const CONSTANTS = {
     source: 'NASA BVAD Rev2 (2022), power system tables (arrays listed at 22–26%)',
     status: 'unchecked',
   },
-  REACTOR_UNIT_KW: {
-    value: 10,
-    unit: 'kWe',
-    source: 'NASA Kilopower / KRUSTY test (2018): up to 10 kWe continuous',
-    status: 'unchecked',
-  },
   LIFE_SUPPORT_KW: {
     value: 5.31,
     unit: 'kW',

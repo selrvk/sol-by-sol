@@ -121,7 +121,7 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
   }
   const sheltering = env.shelterSolsLeft > 0
   const planned = (m: CrewMember): CrewTask =>
-    sheltering || m.status !== 'active' ? 'rest' : (decisions.assignments[m.id] ?? 'rest')
+    sheltering ? 'rest' : (decisions.assignments[m.id] ?? 'rest')
 
   // Crew owed to event repairs this sol, taken off science first.
   const busy = new Map<CrewId, 'eva' | 'indoor'>()
@@ -235,11 +235,10 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
   }
 
   // 6. Crew tasks
-  const activeCrew = crew.filter((m) => m.status === 'active')
   let shiftsWorked = 0
   let scienceEarned = 0
   let maintenanceShifts = 0
-  for (const m of activeCrew) {
+  for (const m of crew) {
     const task = taskFor(m)
     if (task !== 'rest' || busy.has(m.id)) shiftsWorked++
     switch (task) {
@@ -336,7 +335,7 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
         waterL: res.waterL - before.waterL,
         foodKg: res.foodKg - before.foodKg,
       },
-      crewHoursAvailable: activeCrew.length * BALANCE.SHIFT_HOURS,
+      crewHoursAvailable: crew.length * BALANCE.SHIFT_HOURS,
       crewHoursWorked: shiftsWorked * BALANCE.SHIFT_HOURS,
       repairShifts: busy.size,
       scienceEarned,

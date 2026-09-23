@@ -28,15 +28,12 @@ export type CrewId = string
 
 export type CrewRole = 'commander' | 'engineer' | 'scientist' | 'medic'
 
-export type CrewStatus = 'active' | 'incapacitated'
-
 export interface CrewMember {
   id: CrewId
   name: string
   role: CrewRole
   doseMSv: number             // cumulative career dose, including past missions
   careerDoseLimitMSv: number
-  status: CrewStatus          // incapacitated crew contribute no hours
 }
 
 // One task per astronaut per sol (one shift).
@@ -212,7 +209,7 @@ export interface SolReport {
 // --- Game state ---
 
 // Crew time is not stored: available hours are derived each sol from
-// active crew, so it can never be banked.
+// the crew, so it can never be banked.
 export interface GameState {
   scenario: Scenario
   sol: number // turn counter; the sol about to be played

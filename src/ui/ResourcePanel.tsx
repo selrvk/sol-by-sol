@@ -29,12 +29,11 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
   const prevWorst = previous?.crew.find((m) => m.id === worst.id)
   const nextWorst = forecast?.crew.find((m) => m.id === worst.id)
   const doseDelta = prevWorst ? worst.doseMSv - prevWorst.doseMSv : nextWorst ? nextWorst.doseMSv - worst.doseMSv : undefined
-  const activeCrew = game.crew.filter((m) => m.status === 'active')
-  const hoursAvailable = activeCrew.length * BALANCE.SHIFT_HOURS
+  const hoursAvailable = game.crew.length * BALANCE.SHIFT_HOURS
   const hoursAssigned =
     game.environment.shelterSolsLeft > 0
       ? 0
-      : activeCrew.filter((m) => (decisions.assignments[m.id] ?? 'rest') !== 'rest').length * BALANCE.SHIFT_HOURS
+      : game.crew.filter((m) => (decisions.assignments[m.id] ?? 'rest') !== 'rest').length * BALANCE.SHIFT_HOURS
 
   const report = game.lastReport ?? forecast?.lastReport ?? null
   // Base condition drives water recovery. Show where it is heading so the
