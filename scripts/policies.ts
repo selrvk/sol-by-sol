@@ -2,18 +2,42 @@
 // player; they are not game rules and must not be tuned to pass balance tests.
 //
 // Each losing policy makes one kind of mistake, so each loss condition has
-// a policy that proves it can happen.
+// a policy that proves it can happen. What each one does on each world is
+// checked, not just described: see scripts/expectations.ts. Change an
+// outcome here and there together.
 //
-//   balanced  - keeps the base alive and does steady science (should win)
-//   greedy    - everyone on EVA science, no upkeep, press on (dies: water;
-//               on Mars, power when a dust storm hits the unexpanded array)
+//   balanced  - keeps the base alive and does steady science. Wins.
+//   greedy    - everyone on EVA science, no upkeep, press on.
+//               Moon: out of water. Mars: out of oxygen, now and then
+//               power when a dust storm hits the array.
 //   reckless  - does upkeep but ignores radiation: no shielding, EVA science
-//               whatever the dose, press on through flares (Moon: radiation)
-//   power-hog - plays like balanced but never switches anything off
-//               (Moon: power, during the lunar night)
-//   cautious  - safety work first, lab science with leftover crew
-//               (survives with a low score)
-//   rota-*    - the same tasks every sol, no building (should not win)
+//               whatever the dose, press on through flares.
+//               Moon: often a radiation loss. Mars: wins -- the surface
+//               dose is half the Moon's and the air shields flares.
+//   power-hog - plays like balanced but never switches anything off.
+//               Moon: out of power in the lunar night. Mars: wins, as
+//               there is no night to ration for.
+//   cautious  - safety work first, lab science with leftover crew.
+//               Survives to the end with a low score: the clock runs out.
+//   rota-2m2f - two on maintenance, two on field science, every sol, never
+//               builds. Moon: out of food just before the end. Mars:
+//               out of oxygen.
+//   rota-1m3f - one on maintenance, three on field science, every sol,
+//               never builds. Mars: out of oxygen.
+//               Moon: WINS, as reliably and as early as balanced. This is
+//               a known gap, not a goal. It used to starve, until the
+//               mid-mission opening (283cd92) gave the base a greenhouse
+//               and cargo started covering the food. Under the sourced
+//               physics nothing else you can build on the Moon pays back
+//               -- the greenhouse costs 10.5 kWh per m² per sol, cosmic
+//               rays barely notice shielding, panels are dark half the
+//               time -- so after the opening the Moon's crew decision comes
+//               down to maintenance vs science, and a fixed plan that gets
+//               that right does as well as an adaptive one. No single
+//               balance number separates the two without a cliff (starting
+//               food 230 kg: both win; 220: only balanced; 210: neither).
+//               It is not brainless: its power switches are the careful
+//               player's, and left all on it dies in the night.
 
 import { BALANCE } from '../src/sim/balance.ts'
 import { c } from '../src/sim/constants.ts'

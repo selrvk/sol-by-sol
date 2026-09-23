@@ -3,6 +3,7 @@
 
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
+import { checkAll } from '../../scripts/expectations.ts'
 import { POLICIES } from '../../scripts/policies.ts'
 import { advanceSol } from '../sim/advanceSol.ts'
 import { lightInfo, nightAhead } from '../sim/forecast.ts'
@@ -194,5 +195,14 @@ describe('opening crisis', () => {
       if (end.outcome.status === 'lost' && end.outcome.reason === 'power') lost++
     }
     assert.ok(lost >= 15, `expected most runs to lose power, got ${lost}/20`)
+  })
+})
+
+// The scripted players stand in for kinds of player. Each one has to keep
+// doing what scripts/policies.ts says it does, so a balance change that
+// quietly alters a lesson fails here rather than going unnoticed.
+describe('balance', () => {
+  it('every scripted player does what it is documented to do', () => {
+    assert.deepEqual(checkAll(20).failures, [])
   })
 })

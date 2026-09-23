@@ -1,25 +1,16 @@
-// Runs every policy on both scenarios across many seeds and summarises the
-// outcomes. Use this to check balance after changing balance.ts or a
-// scenario config.
+// Runs every policy on both scenarios across many seeds, summarises the
+// outcomes, and checks each against what it is expected to do
+// (scripts/expectations.ts). Exits non-zero if any expectation fails, so a
+// change to balance.ts or a scenario config that quietly alters a lesson
+// does not go unnoticed.
 //
 //   node scripts/balance-report.ts            (20 seeds)
 //   node scripts/balance-report.ts --seeds 50
 
-import { advanceSol } from '../src/sim/advanceSol.ts'
-import { newGame } from '../src/sim/newGame.ts'
-import { mars } from '../src/sim/scenarios/mars.ts'
-import { moon } from '../src/sim/scenarios/moon.ts'
-import type { GameState, Scenario } from '../src/sim/types.ts'
-import { POLICIES, type Policy } from './policies.ts'
+import { checkAll } from './expectations.ts'
 
 const i = process.argv.indexOf('--seeds')
 const SEEDS = i >= 0 ? Number(process.argv[i + 1]) : 20
-
-function run(scenario: Scenario, policy: Policy, seed: number): GameState {
-  let state = newGame(scenario, seed)
-  while (state.outcome.status === 'playing') state = advanceSol(state, policy(state))
-  return state
-}
 
 const median = (xs: number[]) => {
   if (xs.length === 0) return NaN
@@ -27,27 +18,36 @@ const median = (xs: number[]) => {
   return s[Math.floor(s.length / 2)]
 }
 
-console.log(`\n${SEEDS} seeds per row. "ended" = sol the game ended (median, min-max).\n`)
-console.log('scenario  policy     won   ended (med, range)   science (med)   outcomes')
-console.log('-'.repeat(100))
+const { rows, failures } = checkAll(SEEDS)
 
-for (const scenario of [moon, mars]) {
-  for (const [name, policy] of Object.entries(POLICIES)) {
-    const results = Array.from({ length: SEEDS }, (_, k) => run(scenario, policy, k + 1))
-    const ended = results.map((s) => s.sol - 1)
-    const wins = results.filter((s) => s.outcome.status === 'won').length
-    const counts = new Map<string, number>()
-    for (const s of results) {
-      const key = s.outcome.status === 'lost' ? s.outcome.reason : s.outcome.status
-      counts.set(key, (counts.get(key) ?? 0) + 1)
-    }
-    const outcomes = [...counts].map(([k, v]) => `${k} ${v}`).join(', ')
-    console.log(
-      `${scenario.id.padEnd(9)} ${name.padEnd(10)} ${String(wins).padStart(3)}   ` +
-        `${String(median(ended)).padStart(4)} (${Math.min(...ended)}-${Math.max(...ended)})`.padEnd(21) +
-        `${String(median(results.map((s) => s.sciencePoints))).padStart(4)}/${scenario.scienceTarget}`.padEnd(16) +
-        outcomes,
-    )
+console.log(`\n${SEEDS} seeds per row. "ended" = sol the game ended (median, min-max).\n`)
+console.log('scenario  policy     won   ended (med, range)   science (med)   check  outcomes')
+console.log('-'.repeat(108))
+
+for (const { scenario, policy, outcomes, failed } of rows) {
+  const { games, won } = outcomes
+  const target = games[0].scenario.scienceTarget
+  const ended = games.map((s) => s.sol - 1)
+  const counts = new Map<string, number>()
+  for (const s of games) {
+    const key = s.outcome.status === 'lost' ? s.outcome.reason : s.outcome.status
+    counts.set(key, (counts.get(key) ?? 0) + 1)
   }
+  const summary = [...counts].map(([k, v]) => `${k} ${v}`).join(', ')
+  console.log(
+    `${scenario.padEnd(9)} ${policy.padEnd(10)} ${String(won).padStart(3)}   ` +
+      `${String(median(ended)).padStart(4)} (${Math.min(...ended)}-${Math.max(...ended)})`.padEnd(21) +
+      `${String(median(games.map((s) => s.sciencePoints))).padStart(4)}/${target}`.padEnd(16) +
+      (failed.length ? 'FAIL' : 'ok').padEnd(7) +
+      summary,
+  )
 }
-console.log()
+
+if (failures.length) {
+  console.log(`\n${failures.length} expectation${failures.length === 1 ? '' : 's'} failed:`)
+  for (const f of failures) console.log(`  - ${f}`)
+  console.log('\nIf this change is on purpose, update scripts/expectations.ts and the policy notes in scripts/policies.ts.\n')
+  process.exitCode = 1
+} else {
+  console.log('\nEvery policy did what it is expected to, and every loss is reachable.\n')
+}
