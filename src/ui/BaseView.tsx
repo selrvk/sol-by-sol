@@ -527,9 +527,6 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
         </>
       )}
 
-      <text x={VIEW.x + VIEW.w - 24} y={VIEW.y + VIEW.h - 20} textAnchor="end" className="hidden fill-slate-300 text-[22px] lg:block" style={{ paintOrder: 'stroke', stroke: '#0f172a', strokeWidth: 5 }}>
-        condition {Math.round(f.condition * 100)}% · shielding {f.shieldingLevel}/{BALANCE.MAX_SHIELDING_LEVEL}
-      </text>
     </svg>
   )
 }
@@ -590,5 +587,45 @@ export function BaseSummary({ game }: { game: GameState }) {
         {worn && <span className="sr-only">, worn: needs maintenance</span>}
       </li>
     </ul>
+  )
+}
+
+// The base's condition and shielding, in the map's bottom-right corner on a
+// wide screen: the same kind of overlay as the world picker in the other
+// corner. Condition is a bar because it is a level that wears down and is
+// repaired; shielding is six pips because it is built one level at a time.
+// A phone shows both in the BaseSummary strip instead, and a screen reader
+// hears them there, so this is hidden from both.
+export function BaseCondition({ game }: { game: GameState }) {
+  const f = game.facilities
+  const pct = Math.round(f.condition * 100)
+  const worn = f.condition < 0.6 // the same point the habitat's label turns amber
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute bottom-3 right-3 hidden items-center gap-3 rounded-xl border border-slate-600 bg-slate-900/90 px-3 py-1.5 text-xs font-semibold text-slate-100 shadow-lg lg:flex"
+    >
+      <span className="flex items-center gap-1.5">
+        <Home size={14} className={worn ? 'text-amber-300' : 'text-slate-300'} />
+        Condition
+        <span className="h-1.5 w-12 overflow-hidden rounded-full bg-slate-700">
+          <span className={`block h-full rounded-full ${worn ? 'bg-amber-400' : 'bg-emerald-400'}`} style={{ width: `${pct}%` }} />
+        </span>
+        <span className={`tabular-nums ${worn ? 'text-amber-300' : ''}`}>{pct}%</span>
+      </span>
+      <span className="h-4 w-px bg-slate-600" />
+      <span className="flex items-center gap-1.5">
+        <Shield size={14} className="text-sky-300" />
+        Shielding
+        <span className="flex gap-0.5">
+          {Array.from({ length: BALANCE.MAX_SHIELDING_LEVEL }, (_, i) => (
+            <span key={i} className={`h-2.5 w-1.5 rounded-sm ${i < f.shieldingLevel ? 'bg-sky-400' : 'bg-slate-700'}`} />
+          ))}
+        </span>
+        <span className="tabular-nums">
+          {f.shieldingLevel}/{BALANCE.MAX_SHIELDING_LEVEL}
+        </span>
+      </span>
+    </div>
   )
 }
