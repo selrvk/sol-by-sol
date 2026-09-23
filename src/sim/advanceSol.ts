@@ -60,6 +60,38 @@ export function loadDemandKWh(scenario: Scenario, fac: Facilities): Record<Power
   }
 }
 
+// What the whole crew breathes, drinks and eats in one sol.
+export function crewUse(scenario: Scenario, crewCount: number): { oxygenKg: number; waterL: number; foodKg: number } {
+  const solDays = scenario.hoursPerSol / 24
+  return {
+    oxygenKg: c('CREW_O2_KG_PER_DAY') * crewCount * solDays,
+    waterL: c('CREW_WATER_L_PER_DAY') * crewCount * solDays,
+    foodKg: c('CREW_FOOD_KG_PER_DAY') * crewCount * solDays,
+  }
+}
+
+// Solar energy the array makes in one sol. `light` is 1 in clear sunlight,
+// 0 at night, and the storm factor in a dust storm.
+export function solarKWh(scenario: Scenario, fac: Facilities, light: number): number {
+  return fac.solarArrayM2 * scenario.solarKWhPerM2PerSol * c('SOLAR_PANEL_EFFICIENCY') * fac.condition * light
+}
+
+// Food a greenhouse of this size grows in one sol, while it has power.
+export function greenhouseFoodKg(scenario: Scenario, m2: number): number {
+  return m2 * c('GREENHOUSE_YIELD_KG_M2_PER_DAY') * (scenario.hoursPerSol / 24)
+}
+
+// How much base condition is lost in one sol. Everything you build wears
+// out, so building costs future crew time.
+export function wearPerSol(fac: Facilities): number {
+  return (
+    BALANCE.WEAR_BASE_PER_SOL +
+    BALANCE.WEAR_PER_SOLAR_M2 * fac.solarArrayM2 +
+    BALANCE.WEAR_PER_GREENHOUSE_M2 * fac.greenhouseM2 +
+    BALANCE.WEAR_PER_ISRU_UNIT * fac.isruUnits
+  )
+}
+
 // Advance the simulation by one sol. Pure and deterministic: all randomness
 // comes from state.rng, never Math.random().
 //
@@ -78,7 +110,6 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
 
   const scenario = state.scenario
   const sol = state.sol
-  const solDays = scenario.hoursPerSol / 24
   const log: GameEvent[] = []
   let rng = state.rng
 
@@ -141,10 +172,11 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
   const onEva = (m: CrewMember) => busy.get(m.id) === 'eva' || EVA_TASKS.has(taskFor(m))
 
   // 1. Crew consumption (everyone breathes, eats and drinks)
-  const waterUsed = c('CREW_WATER_L_PER_DAY') * crew.length * solDays
-  res.oxygenKg -= c('CREW_O2_KG_PER_DAY') * crew.length * solDays
+  const use = crewUse(scenario, crew.length)
+  const waterUsed = use.waterL
+  res.oxygenKg -= use.oxygenKg
   res.waterL -= waterUsed
-  res.foodKg -= c('CREW_FOOD_KG_PER_DAY') * crew.length * solDays
+  res.foodKg -= use.foodKg
 
   // 2. Power generation
   const daylight = lightInfo(scenario, sol).isDaylight
@@ -170,15 +202,9 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
   }
   const storm = env.dustStormSolsLeft > 0
 
-  const solarKWh =
-    fac.solarArrayM2 *
-    scenario.solarKWhPerM2PerSol *
-    c('SOLAR_PANEL_EFFICIENCY') *
-    fac.condition *
-    (daylight ? 1 : 0) *
-    (storm ? scenario.dustStorm.solarFactor : 1)
+  const solar = solarKWh(scenario, fac, (daylight ? 1 : 0) * (storm ? scenario.dustStorm.solarFactor : 1))
   const reactorKWh = fac.reactorKW * scenario.hoursPerSol
-  const generated = solarKWh + reactorKWh
+  const generated = solar + reactorKWh
 
   // 3. Power draw. Life support first, then optional loads in priority order.
   const full = loadDemandKWh(scenario, fac)
@@ -221,7 +247,7 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
   // 4. Production
   res.waterL += waterUsed * c('WATER_RECOVERY_FRACTION') * fac.condition
   if (powered.has('greenhouse')) {
-    res.foodKg += fac.greenhouseM2 * c('GREENHOUSE_YIELD_KG_M2_PER_DAY') * solDays
+    res.foodKg += greenhouseFoodKg(scenario, fac.greenhouseM2)
   }
   if (powered.has('isru')) {
     res.oxygenKg += fac.isruUnits * BALANCE.ISRU_KG_O2_PER_UNIT_PER_SOL
@@ -269,13 +295,7 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
   }
   science += scienceEarned
 
-  // Everything you build wears out, so building costs future crew time.
-  const wear =
-    BALANCE.WEAR_BASE_PER_SOL +
-    BALANCE.WEAR_PER_SOLAR_M2 * fac.solarArrayM2 +
-    BALANCE.WEAR_PER_GREENHOUSE_M2 * fac.greenhouseM2 +
-    BALANCE.WEAR_PER_ISRU_UNIT * fac.isruUnits
-  fac.condition = clamp01(fac.condition - wear + BALANCE.MAINTENANCE_PER_SHIFT * maintenanceShifts)
+  fac.condition = clamp01(fac.condition - wearPerSol(fac) + BALANCE.MAINTENANCE_PER_SHIFT * maintenanceShifts)
 
   if (scenario.resupply && sol > 0 && sol % scenario.resupply.intervalSols === 0) {
     const cargo = scenario.resupply.cargo

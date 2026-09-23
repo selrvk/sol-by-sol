@@ -1,7 +1,7 @@
 // Read-only helpers that answer "what's coming?" for the UI. Pure, and built
 // from the same rules advanceSol uses, so the UI never re-implements them.
 
-import { loadDemandKWh } from './advanceSol.ts'
+import { loadDemandKWh, solarKWh } from './advanceSol.ts'
 import { c } from './constants.ts'
 import type { Decisions, GameState, Scenario } from './types.ts'
 
@@ -65,9 +65,7 @@ export function lifeSupportReserveKWh(state: GameState): { reserveKWh: number; h
   const storm = env.dustStormSolsLeft > 0
   const hardSols = night ? (light.solsUntilChange ?? 0) : storm ? env.dustStormSolsLeft : 0
   const solarFactor = night ? 0 : storm ? scenario.dustStorm.solarFactor : 1
-  const makesKWh =
-    f.solarArrayM2 * scenario.solarKWhPerM2PerSol * c('SOLAR_PANEL_EFFICIENCY') * f.condition * solarFactor +
-    f.reactorKW * scenario.hoursPerSol
+  const makesKWh = solarKWh(scenario, f, solarFactor) + f.reactorKW * scenario.hoursPerSol
   const lifeSupportKWh = c('LIFE_SUPPORT_KW') * scenario.hoursPerSol
   return { reserveKWh: Math.max(0, lifeSupportKWh - makesKWh) * hardSols, hardSols }
 }

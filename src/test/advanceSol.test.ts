@@ -6,6 +6,7 @@ import { describe, it } from 'node:test'
 import { checkAll } from '../../scripts/expectations.ts'
 import { POLICIES } from '../../scripts/policies.ts'
 import { advanceSol } from '../sim/advanceSol.ts'
+import { resourceRates, taskEffects } from '../sim/effects.ts'
 import { lightInfo, nightAhead } from '../sim/forecast.ts'
 import { newGame } from '../sim/newGame.ts'
 import { mars } from '../sim/scenarios/mars.ts'
@@ -204,5 +205,52 @@ describe('opening crisis', () => {
 describe('balance', () => {
   it('every scripted player does what it is documented to do', () => {
     assert.deepEqual(checkAll(20).failures, [])
+  })
+})
+
+// The task lines and "why?" panels quote these numbers to the player, so
+// they have to be what a real sol does. Events are switched off so each sol
+// shows the rule alone.
+describe('what the UI says a task or resource does', () => {
+  const quiet = (sc: Scenario): Scenario => ({ ...sc, eventChancePerSol: 0, speChancePerSol: 0 })
+  const oneOn = (state: GameState, task: Decisions['assignments'][string], power = { lab: true, greenhouse: true, isru: true }): Decisions => ({
+    assignments: Object.fromEntries(state.crew.map((m, i) => [m.id, i === 0 ? task : 'rest'])),
+    power,
+  })
+  const close = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-9, `${a} vs ${b}`)
+
+  it('building tasks add what they say', () => {
+    const state = newGame(quiet(mars), 1)
+    const fx = taskEffects(state, plan(state))
+    close(advanceSol(state, oneOn(state, 'greenhouse')).facilities.greenhouseM2 - state.facilities.greenhouseM2, fx.greenhouse.m2)
+    close(advanceSol(state, oneOn(state, 'shielding')).facilities.shieldingLevel, fx.shielding.next)
+    close(advanceSol(state, oneOn(state, 'isru')).facilities.isruUnits - state.facilities.isruUnits, 1)
+  })
+
+  it('maintenance repairs what it says, and the base wears what it says', () => {
+    const state = newGame(quiet(moon), 1)
+    const fx = taskEffects(state, plan(state)).maintenance
+    const idle = advanceSol(state, oneOn(state, 'rest')).facilities.condition
+    const fixed = advanceSol(state, oneOn(state, 'maintenance')).facilities.condition
+    close(state.facilities.condition - idle, fx.wear)
+    close(fixed - idle, fx.repair)
+  })
+
+  it('lab science earns nothing with the lab switched off', () => {
+    const state = newGame(quiet(moon), 1)
+    const off = { lab: false, greenhouse: true, isru: true }
+    assert.equal(taskEffects(state, { ...plan(state), power: off }).labScience.labOn, false)
+    assert.equal(advanceSol(state, oneOn(state, 'labScience', off)).lastReport!.scienceEarned, 0)
+  })
+
+  it('resources move at the rates the why? panel quotes', () => {
+    const state = newGame(quiet(moon), 1) // Moon, daylight, no O2 makers
+    const rates = resourceRates(state)
+    const next = advanceSol(state, oneOn(state, 'rest', { lab: false, greenhouse: false, isru: false }))
+    const d = next.lastReport!.resourceDeltas
+    close(d.oxygenKg, -rates.crewUse.oxygenKg)
+    close(d.waterL, -rates.crewUse.waterL + rates.recycledL)
+    close(d.foodKg, -rates.crewUse.foodKg)
+    close(next.lastReport!.powerGeneratedKWh, rates.sunKWh + rates.reactorKWh)
   })
 })
