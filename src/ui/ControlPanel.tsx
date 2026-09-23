@@ -52,7 +52,13 @@ export function PowerSwitches({ game, decisions, dispatch }: Omit<Props, 'highli
             )
           })}
         </ul>
-        <p className="mt-1 text-[11px] text-slate-500">kWh per sol. If there isn't enough power, the lab switches off first.</p>
+        {/* The order the sim actually sheds in (LOAD_PRIORITY in
+            advanceSol), spelled out: on Mars it matters that the oxygen
+            plant is the last thing to lose power, not the first. */}
+        <p className="mt-1 text-[11px] text-slate-500">
+          kWh per sol. If there isn't enough, the lab switches off first, then the greenhouse
+          {game.scenario.isruAvailable ? '. The O₂ makers are the last to go.' : '.'}
+        </p>
       </div>
     </section>
   )

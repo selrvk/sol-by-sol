@@ -34,6 +34,16 @@ const LOAD_NAMES: Record<PowerLoad, string> = {
   lab: 'science lab',
 }
 
+// The optional loads, most important first. Oxygen outranks food, and food
+// outranks science, so on a shortfall the lab is the first thing to go dark
+// and the O₂ makers are the last. The UI states this rule to the player, so
+// it has to hold in every case: the line stops at the first load there is
+// not enough power for, rather than skipping it to afford a cheaper one
+// further down. Otherwise a tight sol could run the science lab while the
+// crew's oxygen plant sat idle. Power the line does not reach is not wasted:
+// it charges the battery for the next sol.
+const LOAD_PRIORITY = ['isru', 'greenhouse', 'lab'] as const
+
 // When repairs need crew, they are taken off science first.
 const BUSY_PRIORITY: CrewTask[] = ['fieldScience', 'labScience', 'greenhouse', 'solar', 'shielding', 'isru', 'maintenance']
 
@@ -188,15 +198,21 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
   }
   const powered = new Set<PowerLoad>()
   const shed: PowerLoad[] = []
-  for (const load of ['isru', 'greenhouse', 'lab'] as const) {
+  let short = false
+  for (const load of LOAD_PRIORITY) {
     if (demand[load] === 0) continue
-    if (demand[load] <= available) {
+    if (!short && demand[load] <= available) {
       available -= demand[load]
       powered.add(load)
     } else {
+      // Once one load cannot be afforded, everything below it goes too.
+      short = true
       shed.push(load)
     }
   }
+  // Reported in the order they were given up, which is how the player is
+  // told it works: the lab goes first.
+  shed.reverse()
   if (shed.length > 0) {
     log.push({ sol, kind: 'loadShed', message: `Not enough power. Switched off: ${shed.map((l) => LOAD_NAMES[l]).join(', ')}.` })
   }

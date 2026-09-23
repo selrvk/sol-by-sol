@@ -138,7 +138,17 @@ describe('opening crisis', () => {
   for (const scenario of [moon, mars]) {
     it(`${scenario.id}: following the briefing survives the opening crisis`, () => {
       for (let seed = 1; seed <= 30; seed++) {
-        assert.equal(playOpening(scenario, seed, true, 12).outcome.status, 'playing', `seed ${seed}`)
+        const end = playOpening(scenario, seed, true, 12)
+        // The crisis the briefing names -- water on the Moon, oxygen on Mars
+        // -- has to be survivable by doing what it says. The lunar night is a
+        // separate, later lesson, and this run leaves every optional load
+        // switched on right through it, which the two night tests below say
+        // should cost you the battery. So a power loss after dark is the
+        // designed outcome and is allowed here; nothing else is.
+        const o = end.outcome
+        if (o.status === 'playing') continue
+        assert.ok(o.status === 'lost' && o.reason === 'power', `seed ${seed}: ${JSON.stringify(o)}`)
+        assert.equal(lightInfo(scenario, end.sol - 1).isDaylight, false, `seed ${seed}: lost power in daylight`)
       }
     })
 

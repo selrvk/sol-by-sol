@@ -30,12 +30,18 @@ export function useSolEffects(game: GameState | null): SolEffects {
       resupply: entries.some((e) => e.kind === 'resupply'),
       powerCut: entries.some((e) => e.kind === 'loadShed'),
     }
-    // Nothing to show: any earlier effect is already clearing on its timer.
-    if (!next.flare && !next.resupply && !next.powerCut) return
+    const anything = next.flare || next.resupply || next.powerCut
+    // A new sol always replaces what the last one was showing, even when it
+    // has nothing of its own to show. Leaving the old effects in place would
+    // strand them: this cleanup clears the timer that was going to reset
+    // them, so a player who advances faster than HOLD_MS would keep a flare
+    // or a cargo lander on screen for the rest of the mission. Setting NONE
+    // is free when it is already NONE -- React bails out on the same value.
     // Reacting to a new sol is the point here: the animation is triggered by
     // the state change, then cleared on a timer.
     // oxlint-disable-next-line react/set-state-in-effect
-    setEffects(next)
+    setEffects(anything ? next : NONE)
+    if (!anything) return
     const timer = setTimeout(() => setEffects(NONE), HOLD_MS)
     return () => clearTimeout(timer)
   }, [game])

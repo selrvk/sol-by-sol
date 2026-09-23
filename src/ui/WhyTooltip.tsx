@@ -1,34 +1,101 @@
-import { useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { X } from 'lucide-react'
 import { CONSTANTS, CURVES, type SourcedConstant, type SourcedCurve } from '../sim/constants.ts'
 import { SOURCE_LABELS, type MeterWhy, type WhyRef } from './labels.ts'
 
 // "why?" button that reveals the real figures behind a meter and their
 // sources. Placeholders are labelled as estimates, never as fact.
+//
+// The source lists are long -- the radiation one is taller than a phone --
+// so on a phone this opens as a sheet from the bottom, the same shape as the
+// crew task picker, where it has the room to be read and scrolled. A wide
+// screen keeps the popover next to the meter it explains.
 export function WhyTooltip({ why }: { why: MeterWhy }) {
   const [open, setOpen] = useState(false)
+  const box = useRef<HTMLSpanElement>(null)
+  const trigger = useRef<HTMLButtonElement>(null)
+  // Desktop only: which side of the button has room, and how much. The
+  // meters low in the column have a lot of screen above them and almost
+  // none below, and the tallest of these panels is taller than a laptop, so
+  // a popover that always drops downwards runs off the bottom of the screen.
+  const [place, setPlace] = useState<{ above: boolean; maxH: number } | null>(null)
+
+  useLayoutEffect(() => {
+    const t = trigger.current
+    if (!open || !t || !window.matchMedia('(min-width: 1024px)').matches) {
+      setPlace(null)
+      return
+    }
+    const r = t.getBoundingClientRect()
+    const below = window.innerHeight - r.bottom - 12
+    const above = r.top - 12
+    setPlace(above > below ? { above: true, maxH: above } : { above: false, maxH: below })
+  }, [open])
+
+  // Escape closes, and so does a press anywhere outside. This used to hang
+  // off the button's own onBlur, but a press inside the panel blurs the
+  // button too, so scrolling a long source list dismissed it -- which made
+  // the part below the fold unreachable.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    const onDown = (e: PointerEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('pointerdown', onDown)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('pointerdown', onDown)
+    }
+  }, [open])
+
   return (
-    <span className="relative inline-block">
+    <span ref={box} className="relative inline-block">
       <button
+        ref={trigger}
         type="button"
         onClick={() => setOpen((o) => !o)}
-        onBlur={() => setOpen(false)}
         aria-expanded={open}
         className="rounded-full border border-sky-400/50 px-1.5 text-[11px] leading-4 text-sky-300 hover:bg-sky-400/10"
       >
         why?
       </button>
       {open && (
-        <div
-          role="tooltip"
-          className="absolute right-0 z-30 mt-1 max-h-[70vh] w-80 max-w-[85vw] space-y-2 overflow-y-auto rounded-lg border border-slate-600 bg-slate-900 p-3 text-xs text-slate-200 shadow-xl"
-        >
-          <p className="text-sm leading-snug text-slate-100">{why.summary}</p>
-          <div className="space-y-2 border-t border-slate-700 pt-2">
-            {why.refs.map((ref, i) => (
-              <WhyLine key={i} whyRef={ref} />
-            ))}
+        <>
+          {/* Phones get a backdrop, so the sheet reads as a layer over the
+              mission rather than part of the meter. */}
+          <span onClick={() => setOpen(false)} className="fixed inset-0 z-30 bg-black/50 lg:hidden" aria-hidden />
+          <div
+            role="tooltip"
+            // `place` is set on wide screens only, so the phone sheet below
+            // keeps its own full-width sizing.
+            style={
+              place
+                ? place.above
+                  ? { maxHeight: place.maxH, top: 'auto', bottom: '100%', marginTop: 0, marginBottom: 4 }
+                  : { maxHeight: place.maxH }
+                : undefined
+            }
+            className="fixed inset-x-0 bottom-0 z-40 max-h-[85vh] space-y-2 overflow-y-auto overscroll-contain rounded-t-2xl border-t border-slate-600 bg-slate-900 p-4 pb-6 text-left text-xs text-slate-200 shadow-xl lg:absolute lg:inset-x-auto lg:bottom-auto lg:right-0 lg:z-30 lg:mt-1 lg:max-h-[70vh] lg:w-80 lg:max-w-[85vw] lg:rounded-lg lg:border lg:p-3 lg:pb-3"
+          >
+            <p className="text-sm leading-snug text-slate-100">{why.summary}</p>
+            <div className="space-y-2 border-t border-slate-700 pt-2">
+              {why.refs.map((ref, i) => (
+                <WhyLine key={i} whyRef={ref} />
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-600 py-2.5 text-sm font-semibold hover:border-slate-400 lg:hidden"
+            >
+              <X size={15} aria-hidden /> Close
+            </button>
           </div>
-        </div>
+        </>
       )}
     </span>
   )
