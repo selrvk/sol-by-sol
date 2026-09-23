@@ -56,8 +56,7 @@ function groundAt(t: Terrain, u: number, v: number) {
 // around it, bare ground between them. Every stone platform keeps at least
 // ~80px of clearance from the slab's rocky rim on both worlds, which is
 // what stops a building from looking like it is sliding off the edge at
-// night. The clearance is measured against Mars, the smaller slab, and the
-// crew standing at a building's door count as part of its footprint.
+// night. The clearance is measured against Mars, the smaller slab.
 const PADS = {
   solar: { u: 0.22, v: 0.25 },
   habitat: { u: 0.45, v: 0.5 },
@@ -73,6 +72,14 @@ const BUILDING_SCALE = 0.62
 
 // Radius of a crew portrait on the map, shared by the badge and its mask.
 const BADGE_R = 26
+
+// Crew stand under the name of the place they are working, like a map
+// marker's caption, so a name and the people there read as one. The name
+// pill is 48 units tall on a wide screen, and the crew sit a 10-unit gap
+// below it. On a phone the pill is 78 units (its text is larger, to stay
+// legible when the map is shrunk), so the crew are nudged down 15 more there
+// -- see CrewBadges.
+const CREW_UNDER_LABEL = 48 / 2 + 10 + BADGE_R
 
 // Buildings that light the ground at night, and the switch that decides
 // whether they are lit at all. The habitat and the reactor are never
@@ -299,7 +306,8 @@ function CrewBadges({ x, y, crew, evaIds }: { x: number; y: number; crew: CrewMe
   const r = BADGE_R
   const start = x - ((crew.length - 1) * (r * 2 + 6)) / 2
   return (
-    <g>
+    // Moved down on a phone, where the name pill above is taller.
+    <g className="max-lg:translate-y-[15px]">
       {crew.map((m, i) => {
         const src = portraitFor(m.id, evaIds.has(m.id))
         return (
@@ -339,11 +347,11 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
   const status = (load: Exclude<PowerLoad, 'lifeSupport'>): Status =>
     !decisions.power[load] ? 'off' : shed.has(load) ? 'shed' : 'on'
 
-  // Where a building's label and its crew stand: the label floats just
-  // clear of the building's top, the crew gather at its front door.
+  // Where a building's label stands: just clear of the building's top. The
+  // crew working there stand under it (CREW_UNDER_LABEL).
   const labelAt = (pad: PadId, s: Sprite) => {
     const b = spriteBox(terrain, pad, s)
-    return { x: groundAt(terrain, PADS[pad].u, PADS[pad].v).x, y: b.y - 6, foot: b.y + b.height + 6 }
+    return { x: groundAt(terrain, PADS[pad].u, PADS[pad].v).x, y: b.y - 6 }
   }
 
   // Who is where. Sheltering crew are all inside the habitat.
@@ -469,14 +477,14 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
           Solar {f.solarArrayM2} m²
         </Pill>
       )}
-      {badgesUnder('solar', sol.x, sol.foot)}
+      {badgesUnder('solar', sol.x, sol.y + CREW_UNDER_LABEL)}
 
       {f.greenhouseM2 > 0 && (
         <Pill x={gh.x} y={gh.y} icon={Sprout} tone={status('greenhouse') === 'shed' ? 'bad' : 'normal'} quiet={status('greenhouse') === 'on'}>
           Greenhouse {f.greenhouseM2} m²{status('greenhouse') === 'off' ? ' · off' : status('greenhouse') === 'shed' ? ' · no power' : ''}
         </Pill>
       )}
-      {badgesUnder('greenhouse', gh.x, gh.foot)}
+      {badgesUnder('greenhouse', gh.x, gh.y + CREW_UNDER_LABEL)}
 
       <Pill x={hab.x} y={hab.y} icon={Home} tone={worn ? 'warn' : 'normal'} quiet={!worn}>
         Habitat
@@ -491,7 +499,7 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
           </span>
         )}
       </Pill>
-      {badgesUnder('habitat', hab.x, hab.foot)}
+      {badgesUnder('habitat', hab.x, hab.y + CREW_UNDER_LABEL)}
 
       {f.reactorKW > 0 && (
         <Pill x={rea.x} y={rea.y} icon={Zap} quiet>
@@ -503,16 +511,16 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
           O₂ makers ×{f.isruUnits}{status('isru') === 'off' ? ' · off' : status('isru') === 'shed' ? ' · no power' : ''}
         </Pill>
       )}
-      {badgesUnder('o2', o2.x, o2.foot)}
+      {badgesUnder('o2', o2.x, o2.y + CREW_UNDER_LABEL)}
 
       <Pill x={lab.x} y={lab.y} icon={FlaskConical} tone={status('lab') === 'shed' ? 'bad' : 'normal'} quiet={status('lab') === 'on'}>
         Lab{status('lab') === 'off' ? ' · off' : status('lab') === 'shed' ? ' · no power' : ''}
       </Pill>
-      {badgesUnder('lab', lab.x, lab.foot)}
+      {badgesUnder('lab', lab.x, lab.y + CREW_UNDER_LABEL)}
 
       {crewAt.has('field') && (
         <>
-          <Pill x={fieldSpot.x} y={fieldSpot.y - 60} icon={Pickaxe} quiet>
+          <Pill x={fieldSpot.x} y={fieldSpot.y - CREW_UNDER_LABEL} icon={Pickaxe} quiet>
             Field work
           </Pill>
           {badgesUnder('field', fieldSpot.x, fieldSpot.y)}
