@@ -58,13 +58,21 @@ export function StartScreen({ dispatch }: { dispatch: Dispatch<Action> }) {
   )
 }
 
+// Text that is the same on both worlds, or that depends on the game. The
+// two worlds lose the same resource for different reasons -- the Moon's
+// power runs out in the night, Mars's in a dust storm -- and advice that
+// is right on one can be impossible on the other.
+type LossText = string | ((g: GameState) => string)
+
 interface LossInfo {
   icon: LucideIcon
   title: string
   whatHappened: (g: GameState) => string
-  realWorld: string
-  tryNext: string
+  realWorld: LossText
+  tryNext: LossText
 }
+
+const say = (text: LossText, g: GameState) => (typeof text === 'function' ? text(g) : text)
 
 const pctOf = (x: number) => `${Math.round(x * 100)}%`
 
@@ -89,12 +97,18 @@ const LOSS_INFO: Record<LossReason, LossInfo> = {
         : `The oxygen stock ran out before the next cargo lander arrived.`,
     realWorld:
       `Each astronaut breathes about ${c('CREW_O2_KG_PER_DAY')} kg of oxygen a day, and without it a person passes out within minutes. That is why NASA tested MOXIE on Mars: making oxygen from the air means not shipping every kilogram from Earth.`,
-    tryNext: 'Build O₂ makers early, and keep enough solar power to run them through dust storms.',
+    tryNext: (g) =>
+      g.scenario.isruAvailable
+        ? 'Build O₂ makers early, and keep enough solar power to run them through dust storms.'
+        : 'Every kilogram comes by cargo lander, so fix air leaks properly rather than patching or ignoring them, and choose oxygen when there is room for an extra pallet.',
   },
   food: {
     icon: Apple,
     title: 'The crew ran out of food',
-    whatHappened: (g) => `The greenhouse was ${g.facilities.greenhouseM2} m², and deliveries could not keep up with four hungry astronauts.`,
+    whatHappened: (g) =>
+      g.scenario.resupply
+        ? `The greenhouse was ${g.facilities.greenhouseM2} m², and deliveries could not keep up with four hungry astronauts.`
+        : `The greenhouse was ${g.facilities.greenhouseM2} m², and with no cargo coming before the next launch window, the stores ran out.`,
     realWorld:
       `Each astronaut gets through about ${c('CREW_FOOD_KG_PER_DAY')} kg of packaged food a day. NASA's Veggie experiment has grown lettuce on the ISS, but growing a whole diet takes a lot of space and power.`,
     tryNext: 'Grow the greenhouse, and keep it powered when you can.',
@@ -106,9 +120,16 @@ const LOSS_INFO: Record<LossReason, LossInfo> = {
       g.scenario.dayNightCycle
         ? 'The battery ran flat during the long lunar night. Every system left on drained power that life support needed later.'
         : 'A dust storm dimmed the Sun and the solar panels could not keep life support running.',
-    realWorld:
-      `Life support needs about ${c('LIFE_SUPPORT_KW')} kW, all the time: it scrubs the air, makes it breathable and keeps the crew warm. The lunar night lasts ${c('LUNAR_NIGHT_HOURS')} hours, which is why NASA has been developing small fission reactors like Kilopower for the Moon.`,
-    tryNext: 'Switch off the lab and greenhouse at night or in a storm, and build panels before storms hit.',
+    realWorld: (g) =>
+      `Life support needs about ${c('LIFE_SUPPORT_KW')} kW, all the time: it scrubs the air, makes it breathable and keeps the crew warm. ` +
+      (g.scenario.dayNightCycle
+        ? `The lunar night lasts ${c('LUNAR_NIGHT_HOURS')} hours, which is why NASA has been developing small fission reactors like Kilopower for the Moon.`
+        : `A big Martian dust storm can cut the sunlight reaching the ground to about ${pctOf(c('DUST_STORM_SOLAR_FACTOR'))} for weeks. ` +
+          'In 2018 one silenced NASA’s solar-powered Opportunity rover for good, which is why Curiosity and Perseverance carry nuclear power instead.'),
+    tryNext: (g) =>
+      g.scenario.dayNightCycle
+        ? 'Switch off the lab and greenhouse before night falls, so the battery lasts until sunrise. The top bar shows how long until dark.'
+        : `Build panels before a storm comes, so they still cover life support at ${pctOf(c('DUST_STORM_SOLAR_FACTOR'))} of their output, and switch the lab and greenhouse off while it lasts.`,
   },
   radiation: {
     icon: Radiation,
@@ -159,8 +180,8 @@ export function EndScreen({ game, dispatch }: { game: GameState; dispatch: Dispa
           <div className="mt-4 space-y-3 text-sm">
             {[
               { head: 'What went wrong', tone: 'text-red-300', body: info!.whatHappened(game) },
-              { head: 'Why it matters for real', tone: 'text-sky-300', body: info!.realWorld },
-              { head: 'Try next time', tone: 'text-yellow-300', body: info!.tryNext },
+              { head: 'Why it matters for real', tone: 'text-sky-300', body: say(info!.realWorld, game) },
+              { head: 'Try next time', tone: 'text-yellow-300', body: say(info!.tryNext, game) },
             ].map((part, i) => (
               <div key={part.head} className="section-in" style={{ animationDelay: `${260 + i * 110}ms` }}>
                 <p className={`font-semibold uppercase tracking-wider ${part.tone}`}>{part.head}</p>
