@@ -3,6 +3,7 @@
 // legend is needed (the title names it). Nights and dust storms are shaded
 // so the power sawtooth has its cause right behind it.
 
+import { memo } from 'react'
 import { Line, LineChart, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { GameState } from '../sim/types.ts'
 import type { HistoryPoint } from './gameReducer.ts'
@@ -20,7 +21,11 @@ interface ChartSpec {
   refLine?: { y: number; label: string }
 }
 
-export function TrendCharts({ game, history }: { game: GameState; history: HistoryPoint[] }) {
+// Memoised: its two props only change when a sol is played, but its parent
+// re-renders on every task tap and power switch. Without this, six charts
+// and the screen-reader table were redrawn on each of those, even when the
+// section was collapsed or on another phone tab (both only hide it).
+export const TrendCharts = memo(function TrendCharts({ game, history }: { game: GameState; history: HistoryPoint[] }) {
   const limit = game.crew[0]?.careerDoseLimitMSv ?? 600
   const charts: ChartSpec[] = [
     { key: 'power', title: 'Battery', unit: 'kWh' },
@@ -128,4 +133,4 @@ export function TrendCharts({ game, history }: { game: GameState; history: Histo
       </div>
     </div>
   )
-}
+})
