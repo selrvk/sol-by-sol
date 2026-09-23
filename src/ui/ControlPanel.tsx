@@ -1,4 +1,4 @@
-import { Play, Power } from 'lucide-react'
+import { CircleCheck, Play, Power } from 'lucide-react'
 import type { Dispatch, ReactNode } from 'react'
 import { loadDemandKWh } from '../sim/advanceSol.ts'
 import type { Decisions, GameState } from '../sim/types.ts'
@@ -71,9 +71,30 @@ export function PowerSwitches({ game, decisions, dispatch }: Omit<Props, 'highli
 // stacked fixtures that have to be kept in step.
 export function AdvanceButton({ game, decisions, dispatch, highlightAdvance, tabs }: Props & { tabs?: ReactNode }) {
   const waitingForEvent = game.pendingEvent !== null && !decisions.eventChoiceId
+  // Once an alert is answered its window closes, and nothing else on screen
+  // says which answer was picked. It takes effect when the sol is played,
+  // so it is shown here, beside the button that plays it, with a way to
+  // change it -- a mis-tap on "ignore it, lose 30 kg O₂" should not be
+  // silent or final.
+  const answer = game.pendingEvent?.choices.find((ch) => ch.id === decisions.eventChoiceId)
   return (
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-800 bg-slate-950/95 p-3 lg:static lg:border-0 lg:bg-transparent lg:p-0">
         {tabs && <div className="mb-2 lg:hidden">{tabs}</div>}
+        {answer && game.pendingEvent && (
+          <div role="status" className="mb-2 flex items-center gap-2 rounded-xl border border-amber-400/40 bg-amber-950/40 px-3 py-2 text-xs">
+            <CircleCheck size={15} className="shrink-0 text-amber-300" aria-hidden />
+            <p className="min-w-0 flex-1 leading-snug text-slate-200">
+              <span className="font-semibold text-amber-200">{game.pendingEvent.title}:</span> {answer.label}
+            </p>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: 'reopenEvent' })}
+              className="shrink-0 rounded-lg border border-amber-300/60 px-2.5 py-1 font-semibold text-amber-100 hover:bg-amber-300/10 transition active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
+            >
+              Change
+            </button>
+          </div>
+        )}
         <button
           type="button"
           disabled={waitingForEvent}

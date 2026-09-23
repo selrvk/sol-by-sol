@@ -52,6 +52,7 @@ export type Action =
   | { type: 'swapTasks'; a: CrewId; b: CrewId }
   | { type: 'togglePower'; load: PowerSwitch }
   | { type: 'chooseEvent'; choiceId: string }
+  | { type: 'reopenEvent' }
   | { type: 'advance' }
   | { type: 'quit' }
   | { type: 'restart' }
@@ -129,6 +130,10 @@ export function reducer(state: UiState, action: Action): UiState {
       }
     case 'chooseEvent':
       return { ...state, decisions: { ...state.decisions, eventChoiceId: action.choiceId } }
+    // Take the answer back before the sol is played. With no answer the
+    // alert opens again, and Advance waits for it, as it did the first time.
+    case 'reopenEvent':
+      return { ...state, decisions: { ...state.decisions, eventChoiceId: undefined } }
     case 'advance': {
       if (!state.game || state.game.outcome.status !== 'playing') return state
       // Tasks and power switches carry over to the next sol; the event

@@ -52,6 +52,7 @@ export function Game() {
   const showBriefing = briefingDismissedFor !== game.rng.seed && game.outcome.status === 'playing'
   const fixChosen = Object.values(decisions.assignments).includes(opening.fixTask)
   const onFirstSol = game.sol === game.scenario.start.sol
+  const answered = game.pendingEvent !== null && decisions.eventChoiceId !== undefined
 
   // A phone only shows one pane at a time; a wide screen shows the lot.
   const inPane = (p: Pane) => (pane === p ? '' : 'hidden lg:block')
@@ -85,7 +86,11 @@ export function Game() {
       {/* Two columns on large screens. On phones the columns dissolve
           (display: contents) so sections can be re-ordered: the meters come
           right after the map, where the briefing points. */}
-      <main className="flex flex-1 flex-col gap-4 p-4 pb-40 lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_22rem] lg:overflow-hidden lg:pb-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      {/* On a phone the page scrolls under the pinned Advance bar, so its
+          foot is padded by the bar's height: 137px normally, 213px while an
+          answered alert is shown in it (measured at 375 and 320px wide).
+          pb-64 leaves room for an answer that wraps to a fourth line. */}
+      <main className={`flex flex-1 flex-col gap-4 p-4 ${answered ? 'pb-64' : 'pb-40'} lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_22rem] lg:overflow-hidden lg:pb-4 xl:grid-cols-[minmax(0,1fr)_24rem]`}>
         <div className="contents lg:block lg:h-full lg:min-h-0 lg:min-w-0 lg:space-y-4 lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
           {showBriefing && (
             <div className="order-1 lg:order-none">
