@@ -1,6 +1,6 @@
 # Junior Astronaut Mission Trainer
 
-A browser game for the 2026 NASA Space Apps Challenge, "Build a Junior Astronaut Mission Trainer", aimed at learners aged about 10 to 16.
+By **Team ARCHSPACE**. A browser game for the 2026 NASA Space Apps Challenge, "Build a Junior Astronaut Mission Trainer", aimed at learners aged about 10 to 16.
 
 You take command of a four-person outpost on the **Moon** or **Mars** on sol 40 of a 120-sol mission. Reach the science target before the mission clock runs out, without letting oxygen, water, food or power run out, and without any astronaut passing NASA's career radiation limit.
 

@@ -84,7 +84,12 @@ def cut_buildings() -> None:
 
 
 def save(im: Image.Image, dst: Path) -> None:
-    im.save(dst, 'WEBP', quality=88, method=6)
+    # WebP for everything the game loads; PNG only for the favicons, which
+    # browsers and phone home screens still want in a format they all know.
+    if dst.suffix == '.png':
+        im.save(dst, 'PNG', optimize=True)
+    else:
+        im.save(dst, 'WEBP', quality=88, method=6)
     print(f'{dst.name}: {im.size[0]}x{im.size[1]}, {dst.stat().st_size // 1024} KB')
 
 
@@ -166,6 +171,28 @@ def copy_cutout(src: Path, dst: Path, box: tuple = ()) -> None:
     save(im, dst)
 
 
+# The team's patch: the badge in the top bar, and the site icon.
+#
+# The artwork is a touch taller than it is wide, so it is centred on a
+# square canvas first. Without that, a 32x32 favicon (and the 32x32 badge
+# in the bar) would quietly squash it.
+def make_patch() -> None:
+    src = SRC / 'archspace-logo.png'
+    if not src.exists():
+        return
+    im = Image.open(src).convert('RGBA')
+    im = im.crop(im.getbbox())
+    side = max(im.size)
+    square = Image.new('RGBA', (side, side), (0, 0, 0, 0))
+    square.paste(im, ((side - im.width) // 2, (side - im.height) // 2))
+    fit = lambda n: square.resize((n, n), Image.LANCZOS)
+    save(fit(160), OUT / 'archspace-logo.webp')
+    # A browser tab is 16-32px, where a downscale of the big one turns to
+    # mush; a phone home screen wants 192.
+    save(fit(32), OUT.parent / 'favicon-32.png')
+    save(fit(192), OUT.parent / 'favicon-192.png')
+
+
 def cut_terrain(name: str) -> None:
     """Drop the render's flat sky, leaving the slab on transparency.
 
@@ -202,8 +229,7 @@ def main() -> None:
     cut_buildings()
     # The O2 plant came separately, and already has its own transparency.
     copy_cutout(SRC / 'buildings' / 'co2maker.png', OUT / 'buildings' / 'co2maker.webp')
-    # The team's mission patch, shown at about 32px, so a small copy is plenty.
-    copy_cutout(SRC / 'archspace-logo.png', OUT / 'archspace-logo.webp', (160, 160))
+    make_patch()
     crop_crew()
     for terrain in sorted(SRC.glob('terrain/*.png')):
         cut_terrain(terrain.stem)
