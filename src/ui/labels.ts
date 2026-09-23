@@ -252,7 +252,7 @@ export const OPENINGS: Record<ScenarioId, Opening> = {
     title: 'You are the new commander. Water is running out.',
     problem:
       'Your predecessor put everyone on science and skipped repairs. The base is worn out, so the water recycler is losing most of the water the crew uses.',
-    fix: { before: 'Give one astronaut the', after: 'task and watch the recycler’s condition in the Water box go up. Then press Advance sol.' },
+    fix: { before: 'Give one astronaut the', after: 'task and watch the base condition in the Water box go up. Then press Advance sol.' },
     fixTask: 'maintenance',
     afterFix:
       'Maintenance repairs the base, so the recycler wins back more water each sol. It takes a few sols to recover, and two astronauts on maintenance fix it faster. But every shift spent on repairs is a shift not spent on science. That trade-off is the whole game. Night is coming: the top bar shows when.',

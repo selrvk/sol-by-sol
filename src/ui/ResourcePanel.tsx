@@ -2,7 +2,7 @@ import { Apple, Droplet, Radiation, Users, Zap } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { advanceSol } from '../sim/advanceSol.ts'
 import { BALANCE } from '../sim/balance.ts'
-import { lifeSupportReserveKWh, nightAhead } from '../sim/forecast.ts'
+import { lifeSupportReserveKWh, nextResupplySol, nightAhead } from '../sim/forecast.ts'
 import type { Decisions, GameState } from '../sim/types.ts'
 import { METER_WHY, POWER_LABELS } from './labels.ts'
 import { AnimatedValue } from './AnimatedValue.tsx'
@@ -62,17 +62,24 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       : null
   const units = game.facilities.isruUnits
   const nextUnits = forecast?.facilities.isruUnits
+  // Where the Moon's oxygen comes from, and when the next lot arrives.
+  const lander = game.scenario.resupply
+  const nextLander = nextResupplySol(game.scenario, game.sol)
   const o2Line = !game.scenario.isruAvailable
-    ? 'Delivered by cargo landers'
+    ? lander && nextLander !== null && nextLander < game.scenario.missionLengthSols
+      ? `Next cargo lander: sol ${nextLander} (+${lander.cargo.oxygenKg} kg)`
+      : 'No more cargo landers before the mission ends'
     : nextUnits !== undefined && nextUnits !== units
       ? `${units} O₂ maker${units === 1 ? '' : 's'} → ${nextUnits} next sol`
       : `${units} O₂ maker${units === 1 ? '' : 's'} running`
-  const recyclerLine =
+  // Base condition is what the recycler runs at, so the Water box is where
+  // it is shown. One name for it everywhere: base condition.
+  const conditionLine =
     nextCond !== null
-      ? `Recycler ${cond}% → ${nextCond}% next sol`
+      ? `Base condition ${cond}% → ${nextCond}% next sol`
       : prevCond !== null && prevCond !== cond
-        ? `Recycler ${cond}% (was ${prevCond}%)`
-        : `Recycler at ${cond}%`
+        ? `Base condition ${cond}% (was ${prevCond}%)`
+        : `Base condition ${cond}%`
   const repairShifts = game.environment.busyShifts + game.environment.busyEvaShifts
   const lastRepairs = game.lastReport?.repairShifts ?? 0
   return (
@@ -130,7 +137,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
         tick={game.sol}
         highlight={highlight === 'water'}
         why={METER_WHY.water(game.scenario)}
-        detail={recyclerLine}
+        detail={conditionLine}
         warn={game.facilities.condition < 0.7}
       />
       <Meter

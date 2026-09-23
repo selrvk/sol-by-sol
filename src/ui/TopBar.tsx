@@ -66,8 +66,12 @@ export function TopBar({ game, onQuit }: { game: GameState; onQuit: () => void }
       {/* Sol x of y already says how long is left, so the old "sols left"
           reading was the same number twice. It comes back only when the
           deadline is close enough to matter. */}
-      <Stat icon={Orbit} label="Sol" iconClass="text-sky-300">
+      {/* A phone drops the captions, so the day count gets a word of its own
+          there. The cargo reading is desktop-only: on a phone the Oxygen box
+          says when the next lander comes and what it brings. */}
+      <Stat icon={Orbit} label="Sol (day)" iconClass="text-sky-300">
         <span className="text-lg font-bold tabular-nums">
+          <span aria-hidden className="mr-1 text-sm font-semibold text-slate-400 sm:hidden">Sol</span>
           {shownSol} <span className="text-slate-500">/ {sc.missionLengthSols}</span>
         </span>
         {solsLeft <= 15 && (
@@ -79,9 +83,11 @@ export function TopBar({ game, onQuit }: { game: GameState; onQuit: () => void }
         {sky.sub && <span className={`block text-xs ${nightSoon ? 'font-semibold text-amber-300' : 'text-slate-400'}`}>({sky.sub})</span>}
       </Stat>
       {cargo !== null && cargo < sc.missionLengthSols && (
-        <Stat icon={Package} label="Next cargo">
-          <span className="font-semibold tabular-nums">sol {cargo}</span>
-        </Stat>
+        <div className="hidden sm:flex">
+          <Stat icon={Package} label="Next cargo">
+            <span className="font-semibold tabular-nums">sol {cargo}</span>
+          </Stat>
+        </div>
       )}
       {/* Science: caption above the bar where there is room, and a single
           line of icon, bar and score on a phone, sharing that row with Quit

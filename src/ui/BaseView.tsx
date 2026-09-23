@@ -513,16 +513,14 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
       )}
       {badgesUnder('greenhouse', gh.x, gh.y + CREW_UNDER_LABEL)}
 
+      {/* Shielding and condition are named in words in the corner badge
+          (desktop) and the strip under the map (phone). The habitat's own
+          label only speaks up when the base is worn. */}
       <Pill x={hab.x} y={hab.y} icon={Home} tone={worn ? 'warn' : 'normal'} quiet={!worn}>
         Habitat
-        {f.shieldingLevel > 0 && (
-          <span className="flex items-center gap-1 text-slate-300">
-            <Shield className="h-[36px] w-[36px] lg:h-[20px] lg:w-[20px]" aria-hidden /> {f.shieldingLevel}/{BALANCE.MAX_SHIELDING_LEVEL}
-          </span>
-        )}
         {worn && (
           <span className="flex items-center gap-1 text-amber-300">
-            <TriangleAlert className="h-[36px] w-[36px] lg:h-[20px] lg:w-[20px]" aria-hidden /> {Math.round(f.condition * 100)}%
+            <TriangleAlert className="h-[36px] w-[36px] lg:h-[20px] lg:w-[20px]" aria-hidden /> base condition {Math.round(f.condition * 100)}%
           </span>
         )}
       </Pill>
@@ -570,38 +568,37 @@ export function BaseSummary({ game }: { game: GameState }) {
   const f = game.facilities
   const worn = f.condition < 0.6
   const item = 'flex items-center gap-1'
+  // Every figure carries its name in words. The icons help the eye find
+  // it, but an icon beside a bare "1/6" left players guessing.
+  const name = 'text-slate-400'
   return (
     <ul
       aria-label="Base facilities"
-      className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300 lg:sr-only"
+      className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200 lg:sr-only"
     >
       {f.solarArrayM2 > 0 && (
         <li className={item}>
-          <Sun size={13} className="text-yellow-300" aria-hidden /> <span className="sr-only">Solar panels:</span> {f.solarArrayM2} m²
+          <Sun size={13} className="text-yellow-300" aria-hidden /> <span className={name}>Solar</span> {f.solarArrayM2} m²
         </li>
       )}
       {f.reactorKW > 0 && (
         <li className={item}>
-          <Zap size={13} className="text-amber-300" aria-hidden /> <span className="sr-only">Reactor:</span> {f.reactorKW} kW
+          <Zap size={13} className="text-amber-300" aria-hidden /> <span className={name}>Reactor</span> {f.reactorKW} kW
         </li>
       )}
       {f.greenhouseM2 > 0 && (
         <li className={item}>
-          <Sprout size={13} className="text-emerald-300" aria-hidden /> <span className="sr-only">Greenhouse:</span> {f.greenhouseM2} m²
+          <Sprout size={13} className="text-emerald-300" aria-hidden /> <span className={name}>Greenhouse</span> {f.greenhouseM2} m²
         </li>
       )}
       {game.scenario.isruAvailable && (
         <li className={item}>
-          <Wind size={13} className="text-sky-300" aria-hidden /> <span className="sr-only">O₂ makers:</span>{' '}
-          {/* one piece, so the row's gap does not split "O₂ ×" from its count */}
-          <span>
-            <span aria-hidden>O₂ ×</span>
-            {f.isruUnits}
-          </span>
+          <Wind size={13} className="text-sky-300" aria-hidden /> <span className={name}>O₂ makers</span> {f.isruUnits}
         </li>
       )}
       <li className={item}>
-        <Shield size={13} className="text-sky-300" aria-hidden /> <span className="sr-only">Shielding level:</span>{' '}
+        <Shield size={13} className="text-sky-300" aria-hidden /> <span className={name}>Shielding</span>{' '}
+        {/* one piece, so the row's gap does not split "1/6" */}
         <span>
           {f.shieldingLevel}
           <span aria-hidden>/</span>
@@ -610,7 +607,7 @@ export function BaseSummary({ game }: { game: GameState }) {
         </span>
       </li>
       <li className={`${item} ${worn ? 'text-amber-300' : ''}`}>
-        <Home size={13} aria-hidden /> <span className="sr-only">Base condition:</span> {Math.round(f.condition * 100)}%
+        <Home size={13} aria-hidden /> <span className={worn ? '' : name}>Base condition</span> {Math.round(f.condition * 100)}%
         {worn && <span className="sr-only">, worn: needs maintenance</span>}
       </li>
     </ul>
@@ -634,7 +631,7 @@ export function BaseCondition({ game }: { game: GameState }) {
     >
       <span className="flex items-center gap-1.5">
         <Home size={14} className={worn ? 'text-amber-300' : 'text-slate-300'} />
-        Condition
+        Base condition
         <span className="h-1.5 w-12 overflow-hidden rounded-full bg-slate-700">
           <span className={`block h-full rounded-full ${worn ? 'bg-amber-400' : 'bg-emerald-400'}`} style={{ width: `${pct}%` }} />
         </span>

@@ -28,6 +28,7 @@ export function StartScreen({ dispatch }: { dispatch: Dispatch<Action> }) {
         <p className="mt-2 text-slate-300">
           Four astronauts, one outpost. Every hour and every kilowatt you spend on safety is one you can't spend on science.
         </p>
+        <p className="mt-1 text-sm text-slate-400">Each turn is one sol: a day at the base. You plan it, then play it.</p>
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
