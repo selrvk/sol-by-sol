@@ -2,8 +2,8 @@
 
 import { BedDouble, FlaskConical, Mountain, Pickaxe, Sprout, Sun, Wind, Wrench, type LucideIcon } from 'lucide-react'
 import { c, type ConstantKey, type CurveKey } from '../sim/constants.ts'
-import type { TaskEffects } from '../sim/effects.ts'
-import type { CrewTask, PowerLoad, Scenario, ScenarioId } from '../sim/types.ts'
+import type { ResourceRates, TaskEffects } from '../sim/effects.ts'
+import type { CrewTask, GameState, PowerLoad, Scenario, ScenarioId } from '../sim/types.ts'
 
 // What each task is called. What it does is worked out live: see describeTask.
 export const TASK_LABELS: Record<CrewTask, { label: string; short: string }> = {
@@ -164,6 +164,16 @@ export type WhyRef = { constant: ConstantKey } | { curve: CurveKey } | { rule: s
 export interface MeterWhy {
   summary: string
   refs: WhyRef[]
+  rules?: WhyRules // how it moves in the game, shown first
+}
+
+// What moves a meter in the game, as "goes up" and "goes down", in numbers
+// for this base today. The "why?" panel opens with it, before the real-world
+// science, so the first thing a newcomer reads is how to change the number.
+export interface WhyRules {
+  up: string
+  down: string
+  note?: string // a unit or a term, said once
 }
 
 const n = (key: ConstantKey) => c(key).toLocaleString('en')
@@ -190,7 +200,7 @@ export const METER_WHY: Record<string, (s: Scenario) => MeterWhy> = {
       `Each astronaut breathes about ${n('CREW_O2_KG_PER_DAY')} kg of oxygen a day. ` +
       (s.isruAvailable
         ? `On Mars you can make more: O₂ makers split carbon dioxide from the air, like NASA's MOXIE experiment, which used about ${n('MOXIE_KWH_PER_KG_O2')} kWh of energy per kg.`
-        : 'Nothing on this base makes oxygen, so every kilogram comes from Earth on a cargo lander.'),
+        : ''), // the Moon: where its oxygen comes from is in the game half of the panel
     refs: [{ constant: 'CREW_O2_KG_PER_DAY' }, ...(s.isruAvailable ? [{ constant: 'MOXIE_KWH_PER_KG_O2' } as WhyRef] : [])],
   }),
   water: () => ({
@@ -212,7 +222,9 @@ export const METER_WHY: Record<string, (s: Scenario) => MeterWhy> = {
         ? `On the Moon's surface an astronaut takes about ${n('MOON_SURFACE_DOSE_MSV_PER_DAY')} mSv a day, measured by China's Chang'e 4 lander. `
         : `On Mars an astronaut takes about ${n('MARS_SURFACE_DOSE_MSV_PER_DAY')} mSv a day, measured by the Curiosity rover. The thin air blocks some. `) +
       `NASA stops astronauts at ${n('CAREER_DOSE_LIMIT_MSV')} mSv over their whole career. ` +
-      `Piled regolith barely slows cosmic rays, but it stops solar storms very well.`,
+      (s.id === 'mars'
+        ? `Soil piled on the habitat (regolith) barely slows cosmic rays, and Mars's air already stops most of a solar storm.`
+        : `Soil piled on the habitat (regolith) barely slows cosmic rays, but it stops solar storms very well.`),
     refs: [
       { constant: s.id === 'moon' ? 'MOON_SURFACE_DOSE_MSV_PER_DAY' : 'MARS_SURFACE_DOSE_MSV_PER_DAY' },
       { constant: 'CAREER_DOSE_LIMIT_MSV' },
@@ -225,6 +237,47 @@ export const METER_WHY: Record<string, (s: Scenario) => MeterWhy> = {
     summary:
       'Four astronauts, one 8-hour shift each per sol. Every hour spent fixing, building or sheltering is an hour not spent on science. That is why real crews work to a tightly planned schedule.',
     refs: [{ rule: 'The 8-hour shift is a game rule, not a NASA figure.' }],
+  }),
+}
+
+// Live numbers for the "why?" panels: see WhyRules.
+const cargoLine = (r: ResourceRates, key: 'oxygenKg' | 'waterL' | 'foodKg', unit: string) =>
+  r.cargo ? ` Cargo landers bring ${r.cargo.cargo[key]} ${unit} every ${r.cargo.every} sols (next: sol ${r.cargo.nextSol}).` : ''
+
+export const METER_RULES: Record<string, (g: GameState, r: ResourceRates) => WhyRules> = {
+  power: (g, r) => ({
+    up:
+      (g.scenario.dayNightCycle
+        ? `Solar panels make about ${whole(r.sunKWh)} kWh a sol in sunlight and none at night. `
+        : `Solar panels make about ${whole(r.sunKWh)} kWh on a clear sol, and far less in a dust storm. `) +
+      (r.reactorKWh > 0 ? `The reactor makes ${whole(r.reactorKWh)} kWh a sol, day and night. ` : '') +
+      `Panels make less as the base condition drops. The battery stores up to ${r.battery} kWh.`,
+    down: `Life support uses ${whole(r.crewUse.storedPowerKWh)} kWh a sol and is never off. The lab${g.scenario.isruAvailable ? ', greenhouse and O₂ makers' : ' and greenhouse'} use more while switched on.`,
+    note: 'kWh is an amount of energy; kW is how fast it flows. 5 kW for a 24-hour sol is 120 kWh.',
+  }),
+  oxygen: (g, r) => ({
+    up: g.scenario.isruAvailable
+      ? `Each O₂ maker makes 1 kg a sol while it has power: ${one(r.o2MakersKg)} kg a sol from yours.`
+      : `Nothing on this base makes oxygen.${cargoLine(r, 'oxygenKg', 'kg')}`,
+    down: `The crew breathes ${one(r.crewUse.oxygenKg)} kg a sol. Air leaks from some alerts.`,
+  }),
+  water: (_g, r) => ({
+    up: `The recycler wins back ${one(r.recycledL)} L a sol: up to ${Math.round(r.recyclerMax * 100)}% of what is used, but only as much as the base condition allows.${cargoLine(r, 'waterL', 'L')}`,
+    down: `The crew uses ${one(r.crewUse.waterL)} L a sol.`,
+  }),
+  food: (_g, r) => ({
+    up: `The greenhouse grows ${one(r.greenhouseKg)} kg a sol while it has power.${cargoLine(r, 'foodKg', 'kg')}`,
+    down: `The crew eats ${one(r.crewUse.foodKg)} kg a sol.`,
+  }),
+  radiation: (g) => ({
+    up: 'A little every sol on the surface, a bit more for anyone outside, and a lot in a solar storm unless the crew shelters.',
+    down: `Never: it is a total over each astronaut's whole career. Keep everyone under ${g.crew[0]?.careerDoseLimitMSv ?? c('CAREER_DOSE_LIMIT_MSV')} mSv.`,
+    note: 'mSv (millisievert) is a measure of radiation dose. The crew cards show each person’s.',
+  }),
+  crewTime: () => ({
+    up: 'Four astronauts, one 8-hour shift each, every sol.',
+    down: 'Repairs from alerts take shifts, from science first. Sheltering from a solar storm stops all work.',
+    note: 'A shift is one astronaut’s work for one sol.',
   }),
 }
 

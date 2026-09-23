@@ -2,9 +2,10 @@ import { Apple, Droplet, Radiation, Users, Zap } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { advanceSol } from '../sim/advanceSol.ts'
 import { BALANCE } from '../sim/balance.ts'
+import { resourceRates } from '../sim/effects.ts'
 import { lifeSupportReserveKWh, nextResupplySol, nightAhead } from '../sim/forecast.ts'
 import type { Decisions, GameState } from '../sim/types.ts'
-import { METER_WHY, POWER_LABELS } from './labels.ts'
+import { METER_RULES, METER_WHY, POWER_LABELS } from './labels.ts'
 import { AnimatedValue } from './AnimatedValue.tsx'
 import { WhyTooltip } from './WhyTooltip.tsx'
 
@@ -80,6 +81,13 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       : prevCond !== null && prevCond !== cond
         ? `Base condition ${cond}% (was ${prevCond}%)`
         : `Base condition ${cond}%`
+  // Each "why?" opens with how the meter moves in the game, at today's
+  // rates, then the real-world figures behind it.
+  const rates = resourceRates(game)
+  const whyFor = (key: keyof typeof METER_WHY & keyof typeof METER_RULES) => ({
+    ...METER_WHY[key](game.scenario),
+    rules: METER_RULES[key](game, rates),
+  })
   const repairShifts = game.environment.busyShifts + game.environment.busyEvaShifts
   const lastRepairs = game.lastReport?.repairShifts ?? 0
   return (
@@ -99,7 +107,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
         delta={d?.storedPowerKWh}
         unit="kWh"
         amount={r.storedPowerKWh}
-        why={METER_WHY.power(game.scenario)}
+        why={whyFor('power')}
         warning={nightWarning ?? reserveLine}
         detail={
           report
@@ -121,7 +129,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
         forecast={isForecast}
         tick={game.sol}
         highlight={highlight === 'oxygen'}
-        why={METER_WHY.oxygen(game.scenario)}
+        why={whyFor('oxygen')}
         detail={o2Line}
       />
       <Meter
@@ -136,7 +144,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
         forecast={isForecast}
         tick={game.sol}
         highlight={highlight === 'water'}
-        why={METER_WHY.water(game.scenario)}
+        why={whyFor('water')}
         detail={conditionLine}
         warn={game.facilities.condition < 0.7}
       />
@@ -152,7 +160,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
         forecast={isForecast}
         tick={game.sol}
         highlight={highlight === 'food'}
-        why={METER_WHY.food(game.scenario)}
+        why={whyFor('food')}
         detail={`Greenhouse ${game.facilities.greenhouseM2} m²`}
       />
       <Meter
@@ -167,7 +175,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
         invert
         delta={doseDelta}
         unit="mSv"
-        why={METER_WHY.radiation(game.scenario)}
+        why={whyFor('radiation')}
         detail={`Highest career dose: ${worst.name}`}
       />
       <Meter
@@ -179,7 +187,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
         icon={<Badge tone="indigo"><Users size={17} /></Badge>}
         value={`${hoursAssigned} / ${hoursAvailable} h`}
         fill={hoursAvailable ? hoursAssigned / hoursAvailable : 0}
-        why={METER_WHY.crewTime(game.scenario)}
+        why={whyFor('crewTime')}
         detail={
           game.environment.shelterSolsLeft > 0
             ? 'Sheltering from a solar storm: no work this sol'

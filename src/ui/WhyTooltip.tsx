@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { ArrowDown, ArrowUp, X } from 'lucide-react'
 import { CONSTANTS, CURVES, type SourcedConstant, type SourcedCurve } from '../sim/constants.ts'
 import { SOURCE_LABELS, type MeterWhy, type WhyRef } from './labels.ts'
 
@@ -81,6 +81,28 @@ export function WhyTooltip({ why }: { why: MeterWhy }) {
             }
             className="fixed inset-x-0 bottom-0 z-40 max-h-[85vh] space-y-2 overflow-y-auto overscroll-contain rounded-t-2xl border-t border-slate-600 bg-slate-900 p-4 pb-6 text-left text-xs text-slate-200 shadow-xl lg:absolute lg:inset-x-auto lg:bottom-auto lg:right-0 lg:z-30 lg:mt-1 lg:max-h-[70vh] lg:w-80 lg:max-w-[85vw] lg:rounded-lg lg:border lg:p-3 lg:pb-3"
           >
+            {why.rules && (
+              <div className="space-y-1.5 border-b border-slate-700 pb-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-300">In the game</p>
+                {/* Neutral arrows: for radiation, up is the bad direction. */}
+                <p className="flex gap-1.5 leading-snug">
+                  <ArrowUp size={14} className="mt-px shrink-0 text-slate-300" aria-hidden />
+                  <span>
+                    <span className="font-semibold text-white">Goes up: </span>
+                    {why.rules.up}
+                  </span>
+                </p>
+                <p className="flex gap-1.5 leading-snug">
+                  <ArrowDown size={14} className="mt-px shrink-0 text-slate-300" aria-hidden />
+                  <span>
+                    <span className="font-semibold text-white">Goes down: </span>
+                    {why.rules.down}
+                  </span>
+                </p>
+                {why.rules.note && <p className="text-slate-400">{why.rules.note}</p>}
+              </div>
+            )}
+            {why.rules && <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-300">For real</p>}
             <p className="text-sm leading-snug text-slate-100">{why.summary}</p>
             <div className="space-y-2 border-t border-slate-700 pt-2">
               {why.refs.map((ref, i) => (
