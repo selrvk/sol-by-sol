@@ -387,10 +387,10 @@ export const EVENTS: EventDef[] = [
     build: () => ({
       id: 'moonquake',
       title: 'Moonquake',
-      description: 'Seismometers left by Apollo astronauts recorded shallow moonquakes. One has just shaken part of your regolith shielding loose.',
+      description: 'Seismometers left by Apollo astronauts recorded shallow moonquakes. One has just shaken loose some of the soil piled on the habitat as shielding.',
       defaultChoiceId: 'rebuild',
       choices: [
-        { id: 'rebuild', label: 'Rebuild the berm (2 EVA shifts)', outcome: { message: 'The shielding is back in place.', evaShifts: 2 } },
+        { id: 'rebuild', label: 'Pile it back up (2 EVA shifts)', outcome: { message: 'The shielding is back in place.', evaShifts: 2 } },
         {
           id: 'leave',
           label: 'Leave it (lose 1 level of shielding)',

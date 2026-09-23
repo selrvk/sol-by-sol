@@ -2,11 +2,12 @@ import { ArrowLeftRight, ChevronRight, Lightbulb, Radiation, TriangleAlert, User
 import { useEffect, type Dispatch } from 'react'
 import { EVA_TASKS } from '../sim/advanceSol.ts'
 import { BALANCE } from '../sim/balance.ts'
+import { taskEffects } from '../sim/effects.ts'
 import { gcrDoseMSv } from '../sim/radiation.ts'
 import type { CrewMember, CrewTask, Decisions, GameState } from '../sim/types.ts'
 import type { Action } from './gameReducer.ts'
 import { CrewAvatar } from './icons.tsx'
-import { TASK_ICONS, TASK_LABELS } from './labels.ts'
+import { describeTask, TASK_ICONS, TASK_LABELS, type TaskLine } from './labels.ts'
 
 interface Props {
   game: GameState
@@ -52,11 +53,11 @@ export function CrewPanel({ game, decisions, dispatch, highlightTask, showAdvice
     }
   }
 
-  // Building past a cap does nothing: say so, or the shift is silently wasted.
-  const maxedOut: Partial<Record<CrewTask, string>> = {
-    ...(game.facilities.shieldingLevel >= BALANCE.MAX_SHIELDING_LEVEL && { shielding: 'Shielding is already at maximum: this shift does nothing.' }),
-    ...(game.facilities.solarArrayM2 >= game.scenario.maxSolarArrayM2 && { solar: 'No room for more panels: this shift does nothing.' }),
-  }
+  // What one shift of each task would do on this base, as one line, with a
+  // warning where it would do nothing or next to nothing, so a shift is
+  // never wasted without the player being told.
+  const fx = taskEffects(game, decisions)
+  const lines = Object.fromEntries((Object.keys(TASK_LABELS) as CrewTask[]).map((t) => [t, describeTask(t, fx)])) as Record<CrewTask, TaskLine>
 
   const picked = game.crew.find((m) => m.id === pickerFor) ?? null
 
@@ -118,9 +119,9 @@ export function CrewPanel({ game, decisions, dispatch, highlightTask, showAdvice
                   <CurrentTask task={task} />
                   <ChevronRight size={16} className="shrink-0 text-slate-500" aria-hidden />
                 </button>
-                {maxedOut[task] && (
+                {lines[task].warn && (
                   <p className="mt-1 flex items-start gap-1 text-[11px] font-semibold text-amber-300">
-                    <TriangleAlert size={12} className="mt-0.5 shrink-0" aria-hidden /> {maxedOut[task]}
+                    <TriangleAlert size={12} className="mt-0.5 shrink-0" aria-hidden /> {lines[task].warn}
                   </p>
                 )}
               </div>
@@ -132,14 +133,15 @@ export function CrewPanel({ game, decisions, dispatch, highlightTask, showAdvice
                   tasks={tasks}
                   dispatch={dispatch}
                   highlightTask={highlightTask}
+                  lines={lines}
                 />
                 <p className="mt-1.5 text-xs text-slate-300">
                   {TASK_LABELS[task].label}
-                  {EVA_TASKS.has(task) && <span className="ml-1 rounded bg-orange-500/20 px-1 text-orange-300">EVA: extra radiation</span>}
-                  <span className="block text-slate-500">{TASK_LABELS[task].hint}</span>
-                  {maxedOut[task] && (
+                  {EVA_TASKS.has(task) && <span className="ml-1 rounded bg-orange-500/20 px-1 text-orange-300">EVA: outside</span>}
+                  <span className="block leading-snug text-slate-400">{lines[task].does}</span>
+                  {lines[task].warn && (
                     <span className="flex items-start gap-1 font-semibold text-amber-300">
-                      <TriangleAlert size={13} className="mt-0.5 shrink-0" aria-hidden /> {maxedOut[task]}
+                      <TriangleAlert size={13} className="mt-0.5 shrink-0" aria-hidden /> {lines[task].warn}
                     </span>
                   )}
                 </p>
@@ -155,7 +157,7 @@ export function CrewPanel({ game, decisions, dispatch, highlightTask, showAdvice
           index={game.crew.indexOf(picked)}
           task={decisions.assignments[picked.id] ?? 'rest'}
           tasks={tasks}
-          maxedOut={maxedOut}
+          lines={lines}
           dispatch={dispatch}
           onClose={() => onPickerChange?.(null)}
         />
@@ -206,13 +208,16 @@ function CurrentTask({ task }: { task: CrewTask }) {
   )
 }
 
-// The grid of jobs. Shared by the desktop card and the phone sheet, so the
-// two can never drift apart.
+// The jobs. Shared by the desktop card and the phone sheet, so the two can
+// never drift apart. On a desktop, a compact grid, with each job's line on
+// hover and the chosen job's line under the grid. On a phone (`big`), a list
+// with every job's line in full: the sheet is where the choice is made.
 function TaskButtons({
   crewId,
   crewName,
   task,
   tasks,
+  lines,
   dispatch,
   highlightTask,
   big = false,
@@ -222,13 +227,14 @@ function TaskButtons({
   crewName: string
   task: CrewTask
   tasks: CrewTask[]
+  lines: Record<CrewTask, TaskLine>
   dispatch: Dispatch<Action>
   highlightTask?: CrewTask
   big?: boolean
   onPicked?: () => void
 }) {
   return (
-    <div className={`mt-2 grid gap-1 ${big ? 'grid-cols-2' : 'grid-cols-4'}`} role="group" aria-label={`Task for ${crewName}`}>
+    <div className={`mt-2 grid gap-1 ${big ? 'grid-cols-1' : 'grid-cols-4'}`} role="group" aria-label={`Task for ${crewName}`}>
       {tasks.map((t) => {
         const Icon = TASK_ICONS[t]
         const selected = task === t
@@ -237,7 +243,7 @@ function TaskButtons({
           <button
             key={t}
             type="button"
-            title={`${TASK_LABELS[t].label}: ${TASK_LABELS[t].hint}`}
+            title={`${TASK_LABELS[t].label}: ${lines[t].does}${lines[t].warn ? `. ${lines[t].warn}` : ''}`}
             aria-pressed={selected}
             aria-label={TASK_LABELS[t].label}
             onClick={() => {
@@ -254,7 +260,8 @@ function TaskButtons({
             {big ? (
               <span className="min-w-0">
                 <span className="block text-sm font-semibold">{TASK_LABELS[t].label}</span>
-                <span className="mt-0.5 block text-[11px] leading-snug text-slate-400">{TASK_LABELS[t].hint}</span>
+                <span className="mt-0.5 block text-[11px] leading-snug text-slate-400">{lines[t].does}</span>
+                {lines[t].warn && <span className="mt-0.5 block text-[11px] font-semibold leading-snug text-amber-300">{lines[t].warn}</span>}
               </span>
             ) : (
               <span aria-hidden className="text-[10px]">{TASK_LABELS[t].short}</span>
@@ -268,13 +275,13 @@ function TaskButtons({
 }
 
 // The phone task picker: a sheet from the bottom of the screen, where a
-// thumb is, with room for each job's one-line explanation.
+// thumb is, with room for what each job does.
 function TaskSheet({
   member: m,
   index,
   task,
   tasks,
-  maxedOut,
+  lines,
   dispatch,
   onClose,
 }: {
@@ -282,7 +289,7 @@ function TaskSheet({
   index: number
   task: CrewTask
   tasks: CrewTask[]
-  maxedOut: Partial<Record<CrewTask, string>>
+  lines: Record<CrewTask, TaskLine>
   dispatch: Dispatch<Action>
   onClose: () => void
 }) {
@@ -322,15 +329,11 @@ function TaskSheet({
           crewName={m.name}
           task={task}
           tasks={tasks}
+          lines={lines}
           dispatch={dispatch}
           big
           onPicked={onClose}
         />
-        {maxedOut[task] && (
-          <p className="mt-2 flex items-start gap-1 text-xs font-semibold text-amber-300">
-            <TriangleAlert size={13} className="mt-0.5 shrink-0" aria-hidden /> {maxedOut[task]}
-          </p>
-        )}
         <button
           type="button"
           onClick={onClose}

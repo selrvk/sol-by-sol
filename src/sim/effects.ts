@@ -18,7 +18,8 @@ const TYPICAL_STORM_SCALE = (BALANCE.SPE_SCALE_MIN + BALANCE.SPE_SCALE_MAX) / 2
 
 export interface TaskEffects {
   labScience: { science: number; labOn: boolean }
-  fieldScience: { science: number; extraDoseMSv: number } // per sol, on top of working indoors
+  // Extra dose for working outside: every sol, and if a typical solar storm hits.
+  fieldScience: { science: number; extraDoseMSv: number; stormExtraMSv: number }
   greenhouse: { m2: number; foodKg: number; powerKWh: number; wear: number }
   solar: { m2: number; sunKWh: number; maxM2: number; hasNight: boolean; hasStorms: boolean }
   shielding: {
@@ -29,6 +30,7 @@ export interface TaskEffects {
     stormMSv: number
     stormNextMSv: number
     canBeLost: boolean // on the Moon a moonquake can shake a level loose
+    airShields: boolean // Mars: the atmosphere is already shielding the base
   }
   maintenance: { repair: number; condition: number; wear: number }
   isru: { kgO2: number; powerKWh: number; wear: number; crewBreathesKg: number }
@@ -43,12 +45,14 @@ export function taskEffects(state: GameState, decisions: Decisions): TaskEffects
   const solarM2 = Math.min(BALANCE.SOLAR_M2_PER_SHIFT, Math.max(0, scenario.maxSolarArrayM2 - f.solarArrayM2))
   const next = Math.min(BALANCE.MAX_SHIELDING_LEVEL, f.shieldingLevel + BALANCE.SHIELDING_LEVELS_PER_SHIFT)
   const evaFraction = BALANCE.SHIFT_HOURS / scenario.hoursPerSol
+  const storm = speDoses(scenario, f, TYPICAL_STORM_SCALE)
 
   return {
     labScience: { science: BALANCE.LAB_SCIENCE_PER_SHIFT, labOn: decisions.power.lab },
     fieldScience: {
       science: BALANCE.FIELD_SCIENCE_PER_SHIFT,
       extraDoseMSv: gcrDoseMSv(scenario, f, evaFraction) - gcrDoseMSv(scenario, f, 0),
+      stormExtraMSv: storm.eva - storm.indoor,
     },
     greenhouse: {
       m2: ghM2,
@@ -67,9 +71,10 @@ export function taskEffects(state: GameState, decisions: Decisions): TaskEffects
       level: f.shieldingLevel,
       next,
       max: BALANCE.MAX_SHIELDING_LEVEL,
-      stormMSv: speDoses(scenario, f, TYPICAL_STORM_SCALE).indoor,
+      stormMSv: storm.indoor,
       stormNextMSv: speDoses(scenario, withF({ shieldingLevel: next }), TYPICAL_STORM_SCALE).indoor,
       canBeLost: EVENTS.some((e) => e.id === 'moonquake' && e.scenarios.includes(scenario.id)),
+      airShields: scenario.atmosphereGCm2 > 0,
     },
     maintenance: { repair: BALANCE.MAINTENANCE_PER_SHIFT, condition: f.condition, wear: wearPerSol(f) },
     isru: {

@@ -139,8 +139,8 @@ const LOSS_INFO: Record<LossReason, LossInfo> = {
       return `${m.name} reached ${Math.round(m.doseMSv)} mSv over their career. They must stop flying, and the mission cannot go on without them.`
     },
     realWorld:
-      `NASA limits each astronaut to ${c('CAREER_DOSE_LIMIT_MSV')} mSv over a whole career, to keep their extra risk of dying from cancer small. Piled regolith does little against cosmic rays but blocks solar storms well, which is why sheltering matters.`,
-    tryNext: 'Pile regolith, shelter from solar storms, and give spacewalks to the crew with the lowest dose.',
+      `NASA limits each astronaut to ${c('CAREER_DOSE_LIMIT_MSV')} mSv over a whole career, to keep their extra risk of dying from cancer small. Soil piled on a habitat (regolith) does little against cosmic rays but blocks solar storms well, which is why sheltering matters.`,
+    tryNext: 'Build shielding, shelter from solar storms, and give spacewalks to the crew with the lowest dose.',
   },
   missionTimeout: {
     icon: Clock,

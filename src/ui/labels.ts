@@ -2,17 +2,88 @@
 
 import { BedDouble, FlaskConical, Mountain, Pickaxe, Sprout, Sun, Wind, Wrench, type LucideIcon } from 'lucide-react'
 import { c, type ConstantKey, type CurveKey } from '../sim/constants.ts'
+import type { TaskEffects } from '../sim/effects.ts'
 import type { CrewTask, PowerLoad, Scenario, ScenarioId } from '../sim/types.ts'
 
-export const TASK_LABELS: Record<CrewTask, { label: string; short: string; hint: string }> = {
-  labScience: { label: 'Lab science', short: 'Lab', hint: 'Science points, needs the lab powered' },
-  fieldScience: { label: 'Field science', short: 'Field', hint: 'More science, but outside: extra radiation' },
-  greenhouse: { label: 'Grow greenhouse', short: 'Grow', hint: 'More growing area: more food, more power' },
-  solar: { label: 'Build solar', short: 'Solar', hint: 'More panels: more power in sunlight' },
-  shielding: { label: 'Pile regolith', short: 'Shield', hint: 'Shielding: protects against solar storms' },
-  maintenance: { label: 'Maintenance', short: 'Repair', hint: 'Repairs wear: keeps water recycling and panels working' },
-  isru: { label: 'Build O₂ maker', short: 'O₂', hint: 'Makes oxygen from the Martian air, uses power' },
-  rest: { label: 'Rest', short: 'Rest', hint: 'No work' },
+// What each task is called. What it does is worked out live: see describeTask.
+export const TASK_LABELS: Record<CrewTask, { label: string; short: string }> = {
+  labScience: { label: 'Lab science', short: 'Lab' },
+  fieldScience: { label: 'Field science', short: 'Field' },
+  greenhouse: { label: 'Grow greenhouse', short: 'Grow' },
+  solar: { label: 'Build solar', short: 'Solar' },
+  // Named for what it builds, so it matches "Shielding" wherever the base
+  // shows it. What it is -- soil piled on the habitat -- is in its line.
+  shielding: { label: 'Build shielding', short: 'Shield' },
+  maintenance: { label: 'Maintenance', short: 'Repair' },
+  isru: { label: 'Build O₂ maker', short: 'O₂' },
+  rest: { label: 'Rest', short: 'Rest' },
+}
+
+// One line per task saying what a shift of it does, the same shape for every
+// task: what changes, then what it lasts or costs, then what it is for. The
+// numbers are the sim's own for this base, live (taskEffects), so "2 → 3" is
+// this base's shielding, not an example. `warn` is set when the shift would
+// do nothing or next to nothing, and is shown in amber: a task at its limit,
+// lab science with the lab switched off, shielding where the air already
+// does the job.
+export interface TaskLine {
+  does: string
+  warn?: string
+}
+
+const one = (x: number) => String(Math.round(x * 10) / 10) // 0.21 -> "0.2", 21.4 -> "21.4"
+const whole = (x: number) => String(Math.round(x))
+const pct = (x: number) => `${one(x * 100)}%` // 0.029 -> "2.9%"
+
+export function describeTask(task: CrewTask, fx: TaskEffects): TaskLine {
+  switch (task) {
+    case 'labScience':
+      return {
+        does: `+${fx.labScience.science} science point · only while the lab has power`,
+        warn: fx.labScience.labOn ? undefined : 'The lab is switched off: this shift earns nothing.',
+      }
+    case 'fieldScience': {
+      const f = fx.fieldScience
+      return {
+        does:
+          `+${f.science} science points · outside, so +${one(f.extraDoseMSv)} mSv radiation a sol` +
+          (f.stormExtraMSv >= 1 ? `, and +${whole(f.stormExtraMSv)} mSv more if a solar storm hits` : ''),
+      }
+    }
+    case 'greenhouse': {
+      const g = fx.greenhouse
+      return { does: `+${g.m2} m² → +${one(g.foodKg)} kg food a sol · its lights use +${whole(g.powerKWh)} kWh a sol · +${pct(g.wear)} base wear a sol` }
+    }
+    case 'solar': {
+      const s = fx.solar
+      if (s.m2 === 0) return { does: `Panels are at the limit, ${s.maxM2} m²`, warn: 'No room for more panels: this shift does nothing.' }
+      const dark = s.hasNight ? ' · none at night' : s.hasStorms ? ' · much less in a dust storm' : ''
+      return { does: `+${s.m2} m² → +${whole(s.sunKWh)} kWh a sol in sunlight${dark} · limit ${s.maxM2} m²` }
+    }
+    case 'shielding': {
+      const s = fx.shielding
+      if (s.level >= s.max) return { does: `Shielding ${s.max} of ${s.max}`, warn: 'Shielding is already at maximum: this shift does nothing.' }
+      const lasts = s.canBeLost ? 'lasts unless a moonquake shakes it loose' : 'never wears off'
+      const base = `+1 shielding (${s.level} → ${s.next} of ${s.max}): soil piled on the habitat · ${lasts}`
+      if (s.stormMSv - s.stormNextMSv >= 0.5) return { does: `${base} · a solar storm indoors: ${one(s.stormMSv)} → ${one(s.stormNextMSv)} mSv` }
+      return {
+        does: base,
+        warn: s.airShields
+          ? 'Barely helps here: Mars’s air already blocks most solar-storm radiation.'
+          : 'Barely helps now: indoors is already about as safe as the storm shelter.',
+      }
+    }
+    case 'maintenance': {
+      const m = fx.maintenance
+      return { does: `+${pct(m.repair)} base condition (now ${whole(m.condition * 100)}%, wears ${pct(m.wear)} a sol) · sets water recycling and solar power` }
+    }
+    case 'isru': {
+      const i = fx.isru
+      return { does: `+1 O₂ maker → +${one(i.kgO2)} kg oxygen a sol (the crew breathes ${one(i.crewBreathesKg)}) · uses ${whole(i.powerKWh)} kWh a sol · +${pct(i.wear)} base wear a sol` }
+    }
+    case 'rest':
+      return { does: 'Nothing built or earned · no extra radiation' }
+  }
 }
 
 // Crew portraits, cut from the two art sheets by art/process.py. Each
