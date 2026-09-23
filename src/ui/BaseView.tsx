@@ -93,13 +93,17 @@ interface Sprite {
   name: string
   px: [number, number]
   anchor: [number, number]
+  single?: boolean // one image, no separate night art
 }
-const SPRITES: Record<PadId, Sprite> = {
+const SPRITES: Record<PadId | 'isru', Sprite> = {
   habitat: { name: 'habitat', px: [539, 419], anchor: [0.519, 0.57] },
   reactor: { name: 'reactor', px: [393, 423], anchor: [0.496, 0.738] },
   solar: { name: 'solar', px: [510, 314], anchor: [0.558, 0.548] },
   greenhouse: { name: 'greenhouse', px: [557, 345], anchor: [0.48, 0.565] },
   lab: { name: 'lab', px: [471, 361], anchor: [0.486, 0.62] },
+  // The O₂ plant stands on the reactor's pad, which Mars leaves empty. It
+  // ships as one image because Mars has no night to light up for.
+  isru: { name: 'co2maker', px: [515, 339], anchor: [0.538, 0.519], single: true },
 }
 
 // Where astronauts are shown for each task: a pad, or the crater field.
@@ -124,6 +128,8 @@ function spriteBox(t: Terrain, pad: PadId, s: Sprite) {
   return { x: g.x - s.anchor[0] * width, y: g.y - s.anchor[1] * height, width, height }
 }
 
+const art = (s: Sprite, when: 'day' | 'night') => `${ART}/buildings/${s.name}${s.single ? '' : `-${when}`}.webp`
+
 // A building with day and night art stacked and cross-faded, so nightfall
 // is a smooth change and the night image is already loaded when needed.
 function Building({ terrain, pad, sprite, night, status = 'on', flicker = false }: { terrain: Terrain; pad: PadId; sprite: Sprite; night: boolean; status?: Status; flicker?: boolean }) {
@@ -132,9 +138,9 @@ function Building({ terrain, pad, sprite, night, status = 'on', flicker = false 
   const cls = [status === 'shed' ? 'shed-pulse' : '', flicker ? 'flicker-out' : ''].filter(Boolean).join(' ')
   return (
     <g className={cls || undefined} style={{ filter }}>
-      <image href={`${ART}/buildings/${sprite.name}-day.webp`} {...box} style={{ opacity: night ? 0 : 1, transition: 'opacity 1.2s' }} />
+      <image href={art(sprite, 'day')} {...box} style={{ opacity: night ? 0 : 1, transition: 'opacity 1.2s' }} />
       <g className={night ? 'night-breathe' : undefined}>
-        <image href={`${ART}/buildings/${sprite.name}-night.webp`} {...box} style={{ opacity: night ? 1 : 0, transition: 'opacity 1.2s' }} />
+        <image href={art(sprite, 'night')} {...box} style={{ opacity: night ? 1 : 0, transition: 'opacity 1.2s' }} />
       </g>
     </g>
   )
@@ -358,7 +364,7 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
   const sol = labelAt('solar', SPRITES.solar)
   const rea = labelAt('reactor', SPRITES.reactor)
   const worn = f.condition < 0.6
-  const o2Pad = groundAt(terrain, PADS.reactor.u, PADS.reactor.v) // Mars has no reactor: its O₂ makers use that pad
+  const o2 = labelAt('reactor', SPRITES.isru) // Mars has no reactor: the O₂ plant uses that pad
 
   return (
     <svg viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`} className="h-auto w-full bg-[#0c1633]" role="img" aria-label={`The ${isMars ? 'Mars' : 'lunar'} outpost`}>
@@ -394,7 +400,11 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
       <g style={{ opacity: night ? 1 : 0, transition: 'opacity 1.6s' }}>
         {LIT_PADS.map(({ pad, load }) => {
           if (pad === 'solar' && f.solarArrayM2 === 0) return null
-          if (pad === 'reactor' && f.reactorKW === 0 && !game.scenario.isruAvailable) return null
+          if (pad === 'reactor' && f.reactorKW === 0) {
+            // Mars has no reactor: the pad is lit only when the O₂ plant is.
+            const plantLit = game.scenario.isruAvailable && f.isruUnits > 0 && status('isru') === 'on'
+            if (!plantLit) return null
+          }
           if (pad === 'greenhouse' && f.greenhouseM2 === 0) return null
           if (load && status(load) !== 'on') return null
           const g = groundAt(terrain, PADS[pad].u, PADS[pad].v)
@@ -424,24 +434,18 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
       )}
       <Building terrain={terrain} pad="lab" sprite={SPRITES.lab} night={night} status={status('lab')} flicker={effects?.powerCut && status('lab') === 'shed'} />
 
-      {/* O₂ makers (Mars) have no art yet: simple tanks on the free pad. */}
+      {/* The O₂ plant, on the pad Mars leaves empty. One plant however many
+          makers are running: the count is on its label, the same way the
+          greenhouse shows its area rather than growing. */}
       {game.scenario.isruAvailable && f.isruUnits > 0 && (
-        <g className={status('isru') === 'shed' ? 'shed-pulse' : undefined} style={{ filter: status('isru') === 'off' ? 'grayscale(1) brightness(0.55)' : undefined }}>
-          {[...Array(Math.min(f.isruUnits, 8))].map((_, i) => {
-            const perRow = Math.min(f.isruUnits, 4)
-            const x = o2Pad.x - ((perRow - 1) * 80) / 2 + (i % 4) * 80 + 40
-            const y = o2Pad.y + 10 + Math.floor(i / 4) * 70
-            return (
-              <g key={i} transform={`translate(${x}, ${y})`}>
-                <ellipse cx={0} cy={52} rx={34} ry={12} fill="#0f172a" opacity={0.45} />
-                <rect x={-28} y={-12} width={56} height={64} rx={12} fill="#e2e8f0" stroke="#334155" strokeWidth={4} />
-                <ellipse cx={0} cy={-12} rx={28} ry={10} fill="#f8fafc" stroke="#334155" strokeWidth={4} />
-                <rect x={-28} y={16} width={56} height={8} fill="#f97316" />
-                <circle cx={0} cy={36} r={6} fill={night ? '#fde68a' : '#94a3b8'} />
-              </g>
-            )
-          })}
-        </g>
+        <Building
+          terrain={terrain}
+          pad="reactor"
+          sprite={SPRITES.isru}
+          night={night}
+          status={status('isru')}
+          flicker={effects?.powerCut && status('isru') === 'shed'}
+        />
       )}
 
       {/* A cargo lander comes down on resupply sols. */}
@@ -495,11 +499,11 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
         </Pill>
       )}
       {game.scenario.isruAvailable && f.isruUnits > 0 && (
-        <Pill x={o2Pad.x + 40} y={o2Pad.y - 60} icon={Wind} tone={status('isru') === 'shed' ? 'bad' : 'normal'} quiet={status('isru') === 'on'}>
+        <Pill x={o2.x} y={o2.y} icon={Wind} tone={status('isru') === 'shed' ? 'bad' : 'normal'} quiet={status('isru') === 'on'}>
           O₂ makers ×{f.isruUnits}{status('isru') === 'off' ? ' · off' : status('isru') === 'shed' ? ' · no power' : ''}
         </Pill>
       )}
-      {badgesUnder('o2', o2Pad.x + 40, o2Pad.y - 8)}
+      {badgesUnder('o2', o2.x, o2.foot)}
 
       <Pill x={lab.x} y={lab.y} icon={FlaskConical} tone={status('lab') === 'shed' ? 'bad' : 'normal'} quiet={status('lab') === 'on'}>
         Lab{status('lab') === 'off' ? ' · off' : status('lab') === 'shed' ? ' · no power' : ''}

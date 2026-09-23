@@ -2,7 +2,6 @@ import { FlaskConical, LogOut, Moon, Orbit, Package, ShieldAlert, Sun, Tornado, 
 import type { ReactNode } from 'react'
 import { lightInfo, nextResupplySol } from '../sim/forecast.ts'
 import type { GameState } from '../sim/types.ts'
-import { MissionPatch } from './icons.tsx'
 
 // One reading in the bar. On a phone the caption is dropped and the value
 // sits next to its icon, which is the difference between a four-row bar and
@@ -57,7 +56,7 @@ export function TopBar({ game, onQuit }: { game: GameState; onQuit: () => void }
     <header className="shrink-0 border-b border-slate-800 bg-[#0a1226] px-3 py-2 sm:px-4 sm:py-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-4 sm:gap-y-3">
       <div className="flex items-center gap-2.5 pr-1 sm:pr-2">
-        <MissionPatch size={32} />
+        <img src="/art/archspace-logo.webp" alt="ARCHSPACE" width={32} height={32} className="shrink-0" />
         <p className="hidden text-sm font-extrabold uppercase leading-tight tracking-wide sm:block">
           Junior Astronaut
           <br />

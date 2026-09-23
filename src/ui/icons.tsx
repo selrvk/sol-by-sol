@@ -66,20 +66,3 @@ export function CrewAvatar({ index, initial, size = 44, crewId, onEva = false }:
     </svg>
   )
 }
-
-// The game's own mission patch (not an agency logo).
-export function MissionPatch({ size = 40 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden className="shrink-0">
-      <circle cx="24" cy="24" r="22" fill="#0b1b3a" stroke="#38bdf8" strokeWidth="2.5" />
-      <circle cx="31" cy="17" r="6" fill="#cbd5e1" />
-      <circle cx="29.5" cy="15.5" r="1.3" fill="#94a3b8" />
-      <circle cx="33" cy="19" r="1" fill="#94a3b8" />
-      <path d="M8 34c6-4 12-5 18-3s10 2 14-1" stroke="#f97316" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-      <path d="M15 30l6-14 3 7 4-3-6 13z" fill="#fde047" />
-      <circle cx="12" cy="14" r="1" fill="#fff" />
-      <circle cx="17" cy="9" r="0.8" fill="#fff" />
-      <circle cx="38" cy="30" r="0.8" fill="#fff" />
-    </svg>
-  )
-}

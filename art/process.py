@@ -153,6 +153,19 @@ def crop_crew() -> None:
             save(disc, OUT / 'crew' / f'{name}{suffix}.webp')
 
 
+# Art that already arrives with clean transparency: no cut-out to do, just
+# trim the empty margin and re-encode.
+def copy_cutout(src: Path, dst: Path, box: tuple = ()) -> None:
+    if not src.exists():
+        return
+    im = Image.open(src).convert('RGBA')
+    im = im.crop(im.getbbox())
+    if box:
+        im.thumbnail(box, Image.LANCZOS)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    save(im, dst)
+
+
 def cut_terrain(name: str) -> None:
     """Drop the render's flat sky, leaving the slab on transparency.
 
@@ -187,6 +200,10 @@ def cut_terrain(name: str) -> None:
 
 def main() -> None:
     cut_buildings()
+    # The O2 plant came separately, and already has its own transparency.
+    copy_cutout(SRC / 'buildings' / 'co2maker.png', OUT / 'buildings' / 'co2maker.webp')
+    # The team's mission patch, shown at about 32px, so a small copy is plenty.
+    copy_cutout(SRC / 'archspace-logo.png', OUT / 'archspace-logo.webp', (160, 160))
     crop_crew()
     for terrain in sorted(SRC.glob('terrain/*.png')):
         cut_terrain(terrain.stem)

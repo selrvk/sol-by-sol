@@ -20,12 +20,15 @@ export function StartScreen({ dispatch }: { dispatch: Dispatch<Action> }) {
   const start = (scenarioId: ScenarioId) => dispatch({ type: 'start', scenarioId, seed: newSeed() })
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-6 p-6">
-      <div>
+      <div className="flex items-start gap-4">
+        <img src="/art/archspace-logo.webp" alt="ARCHSPACE" width={72} height={72} className="hidden shrink-0 sm:block" />
+        <div>
         <p className="text-sm uppercase tracking-widest text-sky-300">Junior Astronaut Mission Trainer</p>
         <h1 className="mt-1 text-3xl font-bold">Keep your crew alive. Do the science.</h1>
         <p className="mt-2 text-slate-300">
           Four astronauts, one outpost. Every hour and every kilowatt you spend on safety is one you can't spend on science.
         </p>
+        </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {(Object.keys(SCENARIOS) as ScenarioId[]).map((id) => {
