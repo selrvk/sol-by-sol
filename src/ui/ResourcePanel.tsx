@@ -83,6 +83,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       </h2>
       <Meter
         name="Power"
+        valueText={`${Math.round(r.storedPowerKWh)} of ${game.facilities.batteryCapacityKWh} kWh stored`}
         forecast={isForecast}
         tick={game.sol}
         highlight={highlight === 'power'}
@@ -104,6 +105,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       />
       <Meter
         name="Oxygen"
+        valueText={`${Math.round(r.oxygenKg)} kg`}
         icon={<Badge tone="sky"><span className="text-xs font-bold">O₂</span></Badge>}
         value={<AnimatedValue value={r.oxygenKg} suffix=" kg" />}
         fill={r.oxygenKg / Math.max(start.oxygenKg, r.oxygenKg)}
@@ -118,6 +120,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       />
       <Meter
         name="Water"
+        valueText={`${Math.round(r.waterL)} litres`}
         icon={<Badge tone="blue"><Droplet size={17} fill="currentColor" /></Badge>}
         value={<AnimatedValue value={r.waterL} suffix=" L" />}
         fill={r.waterL / Math.max(start.waterL, r.waterL)}
@@ -133,6 +136,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       />
       <Meter
         name="Food"
+        valueText={`${Math.round(r.foodKg)} kg`}
         icon={<Badge tone="green"><Apple size={17} fill="currentColor" /></Badge>}
         value={<AnimatedValue value={r.foodKg} suffix=" kg" />}
         fill={r.foodKg / Math.max(start.foodKg, r.foodKg)}
@@ -147,6 +151,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       />
       <Meter
         name="Radiation"
+        valueText={`${Math.round(worst.doseMSv)} of ${worst.careerDoseLimitMSv} mSv, highest in the crew: ${worst.name}`}
         forecast={isForecast}
         tick={game.sol}
         highlight={highlight === 'radiation'}
@@ -161,6 +166,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       />
       <Meter
         name="Crew time"
+        valueText={`${hoursAssigned} of ${hoursAvailable} hours assigned`}
         forecast={isForecast}
         tick={game.sol}
         highlight={highlight === 'crew time'}
@@ -186,6 +192,9 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
 
 interface MeterProps {
   name: string
+  // What a screen reader says for the bar. The bar's own fill is not a
+  // number on screen: while a resource drains it shows sols left instead.
+  valueText: string
   icon: ReactNode
   value: ReactNode
   fill: number
@@ -203,7 +212,7 @@ interface MeterProps {
   highlight?: boolean
 }
 
-function Meter({ name, icon, value, fill, delta, unit, amount, why, detail, warning, invert, neutral, warn, forecast, highlight, tick }: MeterProps) {
+function Meter({ name, valueText, icon, value, fill, delta, unit, amount, why, detail, warning, invert, neutral, warn, forecast, highlight, tick }: MeterProps) {
   const solsLeft = amount !== undefined && delta !== undefined && delta < -0.01 ? Math.floor(amount / -delta) : null
   // While a resource is draining, the bar shows how long it will last
   // (full = 40+ sols), so a crisis looks like one even when the stock is
@@ -224,7 +233,8 @@ function Meter({ name, icon, value, fill, delta, unit, amount, why, detail, warn
           <WhyTooltip why={why} />
         </span>
       </div>
-      <div className="mt-1 h-2 overflow-hidden rounded bg-slate-700" role="meter" aria-valuenow={Math.round(f * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={name}>
+      <div className="mt-1 h-2 overflow-hidden rounded bg-slate-700" role="meter" aria-valuenow={Math.round(f * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={name}
+        aria-valuetext={valueText + (solsLeft !== null && solsLeft < 60 ? `, about ${solsLeft} sols left` : '')}>
         <div className={`h-full ${bar} transition-all`} style={{ width: `${f * 100}%` }} />
       </div>
       {/* A warning gets its own line, above the running detail, so a long

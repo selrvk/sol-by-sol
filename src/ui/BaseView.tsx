@@ -529,32 +529,58 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
 // The figures the map's own labels carry on a wide screen, as readable text
 // for a phone, where those labels would be about 6px tall. Nothing here is
 // new information: it is the quiet half of the map, spelled out.
+//
+// It is also the map for a screen reader, on every screen size: the map
+// itself is one image. So on a wide screen it is visually hidden rather
+// than removed, and each figure says what it is in words, since the icons
+// that name them on screen are not read out.
 export function BaseSummary({ game }: { game: GameState }) {
   const f = game.facilities
   const worn = f.condition < 0.6
+  const item = 'flex items-center gap-1'
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300 lg:hidden">
+    <ul
+      aria-label="Base facilities"
+      className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300 lg:sr-only"
+    >
       {f.solarArrayM2 > 0 && (
-        <span className="flex items-center gap-1">
-          <Sun size={13} className="text-yellow-300" aria-hidden /> {f.solarArrayM2} m²
-        </span>
+        <li className={item}>
+          <Sun size={13} className="text-yellow-300" aria-hidden /> <span className="sr-only">Solar panels:</span> {f.solarArrayM2} m²
+        </li>
       )}
       {f.reactorKW > 0 && (
-        <span className="flex items-center gap-1">
-          <Zap size={13} className="text-amber-300" aria-hidden /> {f.reactorKW} kW
-        </span>
+        <li className={item}>
+          <Zap size={13} className="text-amber-300" aria-hidden /> <span className="sr-only">Reactor:</span> {f.reactorKW} kW
+        </li>
+      )}
+      {f.greenhouseM2 > 0 && (
+        <li className={item}>
+          <Sprout size={13} className="text-emerald-300" aria-hidden /> <span className="sr-only">Greenhouse:</span> {f.greenhouseM2} m²
+        </li>
       )}
       {game.scenario.isruAvailable && (
-        <span className="flex items-center gap-1">
-          <Wind size={13} className="text-sky-300" aria-hidden /> O₂ ×{f.isruUnits}
-        </span>
+        <li className={item}>
+          <Wind size={13} className="text-sky-300" aria-hidden /> <span className="sr-only">O₂ makers:</span>{' '}
+          {/* one piece, so the row's gap does not split "O₂ ×" from its count */}
+          <span>
+            <span aria-hidden>O₂ ×</span>
+            {f.isruUnits}
+          </span>
+        </li>
       )}
-      <span className="flex items-center gap-1">
-        <Shield size={13} className="text-sky-300" aria-hidden /> {f.shieldingLevel}/{BALANCE.MAX_SHIELDING_LEVEL}
-      </span>
-      <span className={`flex items-center gap-1 ${worn ? 'text-amber-300' : ''}`}>
-        <Home size={13} aria-hidden /> {Math.round(f.condition * 100)}%
-      </span>
-    </div>
+      <li className={item}>
+        <Shield size={13} className="text-sky-300" aria-hidden /> <span className="sr-only">Shielding level:</span>{' '}
+        <span>
+          {f.shieldingLevel}
+          <span aria-hidden>/</span>
+          <span className="sr-only"> of </span>
+          {BALANCE.MAX_SHIELDING_LEVEL}
+        </span>
+      </li>
+      <li className={`${item} ${worn ? 'text-amber-300' : ''}`}>
+        <Home size={13} aria-hidden /> <span className="sr-only">Base condition:</span> {Math.round(f.condition * 100)}%
+        {worn && <span className="sr-only">, worn: needs maintenance</span>}
+      </li>
+    </ul>
   )
 }

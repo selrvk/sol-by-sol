@@ -12,7 +12,7 @@ import {
   TriangleAlert,
   type LucideIcon,
 } from 'lucide-react'
-import type { GameEvent, GameEventKind } from '../sim/types.ts'
+import type { GameEvent, GameEventKind, GameState } from '../sim/types.ts'
 
 // One icon per kind of entry, tinted so a warning reads differently from a
 // delivery at a glance.
@@ -76,11 +76,17 @@ export function MissionLog({ log }: { log: GameEvent[] }) {
 // a delivery, a system losing power -- went unread. Shown every sol, a
 // quiet one included, so that it always answers "what just happened?" and
 // the meters beneath it do not jump up and down.
-export function LastSol({ log, sol }: { log: GameEvent[]; sol: number }) {
-  const entries = log.filter((e) => e.sol === sol)
+export function LastSol({ game }: { game: GameState }) {
+  const report = game.lastReport
+  // The live region is on the page from the start of the mission and only
+  // its contents change: screen readers tend to ignore a live region that
+  // arrives together with its first news. Before the first sol there is
+  // nothing to recap, and the briefing has the stage, so it is empty and
+  // takes no space.
+  if (!report) return <section aria-label="Last sol" aria-live="polite" className="sr-only" />
+  const sol = report.sol
+  const entries = game.log.filter((e) => e.sol === sol)
   return (
-    // The live region stays put while its contents change, which is what a
-    // screen reader needs to announce each new sol.
     <section aria-label="Last sol" aria-live="polite" className="rounded-2xl border border-slate-800 bg-slate-900/50 px-3 py-2.5">
       <div key={sol} className="log-in">
         <h2 className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
@@ -97,7 +103,30 @@ export function LastSol({ log, sol }: { log: GameEvent[]; sol: number }) {
             ))}
           </ul>
         )}
+        <p className="sr-only">{spokenStatus(game)}</p>
       </div>
     </section>
+  )
+}
+
+// The meters, as one sentence for a screen reader. Sighted players see the
+// numbers change and pop after Advance; this is the same news, read out as
+// part of the sol's recap.
+function spokenStatus(game: GameState): string {
+  const r = game.resources
+  const d = game.lastReport!.resourceDeltas
+  const change = (x: number) => {
+    const n = Math.round(x)
+    return n === 0 ? 'steady' : n > 0 ? `up ${n}` : `down ${-n}`
+  }
+  const worst = game.crew.reduce((a, b) => (b.doseMSv / b.careerDoseLimitMSv > a.doseMSv / a.careerDoseLimitMSv ? b : a))
+  const earned = game.lastReport!.scienceEarned
+  return (
+    `Now: power ${Math.round(r.storedPowerKWh)} kWh, ${change(d.storedPowerKWh)}. ` +
+    `Oxygen ${Math.round(r.oxygenKg)} kg, ${change(d.oxygenKg)}. ` +
+    `Water ${Math.round(r.waterL)} litres, ${change(d.waterL)}. ` +
+    `Food ${Math.round(r.foodKg)} kg, ${change(d.foodKg)}. ` +
+    `Highest radiation dose: ${worst.name}, ${Math.round(worst.doseMSv)} of ${worst.careerDoseLimitMSv} mSv. ` +
+    `Science ${game.sciencePoints} of ${game.scenario.scienceTarget}${earned ? `, up ${earned}` : ''}.`
   )
 }

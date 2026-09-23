@@ -158,9 +158,7 @@ export function Game() {
         <div className="contents lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:gap-4">
           <div className="contents lg:block lg:min-h-0 lg:flex-1 lg:space-y-4 lg:overflow-y-auto lg:overscroll-contain">
             <div className={`order-3 space-y-4 lg:order-none ${inPane('mission')}`}>
-              {/* Nothing to recap before the first sol: the briefing has
-                  the stage then. */}
-              {game.lastReport && <LastSol log={game.log} sol={game.lastReport.sol} />}
+              <LastSol game={game} />
               <ResourcePanel game={game} previous={previous} decisions={decisions} highlight={showBriefing && onFirstSol ? opening.meter : undefined} />
             </div>
             <div className={`order-5 lg:order-none ${inPane('mission')}`}>
