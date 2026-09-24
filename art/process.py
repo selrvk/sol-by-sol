@@ -19,7 +19,7 @@ generation of art is kept in art/source/v1 and is no longer processed.
 import collections
 from pathlib import Path
 
-from PIL import Image, ImageFilter
+from PIL import Image, ImageChops, ImageFilter
 
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / 'source'
@@ -271,21 +271,77 @@ PLATFORM_CENTRE = (628, 714)  # the platform's middle, in the 1254px renders
 BUILDING_SHIP = 0.5  # drawn ~250px wide in the game, like the cargo pad
 
 
+def bottom_edge(im: Image.Image) -> dict[int, int]:
+    """The lowest solid pixel in each column: the platform's two front edges."""
+    alpha = im.getchannel('A').load()
+    w, h = im.size
+    edge = {}
+    for x in range(0, w, 4):
+        for y in range(h - 1, -1, -1):
+            if alpha[x, y] > 128:
+                edge[x] = y
+                break
+    return edge
+
+
+def onto_the_pad(im: Image.Image, pad_edge: dict[int, int]) -> tuple[Image.Image, int]:
+    """Move a render up or down so its platform lies where the pad's does.
+
+    The generator sometimes draws the platform a little higher in the frame
+    (the first solar stages came out 31px up), which would make it jump when
+    the game swaps stages. Found by sliding the platform's front edges onto
+    the pad's.
+    """
+    edge = bottom_edge(im)
+    xs = [x for x in edge if x in pad_edge and 200 <= x <= 1050]
+    dy = min(range(-60, 61), key=lambda d: sum(abs(edge[x] + d - pad_edge[x]) for x in xs))
+    if dy == 0:
+        return im, 0
+    moved = Image.new('RGBA', im.size, (0, 0, 0, 0))
+    moved.alpha_composite(im, (0, dy))
+    return moved, dy
+
+
+def panels_only(im: Image.Image) -> Image.Image:
+    """A mask of the solar cells alone: the blue pixels.
+
+    The game runs the sunlight glint across the panels through it, so the
+    light does not also sweep over the bare platform between them.
+    """
+    r, g, b, a = im.split()
+    blue = Image.eval(Image.merge('RGB', (r, g, b)).convert('HSV').getchannel('H'), lambda h: 255 if 150 <= h <= 185 else 0)
+    sat = Image.eval(Image.merge('RGB', (r, g, b)).convert('HSV').getchannel('S'), lambda s: 255 if s > 90 else 0)
+    # Shrinking the outline first drops the navy fringe along its edge.
+    mask = ImageChops.multiply(ImageChops.multiply(blue, sat), a.filter(ImageFilter.MinFilter(9)))
+    white = Image.new('RGBA', im.size, (255, 255, 255, 0))
+    white.putalpha(mask.filter(ImageFilter.GaussianBlur(1)))
+    return white
+
+
 def cut_building_sets() -> None:
+    pad_edge = bottom_edge(drop_flat_background(Image.open(SRC / 'buildings' / 'lander-pad.png')))
     for folder in sorted(p for p in (SRC / 'buildings').iterdir() if p.is_dir() and p.name != 'v1'):
         groups = collections.defaultdict(list)
         for src in sorted(folder.glob('*.png')):
             groups[src.stem.split('-')[0]].append(src)
         for name, srcs in groups.items():
-            cut = {src.stem: drop_flat_background(Image.open(src)) for src in srcs}
+            cut = {}
+            for src in srcs:
+                cut[src.stem], dy = onto_the_pad(drop_flat_background(Image.open(src)), pad_edge)
+                if dy:
+                    print(f'{folder.name}/{src.stem}: platform moved {dy:+d}px onto the pad\'s')
             box = cut[srcs[0].stem].getbbox()
             for im in cut.values():
                 box = union(box, im.getbbox())
             w, h = box[2] - box[0], box[3] - box[1]
             size = (round(w * BUILDING_SHIP), round(h * BUILDING_SHIP))
-            (OUT / 'buildings' / folder.name).mkdir(parents=True, exist_ok=True)
+            dst = OUT / 'buildings' / folder.name
+            dst.mkdir(parents=True, exist_ok=True)
+            ship = lambda im: im.crop(box).resize(size, Image.LANCZOS)
             for stem, im in cut.items():
-                save(im.crop(box).resize(size, Image.LANCZOS), OUT / 'buildings' / folder.name / f'{stem}.webp')
+                save(ship(im), dst / f'{stem}.webp')
+                if name == 'solar' and not stem.endswith('-night'):
+                    save(ship(panels_only(im)), dst / f'{stem}-glint.webp')
             ax = (PLATFORM_CENTRE[0] - box[0]) / w
             ay = (PLATFORM_CENTRE[1] - box[1]) / h
             print(f'{folder.name}/{name}: px [{size[0]}, {size[1]}], anchor [{ax:.3f}, {ay:.3f}]')

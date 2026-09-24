@@ -128,11 +128,14 @@ Two buildings change with the game.
 more panel rows stand as the array nears its largest size (the world's
 `maxSolarArrayM2`):
 
-| Stage | Panels | Shown when the array is | Moon | Mars |
+| Stage | Panels (Moon art) | Shown when the array is | Moon | Mars |
 |---|---|---|---|---|
-| 1 | one row | under 60% of its largest | 140–160 m² (the start) | 560–700 m² (the start) |
-| 2 | two rows | 60–85% | 180–240 m² | 720–1000 m² |
-| 3 | three rows | 85% or more | 260–300 m² | 1020–1200 m² |
+| 1 | 2, the rest bare footings | under 60% of its largest | 140–160 m² (the start) | 560–700 m² (the start) |
+| 2 | 5 | 60–85% | 180–240 m² | 720–1000 m² |
+| 3 | 9 | 85% or more | 260–300 m² | 1020–1200 m² |
+
+(The generator read "rows" as the diagonal rows of the diamond, back
+corner first, which reads just as well.)
 
 **The habitat shows the base's condition.** There are three images:
 
@@ -219,6 +222,11 @@ each made from its day image.
 3. Re-measure each slab's corners (`TERRAIN` in `src/ui/BaseView.tsx`),
    and the scene crop (`VIEW`) and building anchors (`SPRITES`) if the
    framing or building art changed.
+
+For the second building set, `process.py` prints each building's size and
+anchor for `MOON_SET` in `BaseView.tsx`. It also moves any render whose
+platform came out higher or lower than the pad's back into place (the
+first solar stages came out 31px high), and prints when it does.
 
 ## Prompts
 

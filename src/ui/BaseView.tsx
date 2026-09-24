@@ -119,8 +119,9 @@ interface Sprite {
   anchor: [number, number]
   single?: boolean // one image, no separate night art
   scale?: number // when the image was shipped at a different size
+  glint?: string // the solar cells alone, where the sunlight glint may fall
 }
-const SPRITES: Record<Exclude<PadId, 'landing'> | 'isru' | 'landerPad' | 'landerPod' | 'moonHabitat', Sprite> = {
+const SPRITES: Record<Exclude<PadId, 'landing'> | 'isru' | 'landerPad' | 'landerPod', Sprite> = {
   habitat: { name: 'habitat', px: [539, 419], anchor: [0.519, 0.57] },
   reactor: { name: 'reactor', px: [393, 423], anchor: [0.496, 0.738] },
   solar: { name: 'solar', px: [510, 314], anchor: [0.558, 0.548] },
@@ -133,10 +134,46 @@ const SPRITES: Record<Exclude<PadId, 'landing'> | 'isru' | 'landerPad' | 'lander
   // lines them up), anchored on the landing circle's centre.
   landerPad: { name: 'lander-pad', px: [619, 482], anchor: [0.501, 0.622], single: true, scale: 0.38 },
   landerPod: { name: 'lander-pod', px: [619, 482], anchor: [0.501, 0.622], single: true, scale: 0.38 },
-  // The second set of buildings (art/ART-GUIDE.md), arriving one at a time.
-  // Each is built on a copy of the cargo pad's platform, so it shares the
-  // pad's scale. Until its night image comes, it is dimmed at night.
-  moonHabitat: { name: 'moon/habitat-good-day', px: [620, 391], anchor: [0.501, 0.532], single: true, scale: 0.38 },
+}
+
+// The second set of buildings (art/ART-GUIDE.md), on the Moon so far; Mars
+// keeps the first set until its own comes. Each is built on a copy of the
+// cargo pad's platform, so all share the pad's scale, and art/process.py
+// cuts a building's stages to one box, so they share a size and anchor.
+// No night images yet: at night each is dimmed like the ground.
+type BuildingId = 'habitat' | 'solar' | 'reactor' | 'greenhouse' | 'lab'
+const MOON_SET: Record<BuildingId, Pick<Sprite, 'px' | 'anchor'>> = {
+  habitat: { px: [620, 410], anchor: [0.501, 0.554] },
+  solar: { px: [620, 366], anchor: [0.501, 0.501] },
+  reactor: { px: [619, 461], anchor: [0.501, 0.604] },
+  greenhouse: { px: [619, 364], anchor: [0.501, 0.499] },
+  lab: { px: [619, 410], anchor: [0.501, 0.553] },
+}
+
+// Two buildings change with the game: the habitat shows the base's
+// condition, and the solar field gains rows of panels as it is built.
+// Where the stages change is a display choice, not a game rule; damaged
+// starts where the habitat's label turns amber (see \`worn\` below).
+function habitatStage(condition: number) {
+  return condition >= 0.85 ? 'good' : condition >= 0.6 ? 'worn' : 'damaged'
+}
+
+function solarStage(game: GameState) {
+  const built = game.facilities.solarArrayM2 / game.scenario.maxSolarArrayM2
+  return built >= 0.85 ? 3 : built >= 0.6 ? 2 : 1
+}
+
+function buildingSprites(game: GameState): Record<BuildingId, Sprite> {
+  if (game.scenario.id !== 'moon') return SPRITES
+  const moon = (id: BuildingId, file: string): Sprite => ({ name: `moon/${file}-day`, ...MOON_SET[id], single: true, scale: 0.38 })
+  const solar = `solar-${solarStage(game)}`
+  return {
+    habitat: moon('habitat', `habitat-${habitatStage(game.facilities.condition)}`),
+    solar: { ...moon('solar', solar), glint: `moon/${solar}-day-glint` },
+    reactor: moon('reactor', 'reactor'),
+    greenhouse: moon('greenhouse', 'greenhouse'),
+    lab: moon('lab', 'lab'),
+  }
 }
 
 // Where astronauts are shown for each task: a pad, or the crater field.
@@ -400,7 +437,7 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
   const isMars = game.scenario.id === 'mars'
   const marsLight = isMars ? 'url(#mars-light)' : undefined
   const terrain = TERRAIN[game.scenario.id]
-  const habitat = isMars ? SPRITES.habitat : SPRITES.moonHabitat
+  const b = buildingSprites(game)
   const fieldSpot = groundAt(terrain, FIELD_UV.u, FIELD_UV.v)
   const night = !lightInfo(game.scenario, game.sol).isDaylight
   const storm = env.dustStormSolsLeft > 0
@@ -428,11 +465,11 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
   const badgesUnder = (place: string, x: number, y: number) =>
     crewAt.has(place) ? <CrewBadges x={x} y={y} crew={crewAt.get(place)!} evaIds={evaIds} /> : null
 
-  const hab = labelAt('habitat', habitat)
-  const lab = labelAt('lab', SPRITES.lab)
-  const gh = labelAt('greenhouse', SPRITES.greenhouse)
-  const sol = labelAt('solar', SPRITES.solar)
-  const rea = labelAt('reactor', SPRITES.reactor)
+  const hab = labelAt('habitat', b.habitat)
+  const lab = labelAt('lab', b.lab)
+  const gh = labelAt('greenhouse', b.greenhouse)
+  const sol = labelAt('solar', b.solar)
+  const rea = labelAt('reactor', b.reactor)
   const cargo = labelAt('landing', SPRITES.landerPod)
   const nextCargo = nextResupplySol(game.scenario, game.sol)
   const worn = f.condition < 0.6
@@ -450,8 +487,8 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
             night is the ground it lands on. */}
         {/* The array's own shape, so its glint falls on the panels and not
             on the ground beside them. */}
-        <mask id="solar-mask" maskUnits="userSpaceOnUse" style={{ maskType: 'alpha' }} {...spriteBox(terrain, 'solar', SPRITES.solar)}>
-          <image href={`${ART}/buildings/solar-day.webp`} {...spriteBox(terrain, 'solar', SPRITES.solar)} />
+        <mask id="solar-mask" maskUnits="userSpaceOnUse" style={{ maskType: 'alpha' }} {...spriteBox(terrain, 'solar', b.solar)}>
+          <image href={b.solar.glint ? `${ART}/buildings/${b.solar.glint}.webp` : art(b.solar, 'day')} {...spriteBox(terrain, 'solar', b.solar)} />
         </mask>
         <filter id="mars-light" colorInterpolationFilters="sRGB">
           <feColorMatrix type="matrix" values={MARS_LIGHT} />
@@ -488,7 +525,7 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
           if (pad === 'greenhouse' && f.greenhouseM2 === 0) return null
           if (load && status(load) !== 'on') return null
           const g = groundAt(terrain, PADS[pad].u, PADS[pad].v)
-          const s = pad === 'habitat' ? habitat : SPRITES[pad]
+          const s = b[pad]
           const rx = s.px[0] * (s.scale ?? BUILDING_SCALE) * 0.95
           return <ellipse key={pad} cx={g.x} cy={g.y} rx={rx} ry={rx * 0.52} fill="url(#lamp-pool)" />
         })}
@@ -508,23 +545,23 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
         <>
           <g filter={marsLight}>
             <g style={{ filter: storm ? 'brightness(0.7)' : undefined }}>
-              <Building terrain={terrain} pad="solar" sprite={SPRITES.solar} night={night} />
+              <Building terrain={terrain} pad="solar" sprite={b.solar} night={night} />
             </g>
           </g>
           {/* Only while the array is actually making power. Outside the Mars
               light: it animates without end, and an animation inside a
               filtered group makes the browser re-run the filter every frame. */}
-          {!night && !storm && <PanelGlint box={spriteBox(terrain, 'solar', SPRITES.solar)} color={GLINT[game.scenario.id]} />}
+          {!night && !storm && <PanelGlint box={spriteBox(terrain, 'solar', b.solar)} color={GLINT[game.scenario.id]} />}
         </>
       )}
       <g filter={marsLight}>
-      <Building terrain={terrain} pad="habitat" sprite={habitat} night={night} />
-      {f.reactorKW > 0 && <Building terrain={terrain} pad="reactor" sprite={SPRITES.reactor} night={night} />}
+      <Building terrain={terrain} pad="habitat" sprite={b.habitat} night={night} />
+      {f.reactorKW > 0 && <Building terrain={terrain} pad="reactor" sprite={b.reactor} night={night} />}
       {f.greenhouseM2 > 0 && (
-        <Building terrain={terrain} pad="greenhouse" sprite={SPRITES.greenhouse} night={night} status={status('greenhouse')} flicker={effects?.powerCut && status('greenhouse') === 'shed'} />
+        <Building terrain={terrain} pad="greenhouse" sprite={b.greenhouse} night={night} status={status('greenhouse')} flicker={effects?.powerCut && status('greenhouse') === 'shed'} />
       )}
       {game.scenario.resupply && <CargoPad terrain={terrain} night={night} landing={!!effects?.resupply} />}
-      <Building terrain={terrain} pad="lab" sprite={SPRITES.lab} night={night} status={status('lab')} flicker={effects?.powerCut && status('lab') === 'shed'} />
+      <Building terrain={terrain} pad="lab" sprite={b.lab} night={night} status={status('lab')} flicker={effects?.powerCut && status('lab') === 'shed'} />
 
       {/* The O₂ plant, on the pad Mars leaves empty. One plant however many
           makers are running: the count is on its label, the same way the
