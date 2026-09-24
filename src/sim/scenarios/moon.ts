@@ -28,9 +28,9 @@ export const moon: Scenario = {
     intervalSols: 30,
     cargo: { storedPowerKWh: 0, oxygenKg: 90, waterL: 60, foodKg: 120 },
   },
-  // Moon dust is sharp and clings to everything; on Apollo it wore
-  // through suit fabric and jammed seals within a few moonwalks. How much
-  // each shift outside wears the base is balance.
+  // Moon dust is sharp and clings to everything; on Apollo it abraded
+  // suits, clogged mechanisms and made seals fail (Gaier, NASA/TM-2005-
+  // 213610). How much each shift outside wears the base is balance.
   evaDustWear: 0.025,
   // Two weeks of dark and deep cold: outside work waits for sunrise.
   outsideWorkAtNight: false,

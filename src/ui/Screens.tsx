@@ -1,6 +1,7 @@
 import { Apple, Clock, Droplet, Globe, Moon, Radiation, Trophy, Wind, Zap, type LucideIcon } from 'lucide-react'
 import type { Dispatch } from 'react'
 import { c } from '../sim/constants.ts'
+import { resourceRates } from '../sim/effects.ts'
 import type { GameState, LossReason, ScenarioId } from '../sim/types.ts'
 import type { Action } from './gameReducer.ts'
 import { SCENARIOS } from './gameReducer.ts'
@@ -77,6 +78,12 @@ const say = (text: LossText, g: GameState) => (typeof text === 'function' ? text
 
 const pctOf = (x: number) => `${Math.round(x * 100)}%`
 
+// Could the O₂ makers have kept up, had they been running?
+const makersCoverCrew = (g: GameState) => {
+  const r = resourceRates(g)
+  return r.o2MakersKg >= r.crewUse.oxygenKg
+}
+
 // Each loss names what went wrong in this game and why it matters in real
 // spaceflight. Figures come from constants.ts so they match the game.
 const LOSS_INFO: Record<LossReason, LossInfo> = {
@@ -84,23 +91,34 @@ const LOSS_INFO: Record<LossReason, LossInfo> = {
     icon: Droplet,
     title: 'The crew ran out of water',
     whatHappened: (g) =>
-      `By sol ${g.sol - 1} the base was at ${pctOf(g.facilities.condition)} condition, so the recycler was losing water faster than the crew could replace it.`,
-    realWorld:
-      `Each astronaut uses about ${c('CREW_WATER_L_PER_DAY')} L of water a day. Water is heavy to launch, so the ISS recycles about ${pctOf(c('WATER_RECOVERY_FRACTION'))} of it, from sweat and urine too. A recycler only works if someone keeps it running.`,
-    tryNext: 'Keep someone on Maintenance whenever the base condition drops.',
+      `By sol ${g.sol - 1} the base was at ${pctOf(g.facilities.condition)} condition, so the recycler was losing water faster than the crew could replace it.` +
+      (g.scenario.evaDustWear > 0 ? ' Every shift outside brought in dust that wore it down.' : ''),
+    realWorld: (g) =>
+      `Each astronaut uses about ${c('CREW_WATER_L_PER_DAY')} L of water a day. Water is heavy to launch, so the ISS recycles about ${pctOf(c('WATER_RECOVERY_FRACTION'))} of it, from sweat and urine too. A recycler only works if someone keeps it running.` +
+      (g.scenario.evaDustWear > 0
+        ? ' Moon dust makes that harder: on Apollo it scratched suits and made seals fail, and Pete Conrad said their suits were more worn after 8 hours on the Moon than their training suits after 100.'
+        : ''),
+    tryNext: (g) =>
+      g.scenario.evaDustWear > 0
+        ? 'Keep someone on Maintenance whenever the base condition drops, and more of them while crew are working outside: every trip brings dust in.'
+        : 'Keep someone on Maintenance whenever the base condition drops.',
   },
   oxygen: {
     icon: Wind,
     title: 'The crew ran out of oxygen',
     whatHappened: (g) =>
-      g.scenario.isruAvailable
-        ? `The base had ${g.facilities.isruUnits} O₂ maker${g.facilities.isruUnits === 1 ? '' : 's'}, not enough to cover what four people breathe.`
-        : `The oxygen stock ran out before the next cargo lander arrived.`,
+      !g.scenario.isruAvailable
+        ? `The oxygen stock ran out before the next cargo lander arrived.`
+        : makersCoverCrew(g)
+          ? g.environment.dustStormSolsLeft > 0
+            ? `The base had ${g.facilities.isruUnits} O₂ makers, enough for the crew, but they run on solar power, and in the dust storm there was not enough to keep them going.`
+            : `The base had ${g.facilities.isruUnits} O₂ makers, enough for the crew, but they were switched off or short of power, and the oxygen ran out.`
+          : `The base had ${g.facilities.isruUnits} O₂ maker${g.facilities.isruUnits === 1 ? '' : 's'}, not enough to cover what four people breathe.`,
     realWorld:
       `Each astronaut breathes about ${c('CREW_O2_KG_PER_DAY')} kg of oxygen a day, and without it a person passes out within minutes. That is why NASA tested MOXIE on Mars: making oxygen from the air means not shipping every kilogram from Earth.`,
     tryNext: (g) =>
       g.scenario.isruAvailable
-        ? 'Build O₂ makers early, and keep enough solar power to run them through dust storms.'
+        ? 'Build O₂ makers early, then build solar before the dust season, so they keep running through a storm. The top bar shows when it starts.'
         : 'Every kilogram comes by cargo lander, so fix air leaks properly rather than patching or ignoring them, and choose oxygen when there is room for an extra pallet.',
   },
   food: {
@@ -130,7 +148,7 @@ const LOSS_INFO: Record<LossReason, LossInfo> = {
     tryNext: (g) =>
       g.scenario.dayNightCycle
         ? 'Switch off the lab and greenhouse before night falls, so the battery lasts until sunrise. The top bar shows how long until dark.'
-        : `Build panels before a storm comes, so they still cover life support at ${pctOf(c('DUST_STORM_SOLAR_FACTOR'))} of their output, and switch the lab and greenhouse off while it lasts.`,
+        : `Build panels before the dust season, so they still cover life support at ${pctOf(c('DUST_STORM_SOLAR_FACTOR'))} of their output, and switch the lab and greenhouse off while a storm lasts. The top bar shows when the season starts.`,
   },
   radiation: {
     icon: Radiation,
@@ -149,7 +167,10 @@ const LOSS_INFO: Record<LossReason, LossInfo> = {
     whatHappened: (g) => `The crew survived, but finished with ${g.sciencePoints} of the ${g.scenario.scienceTarget} science points needed.`,
     realWorld:
       'Science is why we send people at all. Real missions have fixed windows: from Mars, a chance to fly home only comes around every 26 months or so, so time cannot be stretched.',
-    tryNext: 'Once the base is safe, move crew off extra building and onto science. Playing it too safe is a way to fail too.',
+    tryNext: (g) =>
+      g.scenario.outsideWorkAtNight
+        ? 'Once the base is safe, move crew off extra building and onto science. Playing it too safe is a way to fail too.'
+        : 'Send crew out for field science while the Sun is up, and use the long nights for the lab and repairs: nothing gets done outside in the dark. Playing it too safe is a way to fail too.',
   },
 }
 

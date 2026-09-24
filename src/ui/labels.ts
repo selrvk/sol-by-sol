@@ -233,11 +233,24 @@ export const METER_WHY: Record<string, (s: Scenario) => MeterWhy> = {
         : ''), // the Moon: where its oxygen comes from is in the game half of the panel
     refs: [{ constant: 'CREW_O2_KG_PER_DAY' }, ...(s.isruAvailable ? [{ constant: 'MOXIE_KWH_PER_KG_O2' } as WhyRef] : [])],
   }),
-  water: () => ({
+  water: (s) => ({
     summary:
       `Each astronaut uses about ${n('CREW_WATER_L_PER_DAY')} L of water a day for drinking, food, washing and the toilet. ` +
       `The recycler can win back up to ${Math.round(c('WATER_RECOVERY_FRACTION') * 100)}% of it, as the ISS does, but only if the base is kept in good repair.`,
-    refs: [{ constant: 'CREW_WATER_L_PER_DAY' }, { constant: 'WATER_RECOVERY_FRACTION' }],
+    refs: [
+      { constant: 'CREW_WATER_L_PER_DAY' },
+      { constant: 'WATER_RECOVERY_FRACTION' },
+      ...(s.evaDustWear > 0
+        ? [
+            {
+              rule:
+                'Moon dust: on Apollo it scratched suits, clogged mechanisms and made seals fail. Pete Conrad said their suits were more ' +
+                'worn after 8 hours on the Moon than their training suits after 100. Source: Gaier, "The Effects of Lunar Dust on EVA ' +
+                'Systems During the Apollo Missions", NASA/TM-2005-213610. How much each shift outside wears the base is a game setting.',
+            },
+          ]
+        : []),
+    ],
   }),
   food: () => ({
     summary:
