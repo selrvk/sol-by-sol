@@ -208,7 +208,21 @@ export const METER_WHY: Record<string, (s: Scenario) => MeterWhy> = {
             `${Math.round(c('DUST_STORM_SOLAR_FACTOR') * 100)}%, for weeks. Mars has a dust season: the big storms mostly start in the half ` +
             `of the Martian year when it is closest to the Sun. The 2018 storm that ended the Opportunity rover was one of them. ` +
             `Build enough panels before the season comes.`,
-          refs: [{ constant: 'LIFE_SUPPORT_KW' }, { constant: 'MARS_CLEAR_SOL_INSOLATION_KWH_M2' }, { constant: 'DUST_STORM_SOLAR_FACTOR' }, { constant: 'SOLAR_FLUX_MARS' }, { constant: 'SOLAR_PANEL_EFFICIENCY' }],
+          refs: [
+            { constant: 'LIFE_SUPPORT_KW' },
+            { constant: 'MARS_CLEAR_SOL_INSOLATION_KWH_M2' },
+            { constant: 'DUST_STORM_SOLAR_FACTOR' },
+            { constant: 'SOLAR_FLUX_MARS' },
+            { constant: 'SOLAR_PANEL_EFFICIENCY' },
+            {
+              rule:
+                'Dust season: southern spring and summer, when Mars is nearest the Sun, is the dustiest part of its year and the season ' +
+                'of its planet-wide storms (NASA JPL, "NASA Mars Orbiters Reveal Seasonal Dust Storm Pattern"). The 2018 storm began on ' +
+                '30 May (Sánchez-Lavega et al., Geophysical Research Letters, 2019), and Opportunity sent its last message on 10 June ' +
+                '(NASA JPL, "Opportunity\'s Last Message", PIA22929). ' +
+                (s.dustStorm.season ? `The game’s season, sols ${s.dustStorm.season.fromSol}–${s.dustStorm.season.toSol}, is shortened to fit the mission.` : ''),
+            },
+          ],
         },
   oxygen: (s) => ({
     summary:
