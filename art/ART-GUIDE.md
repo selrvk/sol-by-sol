@@ -46,6 +46,10 @@ building**: each building prompt below starts from it (see Buildings).
 - Sun from the **upper left**. Left-facing walls and the slab's left cliff
   face are lit; right-facing walls and the right cliff face are in shade.
   Short shadows fall to the **lower right**.
+- The Moon art built on the cargo pad came out a warm tan, on a cool grey
+  map, so the game cools its day images slightly (`MOON_LIGHT` in
+  `src/ui/BaseView.tsx`, measured from both). Night images are left as
+  they are: they are lamp-lit, and lamplight is warm.
 - Each world's buildings are painted in **that world's light**, the same
   light its map is painted in: harsh, clear light with crisp shadows on
   the Moon; warm light with Mars's butterscotch cast and softer shadows on
@@ -523,11 +527,21 @@ on the tiles.
 
 [THE BUILDING'S NIGHT LINE]
 
-Everything the lights do not reach falls into cool, dark blue shade.
+Everything the lights do not reach falls into cool, dark blue shade: as
+dark overall as a moonless night, with the platform lit only in small
+pools right around each lamp post and nearly black-blue away from them.
 Same style as the reference. Background: a single flat solid colour,
 #0C1633 dark navy, filling the whole frame. No gradient, no glow on the
 background.
 ```
+
+How dark: the game darkens the ground at night to about half its day
+brightness, with a blue cast, so a night image has to be at least that
+dark to sit on it. The habitat's night images are right (their plain
+platform tiles average about rgb(53, 52, 68)); the first reactor night
+image came out twice as bright (about rgb(106, 93, 94)) and glows on the
+dark map. The last sentence of the first paragraph above is there
+because of it.
 
 The night lines:
 

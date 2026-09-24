@@ -120,7 +120,13 @@ interface Sprite {
   single?: boolean // one image, no separate night art
   scale?: number // when the image was shipped at a different size
   glint?: string // the solar cells alone, where the sunlight glint may fall
+  daylight?: string // a filter for the day image: the world's light (MOON_LIGHT)
 }
+// The scale of the art built on the cargo pad (the pad itself, the lander,
+// the second set of buildings): its platform is drawn about 280 units wide,
+// a fifth of the slab.
+const MOON_SET_SCALE = 0.456
+
 const SPRITES: Record<Exclude<PadId, 'landing'> | 'isru' | 'landerPad' | 'landerPod', Sprite> = {
   habitat: { name: 'habitat', px: [539, 419], anchor: [0.519, 0.57] },
   reactor: { name: 'reactor', px: [393, 423], anchor: [0.496, 0.738] },
@@ -132,28 +138,38 @@ const SPRITES: Record<Exclude<PadId, 'landing'> | 'isru' | 'landerPad' | 'lander
   isru: { name: 'co2maker', px: [515, 339], anchor: [0.538, 0.519], single: true },
   // The cargo pad and the lander on it share one image box (art/process.py
   // lines them up), anchored on the landing circle's centre.
-  landerPad: { name: 'lander-pad', px: [619, 482], anchor: [0.501, 0.622], single: true, scale: 0.38 },
-  landerPod: { name: 'lander-pod', px: [619, 482], anchor: [0.501, 0.622], single: true, scale: 0.38 },
+  landerPad: { name: 'lander-pad', px: [619, 482], anchor: [0.501, 0.622], single: true, scale: MOON_SET_SCALE },
+  landerPod: { name: 'lander-pod', px: [619, 482], anchor: [0.501, 0.622], single: true, scale: MOON_SET_SCALE },
 }
+
+// Moon daylight, for the art built on the cargo pad. The generator painted
+// the pad's stone warm and tan, and the Moon's ground is a cool grey, so
+// the platforms looked laid on the map rather than set in it. Measured on
+// both: the plain tiles average rgb(162, 148, 143) and the open ground
+// rgb(140, 141, 150). This moves the art three quarters of the way from
+// the one colour to the other at the same brightness: red down a little,
+// blue up. Night images are lamp-lit, so they keep their warm light.
+const MOON_LIGHT = '0.94 0 0 0 0  0 1.01 0 0 0  0 0 1.09 0 0  0 0 0 1 0'
 
 // The second set of buildings (art/ART-GUIDE.md), on the Moon so far; Mars
 // keeps the first set until its own comes. Each is built on a copy of the
 // cargo pad's platform, so all share the pad's scale, and art/process.py
-// cuts a building's stages to one box, so they share a size and anchor.
-// No night images yet: at night each is dimmed like the ground.
+// cuts a building's stages and its day and night to one box, so they share
+// a size and anchor. A building with no night image yet is dimmed at night
+// like the ground.
 type BuildingId = 'habitat' | 'solar' | 'reactor' | 'greenhouse' | 'lab'
-const MOON_SET: Record<BuildingId, Pick<Sprite, 'px' | 'anchor'>> = {
-  habitat: { px: [620, 410], anchor: [0.501, 0.554] },
-  solar: { px: [620, 366], anchor: [0.501, 0.501] },
-  reactor: { px: [619, 461], anchor: [0.501, 0.604] },
-  greenhouse: { px: [619, 364], anchor: [0.501, 0.499] },
-  lab: { px: [619, 410], anchor: [0.501, 0.553] },
+const MOON_SET: Record<BuildingId, Pick<Sprite, 'px' | 'anchor'> & { night: boolean }> = {
+  habitat: { px: [620, 422], anchor: [0.501, 0.566], night: true },
+  solar: { px: [620, 366], anchor: [0.501, 0.501], night: false },
+  reactor: { px: [619, 470], anchor: [0.501, 0.612], night: true },
+  greenhouse: { px: [619, 364], anchor: [0.501, 0.499], night: false },
+  lab: { px: [619, 410], anchor: [0.501, 0.553], night: false },
 }
 
 // Two buildings change with the game: the habitat shows the base's
 // condition, and the solar field gains rows of panels as it is built.
 // Where the stages change is a display choice, not a game rule; damaged
-// starts where the habitat's label turns amber (see \`worn\` below).
+// starts where the habitat's label turns amber (see `worn` below).
 function habitatStage(condition: number) {
   return condition >= 0.85 ? 'good' : condition >= 0.6 ? 'worn' : 'damaged'
 }
@@ -165,7 +181,11 @@ function solarStage(game: GameState) {
 
 function buildingSprites(game: GameState): Record<BuildingId, Sprite> {
   if (game.scenario.id !== 'moon') return SPRITES
-  const moon = (id: BuildingId, file: string): Sprite => ({ name: `moon/${file}-day`, ...MOON_SET[id], single: true, scale: 0.38 })
+  const moon = (id: BuildingId, file: string): Sprite => {
+    const { px, anchor, night } = MOON_SET[id]
+    const name = night ? `moon/${file}` : `moon/${file}-day`
+    return { name, px, anchor, single: !night, scale: MOON_SET_SCALE, daylight: 'url(#moon-light)' }
+  }
   const solar = `solar-${solarStage(game)}`
   return {
     habitat: moon('habitat', `habitat-${habitatStage(game.facilities.condition)}`),
@@ -209,7 +229,7 @@ function Building({ terrain, pad, sprite, night, status = 'on', flicker = false 
   const cls = [status === 'shed' ? 'shed-pulse' : '', flicker ? 'flicker-out' : ''].filter(Boolean).join(' ')
   return (
     <g className={cls || undefined} style={{ filter }}>
-      <image href={art(sprite, 'day')} {...box} style={{ opacity: night ? 0 : 1, transition: 'opacity 1.2s' }} />
+      <image href={art(sprite, 'day')} {...box} filter={sprite.daylight} style={{ opacity: night ? 0 : 1, transition: 'opacity 1.2s' }} />
       <g className={night ? 'night-breathe' : undefined}>
         <image href={art(sprite, 'night')} {...box} filter={sprite.single ? 'url(#night-dim)' : undefined} style={{ opacity: night ? 1 : 0, transition: 'opacity 1.2s' }} />
       </g>
@@ -328,7 +348,7 @@ function CargoPad({ terrain, night, landing }: { terrain: Terrain; night: boolea
   })
   return (
     <g filter={night ? 'url(#night-dim)' : undefined}>
-      <image href={`${ART}/buildings/lander-pad.webp`} {...box} />
+      <image href={`${ART}/buildings/lander-pad.webp`} {...box} filter="url(#moon-light)" />
       <ellipse className={landing ? 'lander-shadow' : undefined} cx={centre.x} cy={centre.y} rx={125 * k} ry={60 * k} fill="#020617" opacity={0.45} />
       {landing && (
         <g transform={`translate(${centre.x}, ${centre.y})`}>
@@ -348,7 +368,7 @@ function CargoPad({ terrain, night, landing }: { terrain: Terrain; night: boolea
             fill="#fde68a"
           />
         )}
-        <image href={`${ART}/buildings/lander-pod.webp`} {...box} />
+        <image href={`${ART}/buildings/lander-pod.webp`} {...box} filter="url(#moon-light)" />
       </g>
     </g>
   )
@@ -492,6 +512,9 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
         </mask>
         <filter id="mars-light" colorInterpolationFilters="sRGB">
           <feColorMatrix type="matrix" values={MARS_LIGHT} />
+        </filter>
+        <filter id="moon-light" colorInterpolationFilters="sRGB">
+          <feColorMatrix type="matrix" values={MOON_LIGHT} />
         </filter>
         {/* Night for art that has no night version: what the night overlay
             does to the ground (a 55% multiply by #0a1433). */}
