@@ -24,7 +24,8 @@ export interface TaskEffects {
   // Extra dose for working outside: every sol, and if a typical solar storm hits.
   fieldScience: { science: number; extraDoseMSv: number; stormExtraMSv: number }
   greenhouse: { m2: number; foodKg: number; powerKWh: number; wear: number }
-  solar: { m2: number; sunKWh: number; maxM2: number; hasNight: boolean; hasStorms: boolean }
+  // stormKWh: what the new panels still make in a dust storm.
+  solar: { m2: number; sunKWh: number; stormKWh: number | null; maxM2: number; hasNight: boolean; hasStorms: boolean }
   shielding: {
     level: number
     next: number
@@ -51,6 +52,7 @@ export function taskEffects(state: GameState, decisions: Decisions): TaskEffects
   const next = Math.min(BALANCE.MAX_SHIELDING_LEVEL, f.shieldingLevel + BALANCE.SHIELDING_LEVELS_PER_SHIFT)
   const evaFraction = BALANCE.SHIFT_HOURS / scenario.hoursPerSol
   const storm = speDoses(scenario, f, TYPICAL_STORM_SCALE)
+  const hasStorms = scenario.dustStorm.chancePerSol > 0 || scenario.dustStorm.season !== null
   const outsideShifts = Object.values(decisions.assignments).filter((t) => EVA_TASKS.has(t)).length
   const dust = scenario.evaDustWear * outsideShifts
 
@@ -74,9 +76,10 @@ export function taskEffects(state: GameState, decisions: Decisions): TaskEffects
     solar: {
       m2: solarM2,
       sunKWh: solarKWh(scenario, withF({ solarArrayM2: solarM2 }), 1),
+      stormKWh: hasStorms ? solarKWh(scenario, withF({ solarArrayM2: solarM2 }), scenario.dustStorm.solarFactor) : null,
       maxM2: scenario.maxSolarArrayM2,
       hasNight: scenario.dayNightCycle !== null,
-      hasStorms: scenario.dustStorm.chancePerSol > 0,
+      hasStorms,
     },
     shielding: {
       level: f.shieldingLevel,

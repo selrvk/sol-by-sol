@@ -69,7 +69,7 @@ function taskLine(task: CrewTask, fx: TaskEffects): TaskLine {
     case 'solar': {
       const s = fx.solar
       if (s.m2 === 0) return { does: `Panels are at the limit, ${s.maxM2} m²`, warn: 'No room for more panels: this shift does nothing.' }
-      const dark = s.hasNight ? ' · none at night' : s.hasStorms ? ' · much less in a dust storm' : ''
+      const dark = s.hasNight ? ' · none at night' : s.stormKWh !== null ? ` · +${whole(s.stormKWh)} kWh in a dust storm` : ''
       return { does: `+${s.m2} m² → +${whole(s.sunKWh)} kWh a sol in sunlight${dark} · limit ${s.maxM2} m²` }
     }
     case 'shielding': {
@@ -141,7 +141,7 @@ export const POWER_LABELS: Record<PowerLoad, string> = {
 
 export const SCENARIO_BLURBS: Record<ScenarioId, string> = {
   moon: 'Two weeks of sunlight, then two weeks of darkness, too cold and dark for work outside. No air to stop radiation. Cargo landers visit every 30 sols.',
-  mars: 'Solar power only, and dust storms can dim the Sun for weeks. The thin air blocks some radiation. No resupply.',
+  mars: 'Solar power only, and in the dust season, storms can dim the Sun for weeks. The thin air blocks some radiation. No resupply.',
 }
 
 // Plain names for the sourced figures shown in "why?" tooltips.
@@ -205,7 +205,9 @@ export const METER_WHY: Record<string, (s: Scenario) => MeterWhy> = {
           summary:
             `Life support needs ${n('LIFE_SUPPORT_KW')} kW all the time. Mars is farther from the Sun: a clear sol gives ` +
             `${n('MARS_CLEAR_SOL_INSOLATION_KWH_M2')} kWh on each square metre of ground. A big dust storm cuts that to ` +
-            `${Math.round(c('DUST_STORM_SOLAR_FACTOR') * 100)}%, for weeks. Build enough panels before a storm comes.`,
+            `${Math.round(c('DUST_STORM_SOLAR_FACTOR') * 100)}%, for weeks. Mars has a dust season: the big storms mostly start in the half ` +
+            `of the Martian year when it is closest to the Sun. The 2018 storm that ended the Opportunity rover was one of them. ` +
+            `Build enough panels before the season comes.`,
           refs: [{ constant: 'LIFE_SUPPORT_KW' }, { constant: 'MARS_CLEAR_SOL_INSOLATION_KWH_M2' }, { constant: 'DUST_STORM_SOLAR_FACTOR' }, { constant: 'SOLAR_FLUX_MARS' }, { constant: 'SOLAR_PANEL_EFFICIENCY' }],
         },
   oxygen: (s) => ({
@@ -262,7 +264,10 @@ export const METER_RULES: Record<string, (g: GameState, r: ResourceRates) => Why
     up:
       (g.scenario.dayNightCycle
         ? `Solar panels make about ${whole(r.sunKWh)} kWh a sol in sunlight and none at night. `
-        : `Solar panels make about ${whole(r.sunKWh)} kWh on a clear sol, and far less in a dust storm. `) +
+        : `Solar panels make about ${whole(r.sunKWh)} kWh on a clear sol, and far less in a dust storm. ` +
+          (g.scenario.dustStorm.season
+            ? `Storms are rare, except in the dust season, sols ${g.scenario.dustStorm.season.fromSol}–${g.scenario.dustStorm.season.toSol}, when one is almost certain. `
+            : '')) +
       (r.reactorKWh > 0 ? `The reactor makes ${whole(r.reactorKWh)} kWh a sol, day and night. ` : '') +
       `Panels make less as the base condition drops. The battery stores up to ${r.battery} kWh.`,
     down: `Life support uses ${whole(r.crewUse.storedPowerKWh)} kWh a sol and is never off. The lab${g.scenario.isruAvailable ? ', greenhouse and O₂ makers' : ' and greenhouse'} use more while switched on.`,
@@ -336,6 +341,6 @@ export const OPENINGS: Record<ScenarioId, Opening> = {
     fix: { before: 'Move one of the scientists to the', after: 'task and watch the number of O₂ makers in the Oxygen box go up. Then press Advance sol.' },
     fixTask: 'isru',
     afterFix:
-      'Each O₂ maker splits carbon dioxide from the Martian air, but it runs on solar power and wears the base. Once oxygen is going up each sol, move them back to science. When a dust storm dims the Sun you may not have power for every O₂ maker, so build panels before the storms come.',
+      'Each O₂ maker splits carbon dioxide from the Martian air, but it runs on solar power and wears the base. Once oxygen is going up each sol, move them back to science. The dust season is coming, and the top bar shows when: in a storm you may not have power for every O₂ maker, so build panels before it starts.',
   },
 }

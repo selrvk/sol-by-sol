@@ -3,7 +3,7 @@ import { useMemo, type ReactNode } from 'react'
 import { advanceSol } from '../sim/advanceSol.ts'
 import { BALANCE } from '../sim/balance.ts'
 import { resourceRates } from '../sim/effects.ts'
-import { lifeSupportReserveKWh, nextResupplySol, nightAhead } from '../sim/forecast.ts'
+import { dustSeason, lifeSupportReserveKWh, nextResupplySol, nightAhead, stormPower } from '../sim/forecast.ts'
 import type { Decisions, GameState } from '../sim/types.ts'
 import { METER_RULES, METER_WHY, POWER_LABELS } from './labels.ts'
 import { AnimatedValue } from './AnimatedValue.tsx'
@@ -56,6 +56,20 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
       ? `Night in ${ahead.inSols} sol${ahead.inSols === 1 ? '' : 's'}: this plan needs ~${Math.ceil(ahead.plannedKWh)} kWh through ${ahead.nightSols} dark sols, ` +
         `but the battery holds ${battery}. Switch the lab and greenhouse off at night — life support alone needs ~${Math.ceil(ahead.reserveKWh)} kWh.`
       : `Night in ${ahead.inSols} sol${ahead.inSols === 1 ? '' : 's'}: ~${Math.ceil(ahead.plannedKWh)} kWh of battery sees this plan through ${ahead.nightSols} dark sols.`
+  // Mars: while the dust season is coming or under way, say whether the
+  // panels would keep life support and the O₂ makers going in a storm.
+  const season = dustSeason(game.scenario, game.sol)
+  const storming = game.environment.dustStormSolsLeft > 0
+  const inStorm = stormPower(game)
+  const stormShort = inStorm.stormKWh < inStorm.essentialKWh
+  const seasonWarning =
+    !season || storming || season.inSols > 8
+      ? null
+      : `${season.now ? `Dust season until sol ${season.toSol}` : `Dust season in ${season.inSols} sol${season.inSols === 1 ? '' : 's'}`}: ` +
+        `in a storm the panels would make ~${Math.round(inStorm.stormKWh)} kWh a sol` +
+        (stormShort
+          ? `, but life support and the O₂ makers need ${Math.round(inStorm.essentialKWh)}. Build solar before a storm hits.`
+          : `, enough for life support and the O₂ makers.`)
   const reserveLine =
     reserve.hardSols > 0 && reserveKWh > 0
       ? `Life support needs ${reserveKWh} kWh to reach ${game.environment.dustStormSolsLeft > 0 && game.environment.isDaylight ? 'the end of the storm' : 'sunrise'}.` +
@@ -108,14 +122,14 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
         unit="kWh"
         amount={r.storedPowerKWh}
         why={whyFor('power')}
-        warning={nightWarning ?? reserveLine}
+        warning={nightWarning ?? seasonWarning ?? reserveLine}
         detail={
           report
             ? `${isForecast ? 'Next sol' : 'Last sol'}: made ${Math.round(report.powerGeneratedKWh)}, needed ${Math.round(report.powerDemandKWh)}` +
               (report.shedLoads.length ? ` · off: ${report.shedLoads.map((l) => POWER_LABELS[l]).join(', ')}` : '')
             : `Battery holds ${game.facilities.batteryCapacityKWh} kWh`
         }
-        warn={reserveShort || nightWarning !== null || (report ? report.shedLoads.length > 0 : false)}
+        warn={reserveShort || nightWarning !== null || (seasonWarning !== null && stormShort) || (report ? report.shedLoads.length > 0 : false)}
       />
       <Meter
         name="Oxygen"

@@ -1,6 +1,6 @@
 import { FlaskConical, LogOut, Moon, Orbit, Package, ShieldAlert, Sun, Tornado, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { lightInfo, nextResupplySol } from '../sim/forecast.ts'
+import { dustSeason, lightInfo, nextResupplySol } from '../sim/forecast.ts'
 import type { GameState } from '../sim/types.ts'
 
 // One reading in the bar. On a phone the caption is dropped and the value
@@ -41,15 +41,20 @@ export function TopBar({ game, onQuit }: { game: GameState; onQuit: () => void }
 
   // Describe the sol about to be played, and when the light changes next.
   const light = lightInfo(sc, game.sol)
+  const season = dustSeason(sc, game.sol)
   const plural = (n: number) => `${n} sol${n === 1 ? '' : 's'}`
+  // Mars has no night to count down to; it counts down to the dust season.
+  const seasonSub = season ? (season.now ? `dust season until sol ${season.toSol}` : `dust season in ${plural(season.inSols)}`) : null
   const sky = env.shelterSolsLeft > 0
     ? { icon: ShieldAlert, cls: 'text-red-300', text: 'Sheltering', sub: `${plural(env.shelterSolsLeft)} left` }
     : env.dustStormSolsLeft > 0
       ? { icon: Tornado, cls: 'text-orange-300', text: 'Dust storm', sub: `about ${plural(env.dustStormSolsLeft)} left` }
       : light.isDaylight
-        ? { icon: Sun, cls: 'text-yellow-300', text: 'Daylight', sub: light.solsUntilChange !== null ? `night in ${plural(light.solsUntilChange)}` : null }
+        ? { icon: Sun, cls: 'text-yellow-300', text: 'Daylight', sub: light.solsUntilChange !== null ? `night in ${plural(light.solsUntilChange)}` : seasonSub }
         : { icon: Moon, cls: 'text-indigo-300', text: 'Night', sub: `sunrise in ${plural(light.solsUntilChange ?? 0)}` }
-  const nightSoon = light.isDaylight && light.solsUntilChange !== null && light.solsUntilChange <= 3
+  const changeSoon =
+    (light.isDaylight && light.solsUntilChange !== null && light.solsUntilChange <= 3) ||
+    (env.dustStormSolsLeft === 0 && season !== null && season.inSols <= 3)
   const cargo = nextResupplySol(sc, game.sol)
 
   return (
@@ -80,7 +85,7 @@ export function TopBar({ game, onQuit }: { game: GameState; onQuit: () => void }
       </Stat>
       <Stat icon={sky.icon} label="Sky" iconClass={sky.cls}>
         <span className="font-semibold">{sky.text}</span>
-        {sky.sub && <span className={`block text-xs ${nightSoon ? 'font-semibold text-amber-300' : 'text-slate-400'}`}>({sky.sub})</span>}
+        {sky.sub && <span className={`block text-xs ${changeSoon ? 'font-semibold text-amber-300' : 'text-slate-400'}`}>({sky.sub})</span>}
       </Stat>
       {cargo !== null && cargo < sc.missionLengthSols && (
         <div className="hidden sm:flex">
