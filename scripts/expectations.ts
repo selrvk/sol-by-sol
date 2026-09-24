@@ -45,8 +45,12 @@ interface Expectation {
   holds: (o: Outcomes) => boolean
 }
 
-// Shares rather than counts, so the same line holds at 20 seeds or 200.
+// Shares rather than counts, so the same line holds at 100 seeds or 1000.
 // The margins leave room for a bad-luck seed, not for a real change.
+// Checked at 100 seeds (a fraction of a second): at 20, one unlucky game
+// is 5%, which put Mars's careful bot, at 98.6% over 1000 games, exactly
+// on its 90% line.
+export const SEEDS = 100
 const wins = (min: number): Expectation => ({
   says: `to win at least ${min * 100}% of the time`,
   holds: (o) => o.won >= min * o.runs,
@@ -63,7 +67,10 @@ const canLose = (reason: LossReason): Expectation => ({
 
 export const EXPECTED: Record<ScenarioId, Record<string, Expectation[]>> = {
   moon: {
-    balanced: [wins(0.9)],
+    // About 91%: it keeps its most irradiated astronaut indoors, so it
+    // does less field science than it could. day-night shows the Moon can
+    // be won nearly every time.
+    balanced: [wins(0.85)],
     greedy: [neverWins, mostlyLoses('water', 0.8)],
     reckless: [canLose('radiation')],
     'power-hog': [neverWins, mostlyLoses('power', 0.9)],

@@ -3,7 +3,7 @@
 
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { checkAll } from '../../scripts/expectations.ts'
+import { checkAll, SEEDS } from '../../scripts/expectations.ts'
 import { POLICIES } from '../../scripts/policies.ts'
 import { advanceSol, EVA_TASKS } from '../sim/advanceSol.ts'
 import { resourceRates, taskEffects } from '../sim/effects.ts'
@@ -242,7 +242,7 @@ describe('mars dust season', () => {
 // quietly alters a lesson fails here rather than going unnoticed.
 describe('balance', () => {
   it('every scripted player does what it is documented to do', () => {
-    assert.deepEqual(checkAll(20).failures, [])
+    assert.deepEqual(checkAll(SEEDS).failures, [])
   })
 })
 

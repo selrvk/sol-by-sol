@@ -4,13 +4,13 @@
 // change to balance.ts or a scenario config that quietly alters a lesson
 // does not go unnoticed.
 //
-//   node scripts/balance-report.ts            (20 seeds)
-//   node scripts/balance-report.ts --seeds 50
+//   node scripts/balance-report.ts            (100 seeds, as the test runs it)
+//   node scripts/balance-report.ts --seeds 1000
 
-import { checkAll } from './expectations.ts'
+import { checkAll, SEEDS as DEFAULT_SEEDS } from './expectations.ts'
 
 const i = process.argv.indexOf('--seeds')
-const SEEDS = i >= 0 ? Number(process.argv[i + 1]) : 20
+const SEEDS = i >= 0 ? Number(process.argv[i + 1]) : DEFAULT_SEEDS
 
 const median = (xs: number[]) => {
   if (xs.length === 0) return NaN
