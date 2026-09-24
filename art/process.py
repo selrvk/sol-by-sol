@@ -284,22 +284,48 @@ def bottom_edge(im: Image.Image) -> dict[int, int]:
     return edge
 
 
-def onto_the_pad(im: Image.Image, pad_edge: dict[int, int]) -> tuple[Image.Image, int]:
-    """Move a render up or down so its platform lies where the pad's does.
+def platform_sides(im: Image.Image) -> tuple[int, int]:
+    """The platform's left and right corners: the widest thing in a render."""
+    box = im.getchannel('A').point(lambda a: 255 if a > 128 else 0).getbbox()
+    return box[0], box[2]
 
-    The generator sometimes draws the platform a little higher in the frame
-    (the first solar stages came out 31px up), which would make it jump when
-    the game swaps stages. Found by sliding the platform's front edges onto
-    the pad's.
+
+def onto_the_pad(im: Image.Image, pad: Image.Image) -> tuple[Image.Image, str]:
+    """Scale and move a render so its platform lies where the pad's does.
+
+    The generator sometimes draws the platform a little off: higher in the
+    frame (the first solar stages came out 31px up), or larger and to one
+    side (the lab's night image, drawn 4.5% bigger on a wider canvas). Any
+    of these would make a building jump when the game swaps its images.
+    The width is matched from the platform's two side corners, the left
+    corner lined up, and the height found by sliding the platform's front
+    edges onto the pad's.
     """
-    edge = bottom_edge(im)
+    pad_left, pad_right = platform_sides(pad)
+    left, right = platform_sides(im)
+    scale = (pad_right - pad_left) / (right - left)
+    if abs(scale - 1) > 0.005:
+        im = im.resize((round(im.width * scale), round(im.height * scale)), Image.LANCZOS)
+        left = platform_sides(im)[0]
+    dx = pad_left - left
+
+    def placed(dy: int) -> Image.Image:
+        # A plain paste onto a clear canvas: it copies the pixels, alpha
+        # and all, and drops whatever falls outside the frame.
+        out = Image.new('RGBA', pad.size, (0, 0, 0, 0))
+        out.paste(im, (dx, dy))
+        return out
+
+    pad_edge = bottom_edge(pad)
+    edge = bottom_edge(placed(0))
     xs = [x for x in edge if x in pad_edge and 200 <= x <= 1050]
     dy = min(range(-60, 61), key=lambda d: sum(abs(edge[x] + d - pad_edge[x]) for x in xs))
-    if dy == 0:
-        return im, 0
-    moved = Image.new('RGBA', im.size, (0, 0, 0, 0))
-    moved.alpha_composite(im, (0, dy))
-    return moved, dy
+    changes = []
+    if abs(scale - 1) > 0.005:
+        changes.append(f'scaled x{scale:.3f}')
+    if dx or dy:
+        changes.append(f'moved {dx:+d}, {dy:+d}px')
+    return placed(dy), ', '.join(changes)
 
 
 def panels_only(im: Image.Image) -> Image.Image:
@@ -319,7 +345,7 @@ def panels_only(im: Image.Image) -> Image.Image:
 
 
 def cut_building_sets() -> None:
-    pad_edge = bottom_edge(drop_flat_background(Image.open(SRC / 'buildings' / 'lander-pad.png')))
+    pad = drop_flat_background(Image.open(SRC / 'buildings' / 'lander-pad.png'))
     for folder in sorted(p for p in (SRC / 'buildings').iterdir() if p.is_dir() and p.name != 'v1'):
         groups = collections.defaultdict(list)
         for src in sorted(folder.glob('*.png')):
@@ -327,9 +353,18 @@ def cut_building_sets() -> None:
         for name, srcs in groups.items():
             cut = {}
             for src in srcs:
-                cut[src.stem], dy = onto_the_pad(drop_flat_background(Image.open(src)), pad_edge)
-                if dy:
-                    print(f'{folder.name}/{src.stem}: platform moved {dy:+d}px onto the pad\'s')
+                cut[src.stem], changes = onto_the_pad(drop_flat_background(Image.open(src)), pad)
+                if changes:
+                    print(f'{folder.name}/{src.stem}: platform {changes} onto the pad\'s')
+            # A night image is its day image with the lights on, lined up
+            # with it above, so it takes the day image's outline. A dark
+            # night render can be close to the background colour (the lab's
+            # shaded walls were cut away as background), and one outline for
+            # both keeps the building's edge still when night falls.
+            for stem in cut:
+                day = stem.replace('-night', '-day')
+                if stem.endswith('-night') and day in cut:
+                    cut[stem].putalpha(cut[day].getchannel('A'))
             box = cut[srcs[0].stem].getbbox()
             for im in cut.values():
                 box = union(box, im.getbbox())

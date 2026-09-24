@@ -228,9 +228,13 @@ each made from its day image.
    framing or building art changed.
 
 For the second building set, `process.py` prints each building's size and
-anchor for `MOON_SET` in `BaseView.tsx`. It also moves any render whose
-platform came out higher or lower than the pad's back into place (the
-first solar stages came out 31px high), and prints when it does.
+anchor for `MOON_SET` in `BaseView.tsx`. It also scales and moves any
+render whose platform came out off the pad's back into place (the first
+solar stages came out 31px high; the lab's night image 4.5% too big, on a
+1312 x 1199 canvas), and prints when it does. A night image then takes
+its day image's outline instead of its own cut-out: dark night renders can
+be close to the background colour (the lab's shaded walls were cut away
+as background), and one outline keeps the edges still at nightfall.
 
 At night the game draws each lamp post's light on the ground around the
 platform (`LAMP_POSTS` in `BaseView.tsx`, in the lamps' own measured

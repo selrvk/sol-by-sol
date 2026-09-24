@@ -167,15 +167,14 @@ const MOON_LIGHT = '0.94 0 0 0 0  0 1.01 0 0 0  0 0 1.09 0 0  0 0 0 1 0'
 // keeps the first set until its own comes. Each is built on a copy of the
 // cargo pad's platform, so all share the pad's scale, and art/process.py
 // cuts a building's stages and its day and night to one box, so they share
-// a size and anchor. A building with no night image yet is dimmed at night
-// like the ground.
+// a size and anchor.
 type BuildingId = 'habitat' | 'solar' | 'reactor' | 'greenhouse' | 'lab'
-const MOON_SET: Record<BuildingId, Pick<Sprite, 'px' | 'anchor'> & { night: boolean }> = {
-  habitat: { px: [620, 422], anchor: [0.501, 0.566], night: true },
-  solar: { px: [620, 366], anchor: [0.501, 0.501], night: false },
-  reactor: { px: [619, 470], anchor: [0.501, 0.612], night: true },
-  greenhouse: { px: [619, 364], anchor: [0.501, 0.499], night: false },
-  lab: { px: [619, 410], anchor: [0.501, 0.553], night: false },
+const MOON_SET: Record<BuildingId, Pick<Sprite, 'px' | 'anchor'>> = {
+  habitat: { px: [620, 410], anchor: [0.5, 0.554] },
+  solar: { px: [620, 366], anchor: [0.5, 0.501] },
+  reactor: { px: [619, 461], anchor: [0.501, 0.604] },
+  greenhouse: { px: [619, 364], anchor: [0.501, 0.499] },
+  lab: { px: [619, 410], anchor: [0.501, 0.553] },
 }
 
 // Two buildings change with the game: the habitat shows the base's
@@ -193,11 +192,12 @@ function solarStage(game: GameState) {
 
 function buildingSprites(game: GameState): Record<BuildingId, Sprite> {
   if (game.scenario.id !== 'moon') return SPRITES
-  const moon = (id: BuildingId, file: string): Sprite => {
-    const { px, anchor, night } = MOON_SET[id]
-    const name = night ? `moon/${file}` : `moon/${file}-day`
-    return { name, px, anchor, single: !night, scale: MOON_SET_SCALE, daylight: 'url(#moon-light)' }
-  }
+  const moon = (id: BuildingId, file: string): Sprite => ({
+    name: `moon/${file}`,
+    ...MOON_SET[id],
+    scale: MOON_SET_SCALE,
+    daylight: 'url(#moon-light)',
+  })
   const solar = `solar-${solarStage(game)}`
   return {
     habitat: moon('habitat', `habitat-${habitatStage(game.facilities.condition)}`),
