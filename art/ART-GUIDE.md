@@ -28,29 +28,42 @@ match them, not the textbook figure.
 | Moon map v1 | 26.0° | 24.1° | 0.47 |
 | Mars map v1 | 23.5° | 25.1° | 0.45 |
 | Moon and Mars maps v2 (current) | 28.5° | 28.5° | 0.54 |
-| Buildings (current) | about 25–28°, one-offs 21–33° | | |
+| Cargo landing pad (Sep 2026) | 29.1° | 29.2° | 0.56 |
+| Buildings v1: habitat, reactor, solar | 27.6°, 27.7°, 26.2° | 23.7°, 27.6°, 17.3° | |
+| Buildings v1: greenhouse, lab, O₂ plant | 33.2°, 19.3°, 24.0° | 26.2°, 19.8°, 31.8° | |
 | True 2:1 | 26.57° | 26.57° | 0.50 |
 
 So for anything new, ask for **2:1 isometric** and check the result
 against the maps: edges between about 26° and 29° sit well on them.
 Measured by fitting lines to the silhouette edges, ignoring the rocks.
 
+The cargo pad came out within a degree of the maps, which the first
+buildings never did, so **the pad image is the reference for every new
+building**: each building prompt below starts from it (see Buildings).
+
 ## Lighting (every image)
 
 - Sun from the **upper left**. Left-facing walls and the slab's left cliff
   face are lit; right-facing walls and the right cliff face are in shade.
   Short shadows fall to the **lower right**.
-- Buildings are painted in **neutral daylight** on both worlds. Do not
-  paint them orange for Mars: the game tints them with Mars light itself
-  (`MARS_LIGHT` in `src/ui/BaseView.tsx`).
+- Each world's buildings are painted in **that world's light**, the same
+  light its map is painted in: harsh, clear light with crisp shadows on
+  the Moon; warm light with Mars's butterscotch cast and softer shadows on
+  Mars. (The first buildings were painted once in Moon light, and the
+  game tinted them for Mars with `MARS_LIGHT` in `src/ui/BaseView.tsx`.
+  Mars buildings made from these rules do not need the tint.)
 - No night versions of the maps are needed. The game darkens the ground
-  itself. Buildings do need a night version (below).
+  itself. Moon buildings do need a night version (below). **Mars has no
+  night in the game** (its daylight is averaged over the sol), so Mars
+  buildings are day only.
 
 ## Style (every image)
 
 Stylized 3D render of a game asset: a clean diorama look, soft ambient
-occlusion, gentle bevels, no outlines. The existing building sheet
-(`art/source/buildings/buildings-day.png`) is the reference.
+occlusion, gentle bevels, no outlines. The cargo landing pad
+(`art/source/buildings/lander-pad.png`) is the reference. The first
+building sheets (`buildings-day.png`, `buildings-night.png`) are kept
+until the new buildings replace them.
 
 ## Background (every image)
 
@@ -86,19 +99,86 @@ occlusion, gentle bevels, no outlines. The existing building sheet
 
 ## Buildings
 
-- Each building stands on its **own square stone platform** (grey tiles,
-  small lamp posts at the corners), the platform a diamond on the 2:1 grid.
-- A building's platform is **about one fifth of the slab's width** across.
-  All buildings share one scale: a bigger building gets a bigger platform,
-  not a bigger zoom.
+- **One building per image**, square, built on a copy of the cargo
+  landing pad (`buildings/lander-pad.png`): the same stone platform, the
+  same size and place in the frame, the same corner lamp posts, with the
+  landing circle and scorch mark taken off. Every building then has the
+  same camera, the same scale and the same platform, and the game places
+  them all the same way.
+- Bold, simple shapes. A building is drawn about 250 pixels wide in the
+  game, often less on a phone, so fine clutter turns to noise.
 - Doors and entrances face the **lower right** (the front-right face).
-- **Day and night pairs**: the night image is the same picture with the
-  lights on (windows glowing, lamp posts lit), generated from the day image
-  as a reference so nothing moves. The game cross-fades between them.
-- Current layout: one sheet per time of day holding the five buildings in
-  two rows (habitat, reactor, solar on top; greenhouse, lab below), in the
-  same place on both sheets. `art/process.py` cuts them out. A single
-  building in its own image (like `co2maker.png`) works too.
+- Each building keeps its colour on both worlds, so players can tell
+  them apart at a glance: a white habitat, an orange reactor, blue solar
+  panels, a green greenhouse, a blue lab, a white-and-blue O₂ plant.
+- **Moon: day and night pairs.** The night image is the same picture with
+  the lights on, made from the day image as a reference so nothing moves.
+  The game cross-fades between them.
+- **Mars: the same buildings, repainted.** Each Mars image is made from
+  its Moon day image as a reference: same building, same place, in Mars
+  light and Mars dust. So the Moon set comes first.
+- The reactor is Moon-only (Mars runs on solar). The O₂ plant is
+  Mars-only (it stands on the pad Mars leaves empty).
+
+### Stages
+
+Two buildings change with the game.
+
+**The solar field grows as it is built.** There are three images, and
+more panel rows stand as the array nears its largest size (the world's
+`maxSolarArrayM2`):
+
+| Stage | Panels | Shown when the array is | Moon | Mars |
+|---|---|---|---|---|
+| 1 | one row | under 60% of its largest | 140–160 m² (the start) | 560–700 m² (the start) |
+| 2 | two rows | 60–85% | 180–240 m² | 720–1000 m² |
+| 3 | three rows | 85% or more | 260–300 m² | 1020–1200 m² |
+
+**The habitat shows the base's condition.** There are three images:
+
+| Stage | Shown when condition is | Looks |
+|---|---|---|
+| good | 85% or more | clean, green light by the door |
+| worn | 60–85% | dusty, scuffed, taped, amber light |
+| damaged | under 60% (when the map's label turns amber) | caked in dust, a loose panel, a leaking seal, red light |
+
+The Moon starts at 50% (the damaged habitat, which is the briefing's
+problem) and Mars at 85% (good). The rows and percentages are display
+choices in `BaseView.tsx`, not game rules.
+
+### The set, and file names
+
+Put them in `art/source/buildings/moon/` and `art/source/buildings/mars/`
+under these names; `art/process.py` will read them from there.
+
+| Building | Moon, day and night (`-day.png`, `-night.png`) | Mars, day only |
+|---|---|---|
+| Habitat | `habitat-good`, `habitat-worn`, `habitat-damaged` | `habitat-good.png`, `habitat-worn.png`, `habitat-damaged.png` |
+| Solar | `solar-1`, `solar-2`, `solar-3` | `solar-1.png`, `solar-2.png`, `solar-3.png` |
+| Reactor | `reactor` | none |
+| Greenhouse | `greenhouse` | `greenhouse.png` |
+| Lab | `lab` | `lab.png` |
+| O₂ plant | none | `o2-plant.png` |
+
+That is 18 Moon images and 9 Mars images, plus the lander's two night
+images.
+
+### The order to make them in
+
+Each image is made from an earlier one, so that nothing drifts:
+
+1. **Moon habitat, good, day**, from the landing pad. Stop here and have
+   it checked in the game (the angle is measured, and it is tried on the
+   map) before making the rest.
+2. The other Moon day images: reactor, greenhouse, lab and full solar
+   field from the landing pad; worn habitat from the good one, damaged
+   from the worn one; solar stage 2 from stage 3, stage 1 from stage 2.
+3. Every Moon night image, each from its own day image. (The night image
+   for a stage comes from that stage's day image, not from another
+   night image, because the game cross-fades each stage between its own
+   day and night.)
+4. Every Mars image from its Moon day image. The O₂ plant from the Mars
+   good habitat.
 
 ## Cargo pod
 
@@ -260,4 +340,276 @@ the lamp light. Everything else falls into cool dark shade.
 Same style as the reference. Background: a single flat solid colour,
 #0C1633 dark navy, filling the whole frame. No gradient, no glow on the
 background.
+```
+
+## Building prompts
+
+Every building prompt names what to attach. "The landing pad" is
+`art/source/buildings/lander-pad.png`.
+
+### Moon, day
+
+The first four are made from the landing pad and share one prompt: paste
+the building's own paragraph into it where it says so.
+
+```
+Use the attached image as the exact reference for the camera angle, the
+framing, the stone platform (its size, its place in the frame, its tiles,
+edge trim and four corner lamp posts), the lighting and the render style.
+Keep all of those identical. Take away the painted landing circle and the
+scorch mark, so the platform is plain tiles, and stand this building on
+it:
+
+[THE BUILDING'S PARAGRAPH]
+
+The building stands in the middle of the platform with a walkway of tiles
+around it, and nothing hangs over the platform's edges. Its entrance
+faces the lower right. Bold, simple shapes that stay readable when the
+image is shown about 250 pixels wide: no fine clutter.
+
+Daytime on the Moon: harsh sunlight from the upper left with no haze,
+left-facing walls lit, right-facing walls in shade, short crisp shadows
+falling to the lower right. Windows are dark glass, with at most a faint
+warm light inside. A little grey lunar dust on the lowest parts of the
+walls.
+
+No ground beyond the platform, no people, no vehicles, no text, no logos,
+no stars. Background: a single flat solid colour, #0C1633 dark navy,
+filling the whole frame. No gradient, no vignette, no glow, no shadow on
+the background.
+```
+
+**Habitat, good** (`moon/habitat-good-day.png`). Make this one first and
+have it checked in the game before the rest.
+
+```
+The crew habitat, the biggest building in the base: a large white dome
+of bolted panels with a glass skylight at its top, two short white
+cylinder modules joined to its sides, and an airlock with a sturdy door
+on the lower-right face. A short antenna mast on one module. Clean, well
+kept, bright white, with a small green status light beside the door. It
+covers about three quarters of the platform.
+```
+
+**Reactor** (`moon/reactor-day.png`)
+
+```
+A compact nuclear power unit, modelled on NASA's Kilopower and Fission
+Surface Power designs: a short steel reactor cylinder at the bottom, and
+above it a tall cone of dark grey radiator fins, like a folded umbrella
+standing upright, that sheds the reactor's heat. It sits in a round pit
+ringed by a low wall of piled grey regolith bags for radiation
+shielding. Beside it, an orange control box with a yellow-and-black
+radiation symbol, orange safety railings, and a thick power cable
+running off the platform's front-right edge. It covers about half the
+platform.
+```
+
+**Greenhouse** (`moon/greenhouse-day.png`)
+
+```
+The greenhouse, modelled on the University of Arizona's Lunar Greenhouse
+prototype: a long, round-topped inflatable tunnel of clear panels held by
+thin white ribs, with rows of leafy green plants in hydroponic trays
+inside. A white service module at one end. The tunnel's long side runs
+parallel to the platform's front-right edge, with an airlock door in the
+middle of that side. It covers most of the platform's length.
+```
+
+**Lab** (`moon/lab-day.png`)
+
+```
+The science lab: a squat, sturdy blue module with a sloped roof and a row
+of windows, a sample airlock with a small glovebox window beside the
+door on the lower-right face, a few grey sample cases stacked by the
+wall, and a white dish antenna on the roof. It covers about two thirds of
+the platform.
+```
+
+**Solar field, stage 3 (full)** (`moon/solar-3-day.png`)
+
+```
+The solar field: three rows of solar panels, three panels in each row,
+nine in all. Blue cells in thin silver frames, each panel tilted towards
+the upper left, where the sun is, on short grey posts. The rows run from
+the lower left to the upper right, with a walkway of tiles between them.
+A small grey power box and a cable conduit at the platform's front-right
+corner. The panels fill most of the platform.
+```
+
+The rest are made from a Moon day image, and their prompts are complete
+as they stand.
+
+**Habitat, worn** (`moon/habitat-worn-day.png`). Attach
+`moon/habitat-good-day.png`.
+
+```
+Use the attached image as the exact reference: the same building,
+platform, camera, framing, lighting and size, with nothing moved or
+redesigned. Show the same habitat after weeks without repairs: grey lunar
+dust coating the lower third of the walls and the door, dust smeared
+across the windows, the white panels scuffed and dulled, and a strip of
+silver repair tape across one panel seam. The status light beside the
+door is amber. Make the wear bold enough to see when the image is shown
+small.
+
+Same style as the reference. Background: a single flat solid colour,
+#0C1633 dark navy, filling the whole frame. No gradient, no glow, no
+shadow on the background.
+```
+
+**Habitat, damaged** (`moon/habitat-damaged-day.png`). Attach
+`moon/habitat-worn-day.png`.
+
+```
+Use the attached image as the exact reference: the same building,
+platform, camera, framing, lighting and size, with nothing moved or
+redesigned, and every sign of wear it already has kept in place. Show it
+run down much further, its systems failing: thick grey dust over most of
+the walls and the platform around it, one outer panel hanging loose and
+showing dark insulation beneath, two dented panels patched with tape,
+and a small white plume of escaping air freezing into glittering frost at
+a split seal. The status light beside the door is red. Worn out, not
+wrecked: the building is whole, with no fire, no smoke and no holes.
+Make the damage bold enough to see when the image is shown small.
+
+Same style as the reference. Background: a single flat solid colour,
+#0C1633 dark navy, filling the whole frame. No gradient, no glow, no
+shadow on the background.
+```
+
+**Solar field, stage 2** (`moon/solar-2-day.png`). Attach
+`moon/solar-3-day.png`.
+
+```
+Use the attached image as the exact reference: the same platform, camera,
+framing, lighting and size, with nothing moved. Take away the front row
+of panels (the row nearest the bottom of the image), leaving the two back
+rows exactly as they are. Where the front row stood, its row of small
+concrete footings stays on the tiles, waiting for panels to be built.
+
+Same style as the reference. Background: a single flat solid colour,
+#0C1633 dark navy, filling the whole frame. No gradient, no glow, no
+shadow on the background.
+```
+
+**Solar field, stage 1** (`moon/solar-1-day.png`). Attach
+`moon/solar-2-day.png`, and use the stage 2 prompt with its second
+paragraph's first two sentences changed to: "Take away the front row of
+panels (the row nearest the bottom of the image), leaving only the back
+row exactly as it is. The front row's footings stay as they are."
+
+### Moon, night
+
+One prompt for every Moon night image: attach the day image with the
+same name (for example `moon/lab-day.png` for `moon/lab-night.png`), and
+paste that building's line from the list below into the prompt.
+
+```
+Use the attached image as the exact reference: the same building,
+platform, camera, framing and size, with nothing moved and every detail
+kept. Make it night on the Moon: the sunlight is gone, and with no air
+there is no glow in the sky, so the scene is lit only by its own lights.
+The four corner lamp posts glow warm white and throw soft pools of light
+on the tiles.
+
+[THE BUILDING'S NIGHT LINE]
+
+Everything the lights do not reach falls into cool, dark blue shade.
+Same style as the reference. Background: a single flat solid colour,
+#0C1633 dark navy, filling the whole frame. No gradient, no glow on the
+background.
+```
+
+The night lines:
+
+- **Habitat, good**: `Every window glows warm yellow, a light shines
+  over the airlock door, and the small status light by the door glows
+  green.`
+- **Habitat, worn**: `The windows glow warm yellow, dimmed where dust is
+  smeared on them, and the status light by the door glows amber.`
+- **Habitat, damaged**: `Most windows glow a dim warm yellow, one window
+  is dark, and the status light by the door glows red. The frost plume
+  at the split seal catches the lamp light.`
+- **Reactor**: `Small lights on the control box glow, and a red beacon
+  glows at the top of the radiator cone. The reactor itself gives off no
+  light: real reactors do not glow.`
+- **Greenhouse**: `The tunnel glows a soft magenta pink from the red and
+  blue LED grow lights inside, like the ones in the Veggie garden on the
+  International Space Station, lighting the plants from within.`
+- **Lab**: `The windows glow cool white with a hint of blue screens
+  inside, a light shines over the door, and a small red light shows on
+  the dish antenna.`
+- **Solar field (each stage)**: `The panels are dark, with a faint sheen
+  where the lamp light catches them, and a small green light glows on the
+  power box.`
+
+### Mars
+
+One prompt for every Mars image except the O₂ plant: attach the Moon day
+image with the same name (for example `moon/lab-day.png` for
+`mars/lab.png`), then the Mars map (`terrain/mars-terrain.png`) as a
+second image, and paste the building's line below into the prompt.
+
+```
+Use the first attached image as the exact reference: the same building,
+platform, camera, framing and size, with nothing moved or redesigned.
+The second attached image is the reference for the light and colours of
+Mars only; do not copy its framing.
+
+Move the building to Mars. Warm sunlight from the upper left with the
+soft butterscotch cast of Mars's dusty air: left-facing walls lit,
+right-facing walls in warm shade, softer shadows falling to the lower
+right. Fine rust-orange dust has settled on every flat top and ledge and
+on the platform tiles, with small drifts piled against the foot of the
+walls. The paint keeps its colour under the dust: white stays white,
+blue stays blue. The stone platform takes on the warm light but stays
+grey stone.
+
+[THE BUILDING'S MARS LINE]
+
+Same style as the reference. No ground beyond the platform, no people,
+no text. Background: a single flat solid colour, #0C1633 dark navy,
+filling the whole frame. No gradient, no vignette, no glow, no shadow on
+the background.
+```
+
+The Mars lines:
+
+- **Habitat, good**: `Clean and well kept, with only a light film of
+  dust; the status light by the door is green.`
+- **Habitat, worn**: `Keep every sign of wear from the reference, with
+  the dust rust-orange instead of grey; the status light is amber.`
+- **Habitat, damaged**: `Keep every sign of damage from the reference,
+  with the dust rust-orange instead of grey and piled higher against the
+  walls; the status light is red.`
+- **Solar field (each stage)**: `A thin film of orange dust dulls the
+  panels, as it did on NASA's Spirit, Opportunity and InSight landers.
+  Keep the number of panels and footings exactly as in the reference.`
+- **Greenhouse**: `The plants inside stay bright green; the dust lies
+  lightly on the curved panels and heavier along their bottom edge.`
+- **Lab**: `Dust lies on the roof and around the dish antenna.`
+
+**O₂ plant** (`mars/o2-plant.png`). Attach `mars/habitat-good.png`.
+
+```
+Use the attached image as the exact reference for the camera angle, the
+framing, the stone platform, the Mars light, the dust and the render
+style. Keep all of those identical, and replace the habitat with this
+building:
+
+An oxygen plant, a scaled-up version of MOXIE, the instrument on NASA's
+Perseverance rover that made oxygen from Mars's air: a boxy white
+processing building with blue panels and a large air intake grille (it
+breathes in the carbon dioxide that makes up Mars's air), and behind it
+three tall white oxygen tanks with blue bands, joined to it by pipes. A
+door on the lower-right face. It covers about three quarters of the
+platform.
+
+The building stands in the middle of the platform with a walkway of tiles
+around it, and nothing hangs over the platform's edges. Bold, simple
+shapes that stay readable when the image is shown about 250 pixels wide.
+No people, no text. Background: a single flat solid colour, #0C1633 dark
+navy, filling the whole frame. No gradient, no vignette, no glow, no
+shadow on the background.
 ```
