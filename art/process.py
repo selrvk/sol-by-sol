@@ -7,6 +7,8 @@
   around 250, with a wide faint halo), so it is thresholded to a clean
   edge. Day and night share one crop box per building, so nothing shifts
   when night falls.
+- Buildings, second set: one image per building, stage and time of day,
+  in buildings/moon and buildings/mars (see cut_building_sets).
 - Terrain: re-encoded as WebP, which is a fraction of the PNG's size.
 - Crew: two portrait sheets, bare-headed and helmeted, split into discs.
 
@@ -259,8 +261,39 @@ def make_lander() -> None:
     print(f'lander box in the pad image: {box}; x{LANDER_SHIP} for the shipped files')
 
 
+# The second set of buildings (art/ART-GUIDE.md): one building per image,
+# each built on a copy of the cargo pad, so every platform is the same size
+# and in the same place, on each world's folder (buildings/moon,
+# buildings/mars). A building's images, its stages and its day and night,
+# are cut to one shared box, so the game can swap and cross-fade them in
+# place. The printed size and anchor go into SPRITES in BaseView.tsx.
+PLATFORM_CENTRE = (628, 714)  # the platform's middle, in the 1254px renders
+BUILDING_SHIP = 0.5  # drawn ~250px wide in the game, like the cargo pad
+
+
+def cut_building_sets() -> None:
+    for folder in sorted(p for p in (SRC / 'buildings').iterdir() if p.is_dir() and p.name != 'v1'):
+        groups = collections.defaultdict(list)
+        for src in sorted(folder.glob('*.png')):
+            groups[src.stem.split('-')[0]].append(src)
+        for name, srcs in groups.items():
+            cut = {src.stem: drop_flat_background(Image.open(src)) for src in srcs}
+            box = cut[srcs[0].stem].getbbox()
+            for im in cut.values():
+                box = union(box, im.getbbox())
+            w, h = box[2] - box[0], box[3] - box[1]
+            size = (round(w * BUILDING_SHIP), round(h * BUILDING_SHIP))
+            (OUT / 'buildings' / folder.name).mkdir(parents=True, exist_ok=True)
+            for stem, im in cut.items():
+                save(im.crop(box).resize(size, Image.LANCZOS), OUT / 'buildings' / folder.name / f'{stem}.webp')
+            ax = (PLATFORM_CENTRE[0] - box[0]) / w
+            ay = (PLATFORM_CENTRE[1] - box[1]) / h
+            print(f'{folder.name}/{name}: px [{size[0]}, {size[1]}], anchor [{ax:.3f}, {ay:.3f}]')
+
+
 def main() -> None:
     cut_buildings()
+    cut_building_sets()
     # The O2 plant came separately, and already has its own transparency.
     copy_cutout(SRC / 'buildings' / 'co2maker.png', OUT / 'buildings' / 'co2maker.webp')
     make_lander()
