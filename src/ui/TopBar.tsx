@@ -2,6 +2,8 @@ import { FlaskConical, LogOut, Moon, Orbit, Package, ShieldAlert, Sun, Tornado, 
 import type { ReactNode } from 'react'
 import { dustSeason, lightInfo, nextResupplySol } from '../sim/forecast.ts'
 import type { GameState } from '../sim/types.ts'
+import { scienceWhy } from './labels.ts'
+import { WhyTooltip } from './WhyTooltip.tsx'
 
 // One reading in the bar. On a phone the caption is dropped and the value
 // sits next to its icon, which is the difference between a four-row bar and
@@ -101,18 +103,24 @@ export function TopBar({ game, onQuit }: { game: GameState; onQuit: () => void }
       <div className="flex min-w-0 flex-1 items-center gap-2 border-slate-700/70 sm:min-w-56 sm:gap-2.5 sm:border-l sm:pl-4">
         <FlaskConical size={18} className="shrink-0 text-violet-300 sm:h-[22px] sm:w-[22px]" aria-hidden />
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:block">
-          <div className="hidden justify-between text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:flex">
+          <div className="hidden items-baseline justify-between gap-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:flex">
             <span>Science</span>
-            <span className="text-sm normal-case tracking-normal text-slate-100 tabular-nums">{score}</span>
+            <span className="ml-auto text-sm normal-case tracking-normal text-slate-100 tabular-nums">{score}</span>
+            <span className="normal-case tracking-normal">
+              <WhyTooltip why={scienceWhy(sc)} />
+            </span>
           </div>
           <div className="relative h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-700 sm:mt-1">
             <div className="h-full rounded-full bg-violet-400 transition-all" style={{ width: `${science * 100}%` }} />
-            {/* where you'd need to be to finish on time */}
-            <div className="absolute top-0 h-full w-0.5 bg-white/70" style={{ left: `${timeUsed * 100}%` }} title="Mission time used" />
+            {/* Where a steady pace would have you by now: explained in the why? */}
+            <div className="absolute top-0 h-full w-0.5 bg-white/70" style={{ left: `${timeUsed * 100}%` }} title="Where a steady pace would have you by now" />
           </div>
           <span className="shrink-0 text-sm tabular-nums sm:hidden">
             <span className="sr-only">Science: </span>
             {score}
+          </span>
+          <span className="flex shrink-0 leading-none sm:hidden">
+            <WhyTooltip why={scienceWhy(sc)} />
           </span>
         </div>
       </div>

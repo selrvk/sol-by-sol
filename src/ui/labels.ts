@@ -3,6 +3,7 @@
 import { BedDouble, FlaskConical, Mountain, Pickaxe, Sprout, Sun, Wind, Wrench, type LucideIcon } from 'lucide-react'
 import { c, type ConstantKey, type CurveKey } from '../sim/constants.ts'
 import { EVA_TASKS } from '../sim/advanceSol.ts'
+import { BALANCE } from '../sim/balance.ts'
 import type { ResourceRates, TaskEffects } from '../sim/effects.ts'
 import type { CrewTask, GameState, PowerLoad, Scenario, ScenarioId } from '../sim/types.ts'
 
@@ -267,6 +268,25 @@ export const METER_WHY: Record<string, (s: Scenario) => MeterWhy> = {
       'Four astronauts, one 8-hour shift each per sol. Every hour spent fixing, building or sheltering is an hour not spent on science. That is why real crews work to a tightly planned schedule.',
     refs: [{ rule: 'The 8-hour shift is a game rule, not a NASA figure.' }],
   }),
+}
+
+// The goal meter in the top bar. Science points are the game's own
+// measure, so the "for real" half is about what science means on a
+// mission, with no figure to cite.
+export function scienceWhy(s: Scenario): MeterWhy {
+  return {
+    rules: {
+      up:
+        `Lab science earns ${BALANCE.LAB_SCIENCE_PER_SHIFT} point a shift while the lab has power. ` +
+        `Field science earns ${BALANCE.FIELD_SCIENCE_PER_SHIFT}, but it is outside, with more radiation. Some alerts add points.`,
+      down: `Only a few alerts cost points. The real threat is the clock: you need ${s.scienceTarget} by sol ${s.missionLengthSols}.`,
+      note: 'The white mark moves with the mission clock: it is where a steady pace would have you by now. Keep the purple bar ahead of it.',
+    },
+    summary:
+      'A real mission is judged by its science: samples collected, experiments run, data sent home. Every hour a crew spends on ' +
+      'repairs or safety is an hour not spent on it, and a real commander has to balance the two.',
+    refs: [{ rule: 'Science points are a game measure, not a NASA figure.' }],
+  }
 }
 
 // Live numbers for the "why?" panels: see WhyRules.
