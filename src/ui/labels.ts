@@ -293,7 +293,9 @@ export function scienceWhy(s: Scenario): MeterWhy {
         `Lab science earns ${BALANCE.LAB_SCIENCE_PER_SHIFT} point a shift while the lab has power. ` +
         `Field science earns ${BALANCE.FIELD_SCIENCE_PER_SHIFT}, but it is outside, with more radiation. Some alerts add points.`,
       down: `Only a few alerts cost points. The real threat is the clock: you need ${s.scienceTarget} by sol ${s.missionLengthSols}.`,
-      note: 'The white mark moves with the mission clock: it is where a steady pace would have you by now. Keep the purple bar ahead of it.',
+      note:
+        'The white mark moves with the mission clock: it is where a steady pace would have you by now. Keep the purple bar ahead of it. ' +
+        'When it falls behind, the top bar says so.',
     },
     summary:
       'A real mission is judged by its science: samples collected, experiments run, data sent home. Every hour a crew spends on ' +

@@ -10,8 +10,8 @@ import { SOURCE_LABELS, type MeterWhy, type WhyRef } from './labels.ts'
 // so on a phone this opens as a sheet from the bottom, the same shape as the
 // crew task picker, where it has the room to be read and scrolled. A wide
 // screen keeps the popover next to the meter it explains.
-// `label` names the meter for screen readers, which otherwise hear seven
-// buttons all called "why?".
+// `label` names the meter for screen readers, which otherwise hear a row
+// of buttons all called "why?".
 export function WhyTooltip({ why, label }: { why: MeterWhy; label: string }) {
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLSpanElement>(null)

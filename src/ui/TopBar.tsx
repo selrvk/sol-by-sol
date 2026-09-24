@@ -37,7 +37,12 @@ export function TopBar({ game, onQuit }: { game: GameState; onQuit: () => void }
     <>
       {game.sciencePoints} / {sc.scienceTarget}
       {earned > 0 && <span className="ml-1 text-violet-300">(+{earned})</span>}
-      {behind && <span className="ml-2 text-amber-300">behind schedule</span>}
+      {/* Short where the row is tight: the science why? explains it. */}
+      {behind && (
+        <span className="ml-2 text-amber-300">
+          behind<span className="hidden xl:inline"> schedule</span>
+        </span>
+      )}
     </>
   )
 
@@ -56,7 +61,7 @@ export function TopBar({ game, onQuit }: { game: GameState; onQuit: () => void }
         : { icon: Moon, cls: 'text-indigo-300', text: 'Night', sub: `sunrise in ${plural(light.solsUntilChange ?? 0)}` }
   const changeSoon =
     (light.isDaylight && light.solsUntilChange !== null && light.solsUntilChange <= 3) ||
-    (env.dustStormSolsLeft === 0 && season !== null && season.inSols <= 3)
+    (env.dustStormSolsLeft === 0 && season !== null && !season.now && season.inSols <= 3)
   const cargo = nextResupplySol(sc, game.sol)
 
   return (
