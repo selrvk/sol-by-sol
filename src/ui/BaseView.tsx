@@ -5,11 +5,11 @@
 // Coordinates are pixels of the terrain image (1536 x 1024). Each building
 // sits on one of the five pads marked on the terrain.
 
-import { FlaskConical, Home, Pickaxe, Shield, Sprout, Sun, TriangleAlert, Wind, Zap, type LucideIcon } from 'lucide-react'
+import { FlaskConical, Home, Package, Pickaxe, Shield, Sprout, Sun, TriangleAlert, Wind, Zap, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { EVA_TASKS } from '../sim/advanceSol.ts'
 import { BALANCE } from '../sim/balance.ts'
-import { lightInfo } from '../sim/forecast.ts'
+import { lightInfo, nextResupplySol } from '../sim/forecast.ts'
 import type { CrewMember, CrewTask, Decisions, GameState, PowerLoad, ScenarioId } from '../sim/types.ts'
 import { portraitFor } from './labels.ts'
 import type { SolEffects } from './useSolEffects.ts'
@@ -65,12 +65,15 @@ const PADS = {
   reactor: { u: 0.22, v: 0.78 },
   greenhouse: { u: 0.74, v: 0.26 },
   lab: { u: 0.72, v: 0.77 },
+  // The Moon's cargo pad, on the open ground between the lab and the
+  // reactor. Mars has no deliveries, so it has no pad.
+  landing: { u: 0.5, v: 0.84 },
 } as const
 type PadId = keyof typeof PADS
 
 // One world scale for every building, so their painted sizes stay in
 // proportion to each other and to the ground.
-const BUILDING_SCALE = 0.6
+const BUILDING_SCALE = 0.45
 
 // Mars daylight. The building art was painted in the Moon's cool greys, and
 // on Mars's orange ground it looked pasted on. Dust in the Martian air gives
@@ -98,7 +101,7 @@ const CREW_UNDER_LABEL = 48 / 2 + 10 + BADGE_R
 // Buildings that light the ground at night, and the switch that decides
 // whether they are lit at all. The habitat and the reactor are never
 // switched off; the solar field has its own lamps.
-const LIT_PADS: { pad: PadId; load?: Exclude<PowerLoad, 'lifeSupport'> }[] = [
+const LIT_PADS: { pad: Exclude<PadId, 'landing'>; load?: Exclude<PowerLoad, 'lifeSupport'> }[] = [
   { pad: 'habitat' },
   { pad: 'reactor' },
   { pad: 'solar' },
@@ -115,8 +118,9 @@ interface Sprite {
   px: [number, number]
   anchor: [number, number]
   single?: boolean // one image, no separate night art
+  scale?: number // when the image was shipped at a different size
 }
-const SPRITES: Record<PadId | 'isru', Sprite> = {
+const SPRITES: Record<Exclude<PadId, 'landing'> | 'isru' | 'landerPad' | 'landerPod', Sprite> = {
   habitat: { name: 'habitat', px: [539, 419], anchor: [0.519, 0.57] },
   reactor: { name: 'reactor', px: [393, 423], anchor: [0.496, 0.738] },
   solar: { name: 'solar', px: [510, 314], anchor: [0.558, 0.548] },
@@ -125,6 +129,10 @@ const SPRITES: Record<PadId | 'isru', Sprite> = {
   // The O₂ plant stands on the reactor's pad, which Mars leaves empty. It
   // ships as one image because Mars has no night to light up for.
   isru: { name: 'co2maker', px: [515, 339], anchor: [0.538, 0.519], single: true },
+  // The cargo pad and the lander on it share one image box (art/process.py
+  // lines them up), anchored on the landing circle's centre.
+  landerPad: { name: 'lander-pad', px: [619, 482], anchor: [0.501, 0.622], single: true, scale: 0.38 },
+  landerPod: { name: 'lander-pod', px: [619, 482], anchor: [0.501, 0.622], single: true, scale: 0.38 },
 }
 
 // Where astronauts are shown for each task: a pad, or the crater field.
@@ -144,8 +152,8 @@ type Status = 'on' | 'off' | 'shed'
 
 function spriteBox(t: Terrain, pad: PadId, s: Sprite) {
   const g = groundAt(t, PADS[pad].u, PADS[pad].v)
-  const width = s.px[0] * BUILDING_SCALE
-  const height = s.px[1] * BUILDING_SCALE
+  const width = s.px[0] * (s.scale ?? BUILDING_SCALE)
+  const height = s.px[1] * (s.scale ?? BUILDING_SCALE)
   return { x: g.x - s.anchor[0] * width, y: g.y - s.anchor[1] * height, width, height }
 }
 
@@ -253,19 +261,52 @@ function DustDrift() {
 }
 
 // A cargo lander touching down: only drawn on the sol it arrives.
-function CargoLander({ x, y }: { x: number; y: number }) {
+// The Moon's cargo pad, and the lander standing on it. Real cargo landers
+// are one-way, so the last one stays on the pad; on a delivery sol a new
+// one comes down (the old one taken to have been cleared off). There is no
+// night art yet, so at night both are dimmed to match the ground.
+//
+// The landing: the lander drops onto the pad, slowing, on its engine; its
+// shadow grows and darkens as it nears the pad; at touchdown the dust flies
+// out low and straight and is gone. With no air on the Moon, dust does not
+// billow into a cloud, it travels in straight lines and drops, as the Apollo
+// landing films show.
+function CargoPad({ terrain, night, landing }: { terrain: Terrain; night: boolean; landing: boolean }) {
+  const box = spriteBox(terrain, 'landing', SPRITES.landerPad)
+  // Map units per pixel of the shipped image, for spots measured on it.
+  const k = box.width / SPRITES.landerPad.px[0]
+  const at = (px: number, py: number) => ({ x: box.x + px * k, y: box.y + py * k })
+  const centre = at(300, 298) // under the lander's body
+  const bell = at(290, 297) // the bottom of the engine bell
+  // The iso ground squashes circles to 0.54 of their width.
+  const streaks = Array.from({ length: 16 }, (_, i) => {
+    const a = (i / 16) * Math.PI * 2
+    const [cx, cy] = [Math.cos(a), Math.sin(a) * 0.54]
+    return { x1: cx * 70 * k, y1: cy * 70 * k, x2: cx * 190 * k, y2: cy * 190 * k }
+  })
   return (
-    <g transform={`translate(${x}, ${y})`}>
-      <g className="lander-descend">
-        <ellipse cx={0} cy={46} rx={54} ry={14} fill="#0f172a" opacity={0.45} />
-        <path d="M-34 28 L-46 48 M34 28 L46 48 M-16 30 L-22 50 M16 30 L22 50" stroke="#94a3b8" strokeWidth={5} strokeLinecap="round" />
-        <rect x={-40} y={-16} width={80} height={46} rx={10} fill="#e2e8f0" stroke="#475569" strokeWidth={4} />
-        <rect x={-40} y={-2} width={80} height={8} fill="#f97316" />
-        <rect x={-24} y={-30} width={48} height={16} rx={6} fill="#cbd5e1" stroke="#475569" strokeWidth={3} />
-        <g className="thruster">
-          <path d="M-14 30 L0 62 L14 30 Z" fill="#fbbf24" opacity={0.9} />
-          <path d="M-7 30 L0 48 L7 30 Z" fill="#fef3c7" />
+    <g filter={night ? 'url(#night-dim)' : undefined}>
+      <image href={`${ART}/buildings/lander-pad.webp`} {...box} />
+      <ellipse className={landing ? 'lander-shadow' : undefined} cx={centre.x} cy={centre.y} rx={125 * k} ry={60 * k} fill="#020617" opacity={0.45} />
+      {landing && (
+        <g transform={`translate(${centre.x}, ${centre.y})`}>
+          <g className="lander-dust">
+            {streaks.map((l, i) => (
+              <line key={i} {...l} stroke="#f8fafc" strokeWidth={4} strokeLinecap="round" />
+            ))}
+          </g>
         </g>
+      )}
+      {/* Keyed, so the descent starts over for each new lander. */}
+      <g key={landing ? 'landing' : 'landed'} className={landing ? 'lander-descend' : undefined}>
+        {landing && (
+          <path
+            className="lander-plume"
+            d={`M${bell.x - 17 * k} ${bell.y - 4 * k} L${bell.x} ${bell.y + 95 * k} L${bell.x + 17 * k} ${bell.y - 4 * k} Z`}
+            fill="#fde68a"
+          />
+        )}
+        <image href={`${ART}/buildings/lander-pod.webp`} {...box} />
       </g>
     </g>
   )
@@ -386,6 +427,8 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
   const gh = labelAt('greenhouse', SPRITES.greenhouse)
   const sol = labelAt('solar', SPRITES.solar)
   const rea = labelAt('reactor', SPRITES.reactor)
+  const cargo = labelAt('landing', SPRITES.landerPod)
+  const nextCargo = nextResupplySol(game.scenario, game.sol)
   const worn = f.condition < 0.6
   const o2 = labelAt('reactor', SPRITES.isru) // Mars has no reactor: the O₂ plant uses that pad
 
@@ -406,6 +449,11 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
         </mask>
         <filter id="mars-light" colorInterpolationFilters="sRGB">
           <feColorMatrix type="matrix" values={MARS_LIGHT} />
+        </filter>
+        {/* Night for art that has no night version: what the night overlay
+            does to the ground (a 55% multiply by #0a1433). */}
+        <filter id="night-dim" colorInterpolationFilters="sRGB">
+          <feColorMatrix type="matrix" values="0.47 0 0 0 0  0 0.49 0 0 0  0 0 0.56 0 0  0 0 0 1 0" />
         </filter>
         <radialGradient id="lamp-pool">
           <stop offset="0" stopColor="#fde68a" stopOpacity="0.5" />
@@ -468,6 +516,7 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
       {f.greenhouseM2 > 0 && (
         <Building terrain={terrain} pad="greenhouse" sprite={SPRITES.greenhouse} night={night} status={status('greenhouse')} flicker={effects?.powerCut && status('greenhouse') === 'shed'} />
       )}
+      {game.scenario.resupply && <CargoPad terrain={terrain} night={night} landing={!!effects?.resupply} />}
       <Building terrain={terrain} pad="lab" sprite={SPRITES.lab} night={night} status={status('lab')} flicker={effects?.powerCut && status('lab') === 'shed'} />
 
       {/* The O₂ plant, on the pad Mars leaves empty. One plant however many
@@ -484,9 +533,6 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
         />
       )}
       </g>
-
-      {/* A cargo lander comes down on resupply sols. */}
-      {effects?.resupply && <CargoLander key={game.sol} x={880} y={700} />}
 
       {/* A solar flare washes the scene red once, before the alert opens. */}
       {effects?.flare && <rect key={game.sol} className="flare-flash" width={W} height={H} fill="#ef4444" />}
@@ -539,6 +585,12 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
         </Pill>
       )}
       {badgesUnder('o2', o2.x, o2.y + CREW_UNDER_LABEL)}
+
+      {game.scenario.resupply && (
+        <Pill x={cargo.x} y={cargo.y} icon={Package} quiet>
+          Cargo{nextCargo !== null && nextCargo < game.scenario.missionLengthSols ? ` · next sol ${nextCargo}` : ''}
+        </Pill>
+      )}
 
       <Pill x={lab.x} y={lab.y} icon={FlaskConical} tone={status('lab') === 'shed' ? 'bad' : 'normal'} quiet={status('lab') === 'on'}>
         Lab{status('lab') === 'off' ? ' · off' : status('lab') === 'shed' ? ' · no power' : ''}

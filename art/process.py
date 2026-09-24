@@ -193,13 +193,13 @@ def make_patch() -> None:
     save(fit(192), OUT.parent / 'favicon-192.png')
 
 
-def cut_terrain(name: str) -> None:
-    """Drop the render's flat sky, leaving the slab on transparency.
+def drop_flat_background(im: Image.Image) -> Image.Image:
+    """Make a render's flat background colour transparent.
 
-    The game draws its own sky behind it, so the slab needs no hand-drawn
-    mask around it to sit on that sky cleanly.
+    Floods in from the image border, so dark parts enclosed by the object
+    are kept even where they are close to the background colour.
     """
-    im = Image.open(SRC / 'terrain' / f'{name}.png').convert('RGB')
+    im = im.convert('RGB')
     w, h = im.size
     px = im.load()
     sky = px[2, 2]
@@ -222,13 +222,48 @@ def cut_terrain(name: str) -> None:
                 queue.append((nx, ny))
     out = im.convert('RGBA')
     out.putalpha(mask.filter(ImageFilter.GaussianBlur(0.6)))
-    save(out, OUT / f'{name}.webp')
+    return out
+
+
+def cut_terrain(name: str) -> None:
+    """Drop the render's flat sky, leaving the slab on transparency.
+
+    The game draws its own sky behind it, so the slab needs no hand-drawn
+    mask around it to sit on that sky cleanly.
+    """
+    save(drop_flat_background(Image.open(SRC / 'terrain' / f'{name}.png')), OUT / f'{name}.webp')
+
+
+# The Moon's cargo lander comes as two images: the landing pad on its own,
+# and the lander on its own, so the game can bring the lander down onto the
+# pad. They were generated separately, and the lander came out larger and
+# off-centre, so it is scaled and moved onto the pad here: the numbers
+# carry each of its three visible footpads from lander-pod.png onto where
+# they stood in the first render, which showed the lander on this pad.
+# Both are then cut to one shared box, so the game can stack them exactly.
+LANDER_SCALE = 0.744
+LANDER_OFFSET = (150, 28)
+LANDER_SHIP = 0.5  # the pad is drawn ~250px wide, so half size is plenty
+
+
+def make_lander() -> None:
+    pad = drop_flat_background(Image.open(SRC / 'buildings' / 'lander-pad.png'))
+    raw = drop_flat_background(Image.open(SRC / 'buildings' / 'lander-pod.png'))
+    raw = raw.resize((round(raw.width * LANDER_SCALE), round(raw.height * LANDER_SCALE)), Image.LANCZOS)
+    pod = Image.new('RGBA', pad.size, (0, 0, 0, 0))
+    pod.alpha_composite(raw, LANDER_OFFSET)
+    box = union(pad.getbbox(), pod.getbbox())
+    ship = lambda im: im.crop(box).resize((round((box[2] - box[0]) * LANDER_SHIP), round((box[3] - box[1]) * LANDER_SHIP)), Image.LANCZOS)
+    save(ship(pad), OUT / 'buildings' / 'lander-pad.webp')
+    save(ship(pod), OUT / 'buildings' / 'lander-pod.webp')
+    print(f'lander box in the pad image: {box}; x{LANDER_SHIP} for the shipped files')
 
 
 def main() -> None:
     cut_buildings()
     # The O2 plant came separately, and already has its own transparency.
     copy_cutout(SRC / 'buildings' / 'co2maker.png', OUT / 'buildings' / 'co2maker.webp')
+    make_lander()
     make_patch()
     crop_crew()
     for terrain in sorted(SRC.glob('terrain/*.png')):

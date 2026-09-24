@@ -61,21 +61,34 @@ html {
 }
 .flare-flash { opacity: 0; animation: flare-flash 1.6s ease-out; }
 
-/* The cargo lander comes down and settles. */
+/* A cargo lander comes down onto its pad (BaseView's CargoPad): the
+   descent slows to touchdown at 80%, the engine cuts out there, the shadow
+   grows and darkens as the lander nears the pad, and at touchdown the dust
+   flies out in straight lines and is gone. */
 @keyframes lander-descend {
-  0% { transform: translateY(-420px); opacity: 0; }
-  15% { opacity: 1; }
-  70% { transform: translateY(0); }
-  78% { transform: translateY(-8px); }
-  100% { transform: translateY(0); }
+  0% { transform: translateY(-520px); }
+  80%, 100% { transform: translateY(0); }
 }
-.lander-descend { animation: lander-descend 2.2s cubic-bezier(0.3, 0.7, 0.3, 1) both; }
+.lander-descend { animation: lander-descend 2s cubic-bezier(0.15, 0.55, 0.3, 1) both; }
 
-@keyframes thruster {
-  0%, 100% { opacity: 0.9; transform: scaleY(1); }
-  50% { opacity: 0.45; transform: scaleY(0.6); }
+@keyframes lander-plume {
+  0%, 74% { opacity: 0.9; }
+  80%, 100% { opacity: 0; }
 }
-.thruster { animation: thruster 0.12s ease-in-out infinite; transform-origin: top center; }
+.lander-plume { opacity: 0; animation: lander-plume 2s linear both; }
+
+@keyframes lander-shadow {
+  0% { opacity: 0; transform: scale(0.35); }
+  80%, 100% { opacity: 0.45; transform: scale(1); }
+}
+.lander-shadow { transform-box: fill-box; transform-origin: center; animation: lander-shadow 2s cubic-bezier(0.15, 0.55, 0.3, 1) both; }
+
+@keyframes lander-dust {
+  0%, 78% { opacity: 0; transform: scale(0.3); }
+  82% { opacity: 0.85; }
+  100% { opacity: 0; transform: scale(1.4); }
+}
+.lander-dust { opacity: 0; transform-box: fill-box; transform-origin: center; animation: lander-dust 2s ease-out both; }
 
 /* Lit windows breathe gently through the night. */
 @keyframes night-breathe {
@@ -169,7 +182,7 @@ html {
 .portrait-fade { transition: opacity 400ms ease; }
 
 @media (prefers-reduced-motion: reduce) {
-  .delta-pop, .log-in, .flicker-out, .flare-flash, .lander-descend, .thruster, .night-breathe, .twinkle,
+  .delta-pop, .log-in, .flicker-out, .flare-flash, .lander-descend, .lander-plume, .lander-shadow, .lander-dust, .night-breathe, .twinkle,
   .panel-glint, .dust-drift, .crew-bob, .end-in, .icon-pop, .icon-settle, .win-burst, .section-in {
     animation: none;
   }

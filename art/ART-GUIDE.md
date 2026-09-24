@@ -109,6 +109,20 @@ and a night image. Modelled on real robotic Moon landers such as NASA's
 commercial CLPS landers: four legs, gold-foil insulation, an engine bell
 underneath, cargo on the deck. Prompts are below, with the maps'.
 
+In the game it is two layers, so the lander can come down onto the pad:
+`buildings/lander-pad.png` (the empty pad) and `buildings/lander-pod.png`
+(the lander alone). They were generated at different sizes, so
+`art/process.py` scales and moves the lander onto the pad (its three
+visible footpads onto where they stood in the first combined render) and
+cuts both to one shared box. A regenerated lander needs those two
+numbers (`LANDER_SCALE`, `LANDER_OFFSET`) measured again, or, better,
+generate it at exactly the pad image's framing.
+
+No night versions yet: at night the game dims both with the same tint as
+the ground (`night-dim` in `src/ui/BaseView.tsx`). Night versions would be
+the pad with its lamps lit, and the lander with its navigation lights on,
+each made from its day image.
+
 ## Current maps (v2)
 
 - 1536 × 1024. Top-face corners, in image pixels: Moon back (764, 31),
