@@ -2,7 +2,7 @@
 // presentational: which art is shown, and how it is tinted, is read from
 // game state; nothing here changes the game.
 //
-// Coordinates are pixels of the terrain image (1585 x 992). Each building
+// Coordinates are pixels of the terrain image (1536 x 1024). Each building
 // sits on one of the five pads marked on the terrain.
 
 import { FlaskConical, Home, Pickaxe, Shield, Sprout, Sun, TriangleAlert, Wind, Zap, type LucideIcon } from 'lucide-react'
@@ -14,12 +14,12 @@ import type { CrewMember, CrewTask, Decisions, GameState, PowerLoad, ScenarioId 
 import { portraitFor } from './labels.ts'
 import type { SolEffects } from './useSolEffects.ts'
 
-const W = 1585
-const H = 992
+const W = 1536
+const H = 1024
 const ART = '/art'
 // The slab fills the frame: its left and right corners run off the sides,
 // with just enough sky above the back corner for the stars.
-const VIEW = { x: 130, y: 60, w: 1330, h: 760 }
+const VIEW = { x: 103, y: 12, w: 1330, h: 760 }
 
 // Each world's terrain art, and the three corners of its painted diamond
 // (the front corner follows from the other three). A spot on the ground is
@@ -29,10 +29,12 @@ const VIEW = { x: 130, y: 60, w: 1330, h: 760 }
 // terrain is drawn in, which is what makes them look planted rather than
 // pasted on.
 //
-// The two slabs are not the same shape -- Mars sits lower and is a little
-// smaller -- so the corners are measured per world rather than shared. The
-// (u, v) positions below are the same for both, which is what lets one
-// layout serve both worlds.
+// The two slabs were generated from one another, so they are all but the
+// same shape (see art/ART-GUIDE.md), but the corners are still measured per
+// world, so a slab regenerated on its own can be dropped in. The (u, v)
+// positions below are the same for both, which is what lets one layout
+// serve both worlds. Measured by fitting lines to each slab's back edges,
+// ignoring the rocks along them: both edges slope at 28.5 degrees.
 interface Terrain {
   art: string
   north: readonly [number, number]
@@ -41,8 +43,8 @@ interface Terrain {
 }
 
 const TERRAIN: Record<ScenarioId, Terrain> = {
-  moon: { art: 'moon-terrain.webp', north: [781, 51], west: [11, 420], east: [1576, 476] },
-  mars: { art: 'mars-terrain.webp', north: [788, 102], west: [37, 438], east: [1552, 463] },
+  moon: { art: 'moon-terrain.webp', north: [764, 31], west: [37, 426], east: [1495, 429] },
+  mars: { art: 'mars-terrain.webp', north: [761, 29], west: [34, 425], east: [1496, 427] },
 }
 
 function groundAt(t: Terrain, u: number, v: number) {
@@ -62,13 +64,13 @@ const PADS = {
   habitat: { u: 0.45, v: 0.5 },
   reactor: { u: 0.22, v: 0.78 },
   greenhouse: { u: 0.74, v: 0.26 },
-  lab: { u: 0.64, v: 0.79 },
+  lab: { u: 0.72, v: 0.77 },
 } as const
 type PadId = keyof typeof PADS
 
 // One world scale for every building, so their painted sizes stay in
 // proportion to each other and to the ground.
-const BUILDING_SCALE = 0.62
+const BUILDING_SCALE = 0.6
 
 // Mars daylight. The building art was painted in the Moon's cool greys, and
 // on Mars's orange ground it looked pasted on. Dust in the Martian air gives
@@ -189,8 +191,8 @@ function starsFor(t: Terrain): Star[] {
   const above = (x: number, y: number) => y < ny + (x < nx ? leftSlope * (x - nx) : rightSlope * (x - nx)) - 14
   const out: Star[] = []
   for (let i = 0; i < 90 && out.length < 34; i++) {
-    const x = 130 + ((i * 271) % 1330)
-    const y = 145 + ((i * 137) % 300)
+    const x = VIEW.x + ((i * 271) % VIEW.w)
+    const y = VIEW.y + 85 + ((i * 137) % 300)
     if (above(x, y)) out.push({ x, y, r: i % 4 === 0 ? 3 : 2, delay: (i % 7) * 0.45 })
   }
   starFields.set(t.art, out)

@@ -17,14 +17,23 @@ generated months later sit on a map made today.
   the **front corner** at the bottom, the left and right corners at the
   sides.
 
-The current art is close to this but not exact, and not the same on both
-maps, which is part of why they look inconsistent:
+**What the maps actually came out at, and what new art should match.**
+Image tools rarely hit an exact angle. The second-generation maps (Sep
+2026) came out symmetric and identical to each other, but about 2°
+steeper than true 2:1, and they are now the reference: new art should
+match them, not the textbook figure.
 
-| Art | Left edge | Right edge |
-|---|---|---|
-| Moon slab (current) | 25.6° | 28.1° |
-| Mars slab (current) | 24.1° | 25.3° |
-| Target | 26.57° | 26.57° |
+| Art | Left edge | Right edge | Top-face diamond, height ÷ width |
+|---|---|---|---|
+| Moon map v1 | 26.0° | 24.1° | 0.47 |
+| Mars map v1 | 23.5° | 25.1° | 0.45 |
+| Moon and Mars maps v2 (current) | 28.5° | 28.5° | 0.54 |
+| Buildings (current) | about 25–28°, one-offs 21–33° | | |
+| True 2:1 | 26.57° | 26.57° | 0.50 |
+
+So for anything new, ask for **2:1 isometric** and check the result
+against the maps: edges between about 26° and 29° sit well on them.
+Measured by fitting lines to the silhouette edges, ignoring the rocks.
 
 ## Lighting (every image)
 
@@ -54,9 +63,9 @@ occlusion, gentle bevels, no outlines. The existing building sheet
 
 ## The maps
 
-- **Landscape 3:2**, e.g. 1536 × 1024. (The current maps are 1585 × 992;
-  the code is re-measured for new art, so the exact size can change, but
-  **both maps must be the same size, with the slab in the same place**.)
+- **Landscape 3:2**, e.g. 1536 × 1024 (the current maps' size). The code
+  is re-measured for new art, so the exact size can change, but **both
+  maps must be the same size, with the slab in the same place**.
 - One square slab of ground, seen as a diamond:
   - it fills the width of the frame, with a small margin on each side;
   - its back corner is near the top; its front corner, plus the cliff
@@ -95,6 +104,14 @@ occlusion, gentle bevels, no outlines. The existing building sheet
 
 Follows the camera, lighting, style and background rules above, on a
 platform the size of one building pad. Prompt still to write.
+
+## Current maps (v2)
+
+- 1536 × 1024. Top-face corners, in image pixels: Moon back (764, 31),
+  left (37, 426), right (1495, 429); Mars back (761, 29), left (34, 425),
+  right (1496, 427). Front corner about (768, 824); cliff bottom about
+  y 970, so the cliff is about 146 px, a tenth of the slab's width.
+- Background #0B1534-ish navy, cut out by `art/process.py`.
 
 ## After new art arrives
 
