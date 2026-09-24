@@ -1,5 +1,5 @@
 import { ArrowLeftRight, ChevronRight, Lightbulb, Radiation, TriangleAlert, Users, Wrench } from 'lucide-react'
-import { useEffect, type Dispatch } from 'react'
+import { useEffect, useRef, type Dispatch } from 'react'
 import { EVA_TASKS } from '../sim/advanceSol.ts'
 import { BALANCE } from '../sim/balance.ts'
 import { taskEffects } from '../sim/effects.ts'
@@ -60,6 +60,14 @@ export function CrewPanel({ game, decisions, dispatch, highlightTask, showAdvice
   const lines = Object.fromEntries((Object.keys(TASK_LABELS) as CrewTask[]).map((t) => [t, describeTask(t, fx)])) as Record<CrewTask, TaskLine>
 
   const picked = game.crew.find((m) => m.id === pickerFor) ?? null
+  // When the phone sheet closes, focus goes back to the astronaut it was
+  // opened for, so a keyboard or screen reader user keeps their place.
+  const openers = useRef<Record<string, HTMLButtonElement | null>>({})
+  const lastPicked = useRef<string | null>(null)
+  useEffect(() => {
+    if (pickerFor === null && lastPicked.current) openers.current[lastPicked.current]?.focus()
+    lastPicked.current = pickerFor
+  }, [pickerFor])
 
   return (
     <section aria-label="Crew assignments" className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
@@ -110,8 +118,12 @@ export function CrewPanel({ game, decisions, dispatch, highlightTask, showAdvice
               <div className="mt-2 lg:hidden">
                 <button
                   type="button"
+                  ref={(el) => {
+                    openers.current[m.id] = el
+                  }}
                   onClick={() => onPickerChange?.(m.id)}
                   aria-haspopup="dialog"
+                  aria-label={`Change ${m.name}’s task: ${TASK_LABELS[task].label}${EVA_TASKS.has(task) ? ', outside' : ''}`}
                   className={`flex w-full items-center gap-2 rounded-lg border border-slate-700 px-2.5 py-2 text-left text-sm hover:border-slate-500 transition active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 ${
                     highlightTask && (task === 'labScience' || task === 'fieldScience') ? 'animate-pulse ring-2 ring-yellow-300' : ''
                   }`}
@@ -246,6 +258,11 @@ function TaskButtons({
             title={`${TASK_LABELS[t].label}: ${lines[t].does}${lines[t].warn ? `. ${lines[t].warn}` : ''}`}
             aria-pressed={selected}
             aria-label={TASK_LABELS[t].label}
+            // The compact grid shows only a word, so a screen reader gets the
+            // full line as a description; the phone list shows it as text.
+            aria-describedby={big ? undefined : `${crewId}-${t}-line`}
+            // The phone sheet opens on the job the astronaut has now.
+            autoFocus={big && selected}
             onClick={() => {
               dispatch({ type: 'assign', crewId, task: t })
               onPicked?.()
@@ -270,6 +287,16 @@ function TaskButtons({
           </button>
         )
       })}
+      {!big && (
+        <div hidden>
+          {tasks.map((t) => (
+            <span key={t} id={`${crewId}-${t}-line`}>
+              {lines[t].does}
+              {lines[t].warn ? `. ${lines[t].warn}` : ''}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

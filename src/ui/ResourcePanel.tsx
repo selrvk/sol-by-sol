@@ -258,7 +258,7 @@ function Meter({ name, valueText, icon, value, fill, delta, unit, amount, why, d
         <span className="font-semibold">{name}</span>
         <span className="flex items-center gap-2">
           <span className="tabular-nums">{value}</span>
-          <WhyTooltip why={why} />
+          <WhyTooltip why={why} label={name} />
         </span>
       </div>
       <div className="mt-1 h-2 overflow-hidden rounded bg-slate-700" role="meter" aria-valuenow={Math.round(f * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={name}

@@ -1,5 +1,5 @@
 import { Apple, Clock, Droplet, Globe, Moon, Radiation, Trophy, Wind, Zap, type LucideIcon } from 'lucide-react'
-import type { Dispatch } from 'react'
+import { useEffect, useRef, type Dispatch } from 'react'
 import { c } from '../sim/constants.ts'
 import { resourceRates } from '../sim/effects.ts'
 import type { GameState, LossReason, ScenarioId } from '../sim/types.ts'
@@ -178,13 +178,18 @@ const LOSS_INFO: Record<LossReason, LossInfo> = {
 }
 
 export function EndScreen({ game, dispatch }: { game: GameState; dispatch: Dispatch<Action> }) {
+  const panel = useRef<HTMLDivElement>(null)
+  useEffect(() => panel.current?.focus(), [])
   const o = game.outcome
   const won = o.status === 'won'
   const info = o.status === 'lost' ? LOSS_INFO[o.reason] : null
   const LossIcon = info?.icon ?? Trophy
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-4" role="dialog" aria-modal="true" aria-labelledby="end-title">
-      <div className={`end-in w-full max-w-lg rounded-2xl border bg-slate-900 p-6 ${won ? 'border-emerald-400' : 'border-red-500'}`}>
+      {/* Focus moves to the panel, not a button, so a screen reader starts at
+          the title, and an Enter still held from advancing sols can't press
+          Try again before the player has read why the mission ended. */}
+      <div ref={panel} tabIndex={-1} className={`end-in w-full max-w-lg rounded-2xl border bg-slate-900 p-6 outline-none ${won ? 'border-emerald-400' : 'border-red-500'}`}>
         <p className="relative flex justify-center" aria-hidden>
           {/* One burst of light behind the trophy, and nothing behind a loss. */}
           {won && <span className="win-burst absolute inset-0 m-auto h-16 w-16 rounded-full bg-yellow-300/60 blur-lg" />}

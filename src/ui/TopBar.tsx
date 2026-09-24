@@ -107,7 +107,7 @@ export function TopBar({ game, onQuit }: { game: GameState; onQuit: () => void }
             <span>Science</span>
             <span className="ml-auto text-sm normal-case tracking-normal text-slate-100 tabular-nums">{score}</span>
             <span className="normal-case tracking-normal">
-              <WhyTooltip why={scienceWhy(sc)} />
+              <WhyTooltip why={scienceWhy(sc)} label="Science" />
             </span>
           </div>
           <div className="relative h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-700 sm:mt-1">
@@ -120,7 +120,7 @@ export function TopBar({ game, onQuit }: { game: GameState; onQuit: () => void }
             {score}
           </span>
           <span className="flex shrink-0 leading-none sm:hidden">
-            <WhyTooltip why={scienceWhy(sc)} />
+            <WhyTooltip why={scienceWhy(sc)} label="Science" />
           </span>
         </div>
       </div>
