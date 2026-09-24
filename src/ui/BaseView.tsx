@@ -75,18 +75,8 @@ type PadId = keyof typeof PADS
 // proportion to each other and to the ground.
 const BUILDING_SCALE = 0.45
 
-// Mars daylight, for the one piece of first-set art Mars still uses, the O₂
-// plant (the second set is painted in Mars light already). The first
-// building art was painted in the Moon's cool greys, and on Mars's orange
-// ground it looked pasted on. Dust in the Martian air gives
-// daylight a warm, butterscotch cast, so on Mars the buildings are lit by
-// it: blue is cut most, green a little, and colour slightly softened, which
-// keeps each building's own hue (the green greenhouse, the blue lab) while
-// matching the light the ground is lit by. A tint, not a coat of dust, so
-// the buildings stay easy to tell apart.
-const MARS_LIGHT = '0.900 0.109 0.011 0 0  0.029 0.881 0.010 0 0  0.025 0.084 0.671 0 0  0 0 0 1 0'
-// The solar glint's colour, #e0f2fe, and on Mars the same run through
-// MARS_LIGHT, so the sunlight on the panels is Mars's warm light.
+// The solar glint's colour: sunlight, and on Mars sunlight warmed by the
+// dust in its air.
 const GLINT = { moon: '#e0f2fe', mars: '#e7dec4' } as const
 
 // Radius of a crew portrait on the map, shared by the badge and its mask.
@@ -149,7 +139,7 @@ const SPRITES: Record<Exclude<PadId, 'landing'> | 'isru' | 'landerPad' | 'lander
   lab: { name: 'lab', px: [471, 361], anchor: [0.486, 0.62] },
   // The O₂ plant stands on the reactor's pad, which Mars leaves empty. It
   // ships as one image because Mars has no night to light up for.
-  isru: { name: 'co2maker', px: [515, 339], anchor: [0.538, 0.519], single: true, daylight: 'url(#mars-light)' },
+  isru: { name: 'co2maker', px: [515, 339], anchor: [0.538, 0.519], single: true },
   // The cargo pad and the lander on it share one image box (art/process.py
   // lines them up), anchored on the landing circle's centre.
   landerPad: { name: 'lander-pad', px: [619, 482], anchor: [0.501, 0.622], single: true, scale: SECOND_SET_SCALE },
@@ -169,9 +159,10 @@ const MOON_LIGHT = '0.94 0 0 0 0  0 1.01 0 0 0  0 0 1.09 0 0  0 0 0 1 0'
 // built on a copy of the cargo pad's platform, so all share the pad's
 // scale, and art/process.py cuts a building's stages and its day and night
 // to one box, so they share a size and anchor (printed by process.py).
-// Mars has no reactor (it runs on solar); its O₂ plant is still first-set
-// art. Mars has no night either, so its images are day only.
-type BuildingId = 'habitat' | 'solar' | 'reactor' | 'greenhouse' | 'lab'
+// Mars has no reactor (it runs on solar), and only Mars has the O₂ plant,
+// which stands on the pad Mars leaves empty. Mars has no night either, so
+// its images are day only.
+type BuildingId = 'habitat' | 'solar' | 'reactor' | 'greenhouse' | 'lab' | 'isru'
 type SpriteSize = Pick<Sprite, 'px' | 'anchor'>
 const SECOND_SET: Record<ScenarioId, Partial<Record<BuildingId, SpriteSize>>> = {
   moon: {
@@ -186,6 +177,7 @@ const SECOND_SET: Record<ScenarioId, Partial<Record<BuildingId, SpriteSize>>> = 
     solar: { px: [620, 368], anchor: [0.5, 0.503] },
     greenhouse: { px: [619, 366], anchor: [0.501, 0.501] },
     lab: { px: [620, 410], anchor: [0.5, 0.554] },
+    isru: { px: [619, 452], anchor: [0.501, 0.596] },
   },
 }
 
@@ -206,7 +198,7 @@ function buildingSprites(game: GameState): Record<BuildingId, Sprite> {
   const world = game.scenario.id
   const sprite = (id: BuildingId, file: string): Sprite => {
     const size = SECOND_SET[world][id]
-    if (!size) return SPRITES[id] // never shown: the reactor on Mars
+    if (!size) return SPRITES[id] // never shown: the reactor on Mars, the O₂ plant on the Moon
     return world === 'moon'
       ? { name: `moon/${file}`, ...size, scale: SECOND_SET_SCALE, daylight: 'url(#moon-light)' }
       : { name: `${world}/${file}-day`, ...size, scale: SECOND_SET_SCALE, single: true }
@@ -218,6 +210,7 @@ function buildingSprites(game: GameState): Record<BuildingId, Sprite> {
     reactor: sprite('reactor', 'reactor'),
     greenhouse: sprite('greenhouse', 'greenhouse'),
     lab: sprite('lab', 'lab'),
+    isru: sprite('isru', 'o2-plant'),
   }
 }
 
@@ -350,8 +343,8 @@ function DustDrift() {
 // A cargo lander touching down: only drawn on the sol it arrives.
 // The Moon's cargo pad, and the lander standing on it. Real cargo landers
 // are one-way, so the last one stays on the pad; on a delivery sol a new
-// one comes down (the old one taken to have been cleared off). There is no
-// night art yet, so at night both are dimmed to match the ground.
+// one comes down (the old one taken to have been cleared off). Day and night
+// images are cross-faded, as a building's are.
 //
 // The landing: the lander drops onto the pad, slowing, on its engine; its
 // shadow grows and darkens as it nears the pad; at touchdown the dust flies
@@ -371,9 +364,11 @@ function CargoPad({ terrain, night, landing }: { terrain: Terrain; night: boolea
     const [cx, cy] = [Math.cos(a), Math.sin(a) * 0.54]
     return { x1: cx * 70 * k, y1: cy * 70 * k, x2: cx * 190 * k, y2: cy * 190 * k }
   })
+  const fade = (on: boolean) => ({ opacity: on ? 1 : 0, transition: 'opacity 1.2s' })
   return (
-    <g filter={night ? 'url(#night-dim)' : undefined}>
-      <image href={`${ART}/buildings/lander-pad.webp`} {...box} filter="url(#moon-light)" />
+    <g>
+      <image href={`${ART}/buildings/lander-pad.webp`} {...box} filter="url(#moon-light)" style={fade(!night)} />
+      <image href={`${ART}/buildings/lander-pad-night.webp`} {...box} style={fade(night)} />
       <ellipse className={landing ? 'lander-shadow' : undefined} cx={centre.x} cy={centre.y} rx={125 * k} ry={60 * k} fill="#020617" opacity={0.45} />
       {landing && (
         <g transform={`translate(${centre.x}, ${centre.y})`}>
@@ -393,7 +388,8 @@ function CargoPad({ terrain, night, landing }: { terrain: Terrain; night: boolea
             fill="#fde68a"
           />
         )}
-        <image href={`${ART}/buildings/lander-pod.webp`} {...box} filter="url(#moon-light)" />
+        <image href={`${ART}/buildings/lander-pod.webp`} {...box} filter="url(#moon-light)" style={fade(!night)} />
+        <image href={`${ART}/buildings/lander-pod-night.webp`} {...box} style={fade(night)} />
       </g>
     </g>
   )
@@ -517,7 +513,7 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
   const cargo = labelAt('landing', SPRITES.landerPod)
   const nextCargo = nextResupplySol(game.scenario, game.sol)
   const worn = f.condition < 0.6
-  const o2 = labelAt('reactor', SPRITES.isru) // Mars has no reactor: the O₂ plant uses that pad
+  const o2 = labelAt('reactor', b.isru) // Mars has no reactor: the O₂ plant uses that pad
 
   return (
     <svg viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`} className="h-auto w-full bg-[#0c1633]" role="img" aria-label={`The ${isMars ? 'Mars' : 'lunar'} outpost`}>
@@ -531,9 +527,6 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
         <mask id="solar-mask" maskUnits="userSpaceOnUse" style={{ maskType: 'alpha' }} {...spriteBox(terrain, 'solar', b.solar)}>
           <image href={b.solar.glint ? `${ART}/buildings/${b.solar.glint}.webp` : art(b.solar, 'day')} {...spriteBox(terrain, 'solar', b.solar)} />
         </mask>
-        <filter id="mars-light" colorInterpolationFilters="sRGB">
-          <feColorMatrix type="matrix" values={MARS_LIGHT} />
-        </filter>
         <filter id="moon-light" colorInterpolationFilters="sRGB">
           <feColorMatrix type="matrix" values={MOON_LIGHT} />
         </filter>
@@ -626,7 +619,7 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
         <Building
           terrain={terrain}
           pad="reactor"
-          sprite={SPRITES.isru}
+          sprite={b.isru}
           night={night}
           status={status('isru')}
           flicker={effects?.powerCut && status('isru') === 'shed'}

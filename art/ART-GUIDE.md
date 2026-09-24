@@ -55,8 +55,7 @@ building**: each building prompt below starts from it (see Buildings).
   the Moon; warm light with Mars's butterscotch cast and softer shadows on
   Mars. (The first buildings were painted once in Moon light, and the
   game tinted them for Mars with `MARS_LIGHT` in `src/ui/BaseView.tsx`.
-  The second Mars set is painted in Mars light and is not tinted; the
-  tint is left on the first-set O₂ plant only, until its new image comes.)
+  The second Mars set is painted in Mars light, so the tint is gone.)
 - No night versions of the maps are needed. The game darkens the ground
   itself. Moon buildings do need a night version (below). **Mars has no
   night in the game** (its daylight is averaged over the sol), so Mars
@@ -208,10 +207,10 @@ cuts both to one shared box. A regenerated lander needs those two
 numbers (`LANDER_SCALE`, `LANDER_OFFSET`) measured again, or, better,
 generate it at exactly the pad image's framing.
 
-No night versions yet: at night the game dims both with the same tint as
-the ground (`night-dim` in `src/ui/BaseView.tsx`). Night versions would be
-the pad with its lamps lit, and the lander with its navigation lights on,
-each made from its day image.
+The night versions, the pad with its lamps lit and the lander with its
+navigation lights on, are `moon/lander-pad-night.png` and
+`moon/lander-pod-night.png`, each made from its day image. `process.py`
+puts them on the same frame as the day images.
 
 ## Current maps (v2)
 

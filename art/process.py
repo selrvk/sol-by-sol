@@ -243,21 +243,40 @@ def cut_terrain(name: str) -> None:
 # carry each of its three visible footpads from lander-pod.png onto where
 # they stood in the first render, which showed the lander on this pad.
 # Both are then cut to one shared box, so the game can stack them exactly.
+#
+# Their night images are in buildings/moon, beside the Moon buildings'. The
+# pad's is lined up onto the day pad like a building's; the lander's came
+# out framed exactly like its day image, so it takes the same scale and
+# move. Each then takes its day image's outline, as the buildings' night
+# images do.
 LANDER_SCALE = 0.744
 LANDER_OFFSET = (150, 28)
 LANDER_SHIP = 0.5  # the pad is drawn ~250px wide, so half size is plenty
 
 
 def make_lander() -> None:
+    def onto_pad_frame(src: Path) -> Image.Image:
+        raw = drop_flat_background(Image.open(src))
+        raw = raw.resize((round(raw.width * LANDER_SCALE), round(raw.height * LANDER_SCALE)), Image.LANCZOS)
+        pod = Image.new('RGBA', pad.size, (0, 0, 0, 0))
+        pod.alpha_composite(raw, LANDER_OFFSET)
+        return pod
+
     pad = drop_flat_background(Image.open(SRC / 'buildings' / 'lander-pad.png'))
-    raw = drop_flat_background(Image.open(SRC / 'buildings' / 'lander-pod.png'))
-    raw = raw.resize((round(raw.width * LANDER_SCALE), round(raw.height * LANDER_SCALE)), Image.LANCZOS)
-    pod = Image.new('RGBA', pad.size, (0, 0, 0, 0))
-    pod.alpha_composite(raw, LANDER_OFFSET)
+    pod = onto_pad_frame(SRC / 'buildings' / 'lander-pod.png')
+    images = {'lander-pad': pad, 'lander-pod': pod}
+    pad_night = SRC / 'buildings' / 'moon' / 'lander-pad-night.png'
+    if pad_night.exists():
+        images['lander-pad-night'], _ = onto_the_pad(drop_flat_background(Image.open(pad_night)), pad)
+        images['lander-pad-night'].putalpha(pad.getchannel('A'))
+    pod_night = SRC / 'buildings' / 'moon' / 'lander-pod-night.png'
+    if pod_night.exists():
+        images['lander-pod-night'] = onto_pad_frame(pod_night)
+        images['lander-pod-night'].putalpha(pod.getchannel('A'))
     box = union(pad.getbbox(), pod.getbbox())
     ship = lambda im: im.crop(box).resize((round((box[2] - box[0]) * LANDER_SHIP), round((box[3] - box[1]) * LANDER_SHIP)), Image.LANCZOS)
-    save(ship(pad), OUT / 'buildings' / 'lander-pad.webp')
-    save(ship(pod), OUT / 'buildings' / 'lander-pod.webp')
+    for name, im in images.items():
+        save(ship(im), OUT / 'buildings' / f'{name}.webp')
     print(f'lander box in the pad image: {box}; x{LANDER_SHIP} for the shipped files')
 
 
@@ -349,6 +368,8 @@ def cut_building_sets() -> None:
     for folder in sorted(p for p in (SRC / 'buildings').iterdir() if p.is_dir() and p.name != 'v1'):
         groups = collections.defaultdict(list)
         for src in sorted(folder.glob('*.png')):
+            if src.stem.startswith('lander-'):
+                continue  # the cargo lander's night images: make_lander
             groups[src.stem.split('-')[0]].append(src)
         for name, srcs in groups.items():
             cut = {}
