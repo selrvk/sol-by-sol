@@ -165,8 +165,11 @@ const LOSS_INFO: Record<LossReason, LossInfo> = {
     icon: Clock,
     title: 'The mission clock ran out',
     whatHappened: (g) => `The crew survived, but finished with ${g.sciencePoints} of the ${g.scenario.scienceTarget} science points needed.`,
-    realWorld:
-      'Science is why we send people at all. Real missions have fixed windows: from Mars, a chance to fly home only comes around every 26 months or so, so time cannot be stretched.',
+    realWorld: (g) =>
+      'Science is why we send people at all. ' +
+      (g.scenario.id === 'moon'
+        ? 'A crew’s time on the Moon is limited by the supplies it brings and its ride home, so every shift counts and the time cannot be stretched.'
+        : 'Real missions have fixed windows: from Mars, a chance to fly home only comes around every 26 months or so, so time cannot be stretched.'),
     tryNext: (g) =>
       g.scenario.outsideWorkAtNight
         ? 'Once the base is safe, move crew off extra building and onto science. Playing it too safe is a way to fail too.'
