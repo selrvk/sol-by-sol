@@ -55,7 +55,8 @@ building**: each building prompt below starts from it (see Buildings).
   the Moon; warm light with Mars's butterscotch cast and softer shadows on
   Mars. (The first buildings were painted once in Moon light, and the
   game tinted them for Mars with `MARS_LIGHT` in `src/ui/BaseView.tsx`.
-  Mars buildings made from these rules do not need the tint.)
+  The second Mars set is painted in Mars light and is not tinted; the
+  tint is left on the first-set O₂ plant only, until its new image comes.)
 - No night versions of the maps are needed. The game darkens the ground
   itself. Moon buildings do need a night version (below). **Mars has no
   night in the game** (its daylight is averaged over the sol), so Mars
@@ -158,14 +159,16 @@ choices in `BaseView.tsx`, not game rules.
 Put them in `art/source/buildings/moon/` and `art/source/buildings/mars/`
 under these names; `art/process.py` will read them from there.
 
-| Building | Moon, day and night (`-day.png`, `-night.png`) | Mars, day only |
+Every file ends in `-day.png` or `-night.png`; Mars has day only.
+
+| Building | Moon, day and night | Mars, day only |
 |---|---|---|
-| Habitat | `habitat-good`, `habitat-worn`, `habitat-damaged` | `habitat-good.png`, `habitat-worn.png`, `habitat-damaged.png` |
-| Solar | `solar-1`, `solar-2`, `solar-3` | `solar-1.png`, `solar-2.png`, `solar-3.png` |
+| Habitat | `habitat-good`, `habitat-worn`, `habitat-damaged` | the same |
+| Solar | `solar-1`, `solar-2`, `solar-3` | the same |
 | Reactor | `reactor` | none |
-| Greenhouse | `greenhouse` | `greenhouse.png` |
-| Lab | `lab` | `lab.png` |
-| O₂ plant | none | `o2-plant.png` |
+| Greenhouse | `greenhouse` | `greenhouse` |
+| Lab | `lab` | `lab` |
+| O₂ plant | none | `o2-plant` |
 
 That is 18 Moon images and 9 Mars images, plus the lander's two night
 images.
@@ -579,7 +582,7 @@ The night lines:
 
 One prompt for every Mars image except the O₂ plant: attach the Moon day
 image with the same name (for example `moon/lab-day.png` for
-`mars/lab.png`), then the Mars map (`terrain/mars-terrain.png`) as a
+`mars/lab-day.png`), then the Mars map (`terrain/mars-terrain.png`) as a
 second image, and paste the building's line below into the prompt.
 
 ```
@@ -621,7 +624,7 @@ The Mars lines:
   lightly on the curved panels and heavier along their bottom edge.`
 - **Lab**: `Dust lies on the roof and around the dish antenna.`
 
-**O₂ plant** (`mars/o2-plant.png`). Attach `mars/habitat-good.png`.
+**O₂ plant** (`mars/o2-plant-day.png`). Attach `mars/habitat-good-day.png`.
 
 ```
 Use the attached image as the exact reference for the camera angle, the
