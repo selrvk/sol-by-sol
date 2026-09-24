@@ -37,6 +37,13 @@
 //               Moon: wins. Mars has no night, so it is rota-1m3f there:
 //               out of oxygen.
 //
+// Mars: every fixed plan was tried the same way (all 126 mixes of
+// maintenance, field, lab, greenhouse, O₂ makers and solar, each with and
+// without building O₂ makers first). Before the dust season, O₂ makers
+// then rota-1m3f won 69%: it only lost when a storm came early, and half
+// of missions had no storm at all. With the season it wins about 4%; the
+// best, which keeps one astronaut building panels, wins about 1 in 5.
+//
 // Every fixed plan that ignores the night was also tried (all 35 mixes of
 // maintenance, field, lab and greenhouse, each with and without an opening
 // of extra repairs): the best, 1 maintenance, 2 field, 1 lab after the

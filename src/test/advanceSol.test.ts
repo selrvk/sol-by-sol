@@ -7,7 +7,7 @@ import { checkAll } from '../../scripts/expectations.ts'
 import { POLICIES } from '../../scripts/policies.ts'
 import { advanceSol, EVA_TASKS } from '../sim/advanceSol.ts'
 import { resourceRates, taskEffects } from '../sim/effects.ts'
-import { lightInfo, nightAhead } from '../sim/forecast.ts'
+import { dustSeason, lightInfo, nightAhead, stormChance, stormPower } from '../sim/forecast.ts'
 import { newGame } from '../sim/newGame.ts'
 import { mars } from '../sim/scenarios/mars.ts'
 import { moon } from '../sim/scenarios/moon.ts'
@@ -199,6 +199,41 @@ describe('opening crisis', () => {
       if (end.outcome.status === 'lost' && end.outcome.reason === 'power') lost++
     }
     assert.ok(lost >= 15, `expected most runs to lose power, got ${lost}/20`)
+  })
+})
+
+// Mars's lesson: storms come in the dust season, so there is time to build
+// for one. The game has to say when, and mean it.
+describe('mars dust season', () => {
+  const season = mars.dustStorm.season!
+
+  it('is announced ahead, and storms are far likelier inside it', () => {
+    assert.deepEqual(dustSeason(mars, season.fromSol - 10), { now: false, inSols: 10, fromSol: season.fromSol, toSol: season.toSol })
+    assert.equal(dustSeason(mars, season.fromSol)!.now, true)
+    assert.equal(dustSeason(mars, season.toSol + 1), null)
+    assert.equal(dustSeason(moon, 50), null)
+    assert.ok(stormChance(mars, season.fromSol) > 10 * stormChance(mars, season.fromSol - 1))
+  })
+
+  it('brings a storm in nearly every mission', () => {
+    let stormy = 0
+    for (let seed = 1; seed <= 50; seed++) {
+      let state = newGame(mars, seed)
+      let hit = false
+      while (state.outcome.status === 'playing' && state.sol <= season.toSol) {
+        state = advanceSol(state, POLICIES.balanced(state))
+        if (state.sol - 1 >= season.fromSol && state.environment.dustStormSolsLeft > 0) hit = true
+      }
+      if (hit) stormy++
+    }
+    assert.ok(stormy >= 45, `a storm in the season in ${stormy}/50 missions`)
+  })
+
+  it('a storm sol makes the power the warning quotes', () => {
+    let state = newGame(mars, 1)
+    while (state.outcome.status === 'playing' && state.environment.dustStormSolsLeft === 0) state = advanceSol(state, POLICIES.balanced(state))
+    const made = advanceSol(state, POLICIES.balanced(state)).lastReport!.powerGeneratedKWh
+    assert.ok(Math.abs(made - stormPower(state).stormKWh) < 1e-9, `${made} vs ${stormPower(state).stormKWh}`)
   })
 })
 

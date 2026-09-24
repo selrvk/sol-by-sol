@@ -18,7 +18,7 @@ export const moon: Scenario = {
   solarKWhPerM2PerSol: (c('SOLAR_FLUX_MOON') * HOURS_PER_SOL * (2 / Math.PI)) / 1000,
   dayNightCycle: { daySols: LUNAR_DAY_SOLS, nightSols: LUNAR_DAY_SOLS },
   maxSolarArrayM2: 300,
-  dustStorm: { chancePerSol: 0, minSols: 0, maxSols: 0, solarFactor: 1 },
+  dustStorm: { chancePerSol: 0, minSols: 0, maxSols: 0, solarFactor: 1, season: null },
   surfaceDoseMSvPerSol: c('MOON_SURFACE_DOSE_MSV_PER_DAY') * (HOURS_PER_SOL / 24),
   atmosphereGCm2: 0,
   speChancePerSol: 0.03,

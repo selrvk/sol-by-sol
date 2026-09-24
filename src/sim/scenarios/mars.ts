@@ -16,10 +16,17 @@ export const mars: Scenario = {
   dayNightCycle: null, // day/night is already averaged into the daily insolation
   maxSolarArrayM2: 1200,
   dustStorm: {
-    chancePerSol: 0.01, // balance placeholder
+    chancePerSol: 0.005, // balance placeholder
     minSols: 20,        // "dust storms cut solar for weeks"
     maxSols: 60,
     solarFactor: c('DUST_STORM_SOLAR_FACTOR'),
+    // Mars has a dust season: the big storms mostly start in the half of
+    // the Martian year when it is closest to the Sun. The game squeezes
+    // it into a known stretch of the mission, so a storm is something to
+    // prepare for rather than bad luck: with storms rare outside it, a
+    // plan that never builds for one no longer wins by getting a calm
+    // mission. When and how likely are balance.
+    season: { fromSol: 50, toSol: 75, chancePerSol: 0.15 },
   },
   surfaceDoseMSvPerSol: c('MARS_SURFACE_DOSE_MSV_PER_DAY') * (HOURS_PER_SOL / 24),
   atmosphereGCm2: c('MARS_ATMOSPHERE_G_CM2'),

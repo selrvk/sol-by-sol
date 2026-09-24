@@ -5,6 +5,38 @@ import { loadDemandKWh, solarKWh } from './advanceSol.ts'
 import { c } from './constants.ts'
 import type { Decisions, GameState, Scenario } from './types.ts'
 
+// Chance a dust storm starts on this sol: higher in the dust season.
+export function stormChance(scenario: Scenario, sol: number): number {
+  const season = scenario.dustStorm.season
+  return season && sol >= season.fromSol && sol <= season.toSol ? season.chancePerSol : scenario.dustStorm.chancePerSol
+}
+
+export interface DustSeason {
+  now: boolean // the season has started
+  inSols: number // sols until it starts; 0 once it has
+  fromSol: number
+  toSol: number
+}
+
+// The dust season on this sol: coming, or under way. Null where there is
+// none, and once it is over.
+export function dustSeason(scenario: Scenario, sol: number): DustSeason | null {
+  const season = scenario.dustStorm.season
+  if (!season || sol > season.toSol) return null
+  return { now: sol >= season.fromSol, inSols: Math.max(0, season.fromSol - sol), fromSol: season.fromSol, toSol: season.toSol }
+}
+
+// What the base has to run on in a dust storm, against what it cannot do
+// without: life support and, where the crew depends on them, the O₂ makers.
+export function stormPower(state: GameState): { stormKWh: number; essentialKWh: number } {
+  const { scenario, facilities: f } = state
+  const demand = loadDemandKWh(scenario, f)
+  return {
+    stormKWh: solarKWh(scenario, f, scenario.dustStorm.solarFactor) + f.reactorKW * scenario.hoursPerSol,
+    essentialKWh: demand.lifeSupport + demand.isru,
+  }
+}
+
 export interface LightInfo {
   isDaylight: boolean            // for the given sol
   solsUntilChange: number | null // sols until sunrise/nightfall; null on Mars

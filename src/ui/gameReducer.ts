@@ -71,7 +71,8 @@ export const initialUiState: UiState = {
 // The save holds the scenario too, so bump the version whenever the
 // scenario's shape or rules change: a save from older rules is dropped
 // rather than played under the new ones. v2: Moon dust and night rule.
-const SAVE_KEY = 'jamt-save-v2'
+// v3: Mars dust season.
+const SAVE_KEY = 'jamt-save-v3'
 
 export function loadSavedUiState(): UiState {
   try {

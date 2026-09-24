@@ -92,6 +92,9 @@ export interface Scenario {
     minSols: number
     maxSols: number
     solarFactor: number
+    // A stretch of the mission when storms are far more likely, known in
+    // advance so the player can prepare for it. null: no season.
+    season: { fromSol: number; toSol: number; chancePerSol: number } | null
   }
   surfaceDoseMSvPerSol: number
   atmosphereGCm2: number // shielding from the atmosphere (0 on the Moon)

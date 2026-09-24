@@ -1,7 +1,7 @@
 import { BALANCE } from './balance.ts'
 import { c } from './constants.ts'
 import { EVENTS, SOLAR_PARTICLE_EVENT } from './events.ts'
-import { lightInfo } from './forecast.ts'
+import { lightInfo, stormChance } from './forecast.ts'
 import { gcrDoseMSv, speDoses } from './radiation.ts'
 import { nextRandom } from './rng.ts'
 import type {
@@ -189,10 +189,11 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
   }
   env.isDaylight = daylight
 
-  if (env.dustStormSolsLeft === 0 && scenario.dustStorm.chancePerSol > 0) {
+  const chance = stormChance(scenario, sol)
+  if (env.dustStormSolsLeft === 0 && chance > 0) {
     const roll = nextRandom(rng)
     rng = roll.next
-    if (roll.value < scenario.dustStorm.chancePerSol) {
+    if (roll.value < chance) {
       const len = nextRandom(rng)
       rng = len.next
       const { minSols, maxSols } = scenario.dustStorm
