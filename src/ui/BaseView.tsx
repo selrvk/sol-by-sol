@@ -100,13 +100,14 @@ const CREW_UNDER_LABEL = 48 / 2 + 10 + BADGE_R
 
 // Buildings that light the ground at night, and the switch that decides
 // whether they are lit at all. The habitat and the reactor are never
-// switched off; the solar field has its own lamps.
-const LIT_PADS: { pad: Exclude<PadId, 'landing'>; load?: Exclude<PowerLoad, 'lifeSupport'> }[] = [
+// switched off; the solar field and the cargo pad have their own lamps.
+const LIT_PADS: { pad: PadId; load?: Exclude<PowerLoad, 'lifeSupport'> }[] = [
   { pad: 'habitat' },
   { pad: 'reactor' },
   { pad: 'solar' },
   { pad: 'greenhouse', load: 'greenhouse' },
   { pad: 'lab', load: 'lab' },
+  { pad: 'landing' },
 ]
 
 // Each building image: its natural size, and where the centre of its stone
@@ -126,6 +127,17 @@ interface Sprite {
 // the second set of buildings): its platform is drawn about 280 units wide,
 // a fifth of the slab.
 const MOON_SET_SCALE = 0.456
+
+// The four lamp posts at the corners of every platform built on the cargo
+// pad: offsets from the platform's middle, in pixels of the 1254px renders
+// (measured on the habitat's night image; the platform is the same in
+// every render). The renders ship at half size, hence the 0.5. Their light
+// is drawn on the ground a little below the lamp's foot, which stands on
+// the raised platform.
+const LAMP_POSTS = [[-569, 0], [0, -317], [569, 0], [0, 317]] as const
+const RENDER_TO_MAP = 0.5 * MOON_SET_SCALE
+const PLATFORM_DEPTH = 25 // the platform's height above the ground, in render pixels
+const LAMP_POOL_RX = 62
 
 const SPRITES: Record<Exclude<PadId, 'landing'> | 'isru' | 'landerPad' | 'landerPod', Sprite> = {
   habitat: { name: 'habitat', px: [539, 419], anchor: [0.519, 0.57] },
@@ -502,9 +514,6 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
         <clipPath id="crew-badge-clip">
           <circle r={BADGE_R} />
         </clipPath>
-        {/* The pool of light a lit building throws on the ground. The Moon
-            has no air for light to glow in, so the only thing to see at
-            night is the ground it lands on. */}
         {/* The array's own shape, so its glint falls on the panels and not
             on the ground beside them. */}
         <mask id="solar-mask" maskUnits="userSpaceOnUse" style={{ maskType: 'alpha' }} {...spriteBox(terrain, 'solar', b.solar)}>
@@ -521,10 +530,16 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
         <filter id="night-dim" colorInterpolationFilters="sRGB">
           <feColorMatrix type="matrix" values="0.47 0 0 0 0  0 0.49 0 0 0  0 0 0.56 0 0  0 0 0 1 0" />
         </filter>
+        {/* The pool of light a lamp post throws on the ground. The Moon has
+            no air for light to glow in, so the only thing to see at night
+            is the ground it lands on. The colour is the lamps' own: tiles
+            in their light in the night art average rgb(133, 96, 66), and
+            this colour at the centre's opacity turns the night ground
+            (about rgb(66, 69, 84)) into that. */}
         <radialGradient id="lamp-pool">
-          <stop offset="0" stopColor="#fde68a" stopOpacity="0.5" />
-          <stop offset="0.45" stopColor="#fbbf24" stopOpacity="0.22" />
-          <stop offset="1" stopColor="#f59e0b" stopOpacity="0" />
+          <stop offset="0" stopColor="rgb(188, 118, 51)" stopOpacity="0.55" />
+          <stop offset="0.45" stopColor="rgb(188, 118, 51)" stopOpacity="0.25" />
+          <stop offset="1" stopColor="rgb(188, 118, 51)" stopOpacity="0" />
         </radialGradient>
       </defs>
 
@@ -547,10 +562,20 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
           }
           if (pad === 'greenhouse' && f.greenhouseM2 === 0) return null
           if (load && status(load) !== 'on') return null
+          if (pad === 'landing' && !game.scenario.resupply) return null
+          // Mars has no night, so only the Moon's platforms, which all have
+          // their lamps in the same four places, are ever lit.
           const g = groundAt(terrain, PADS[pad].u, PADS[pad].v)
-          const s = b[pad]
-          const rx = s.px[0] * (s.scale ?? BUILDING_SCALE) * 0.95
-          return <ellipse key={pad} cx={g.x} cy={g.y} rx={rx} ry={rx * 0.52} fill="url(#lamp-pool)" />
+          return LAMP_POSTS.map(([dx, dy], i) => (
+            <ellipse
+              key={`${pad}-${i}`}
+              cx={g.x + dx * RENDER_TO_MAP}
+              cy={g.y + (dy + PLATFORM_DEPTH) * RENDER_TO_MAP}
+              rx={LAMP_POOL_RX}
+              ry={LAMP_POOL_RX * 0.54}
+              fill="url(#lamp-pool)"
+            />
+          ))
         })}
       </g>
       <g style={{ opacity: night ? 1 : 0, transition: 'opacity 1.6s' }}>

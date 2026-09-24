@@ -232,6 +232,11 @@ anchor for `MOON_SET` in `BaseView.tsx`. It also moves any render whose
 platform came out higher or lower than the pad's back into place (the
 first solar stages came out 31px high), and prints when it does.
 
+At night the game draws each lamp post's light on the ground around the
+platform (`LAMP_POSTS` in `BaseView.tsx`, in the lamps' own measured
+colour). That only lines up because every building keeps the pad's four
+corner lamps in the same places, so a new building must keep them.
+
 ## Prompts
 
 ### Moon map
