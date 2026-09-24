@@ -102,8 +102,12 @@ occlusion, gentle bevels, no outlines. The existing building sheet
 
 ## Cargo pod
 
-Follows the camera, lighting, style and background rules above, on a
-platform the size of one building pad. Prompt still to write.
+The Moon's cargo lander (Mars has no resupply, so it is Moon-only). It
+follows the camera, lighting, style and background rules above: its own
+square stone landing pad, the size of one building platform, with a day
+and a night image. Modelled on real robotic Moon landers such as NASA's
+commercial CLPS landers: four legs, gold-foil insulation, an engine bell
+underneath, cargo on the deck. Prompts are below, with the maps'.
 
 ## Current maps (v2)
 
@@ -190,3 +194,56 @@ background.
 
 If the tool cannot take a reference image, use the Moon prompt with its
 surface, cliff and lighting paragraphs swapped for the Mars ones above.
+
+### Cargo lander, day
+
+```
+Isometric game asset: a small robotic cargo lander that has just landed on
+the Moon, standing on its own square landing pad. Seen from a 2:1
+isometric (dimetric) camera: orthographic, no perspective, camera 30
+degrees above the ground and turned 45 degrees, so the square pad is a
+diamond twice as wide as it is tall. Square image, the lander and pad
+centred with a small margin all round.
+
+The lander: a squat octagonal body about as tall as it is wide, wrapped
+in crinkled gold and silver foil insulation, on four splayed landing legs
+with round footpads. A rocket engine bell shows under the body. On the
+top deck, a few grey cargo containers and a supply pallet are strapped
+down; a small solar panel and a short antenna stick up from one side. The
+cargo hatch and a small loading ramp face the lower right. Clean, new,
+with a little dust on the footpads.
+
+The pad: a square platform of grey stone tiles, like a small spaceport
+pad, with a painted landing circle, a dark scorch mark under the engine,
+and small lamp posts at the four corners. The pad's edges line up with
+the isometric grid.
+
+Lighting: harsh, clear sunlight from the upper left, as on the airless
+Moon. Left-facing surfaces lit, right-facing surfaces in shade, short
+crisp shadows falling to the lower right on the pad.
+
+Style: stylized 3D render of a game asset, clean diorama look, soft
+ambient occlusion, gentle bevels, matching a set of sci-fi base buildings
+rendered the same way. No ground beyond the pad, no people, no text, no
+logos, no stars.
+
+Background: a single flat solid colour, #0C1633 dark navy, filling the
+whole frame. No gradient, no vignette, no glow, no shadow on the
+background.
+```
+
+### Cargo lander, night (with the day image attached as the reference)
+
+```
+Use the attached image as the exact reference: the same lander, pad,
+camera, framing and size, with nothing moved. Make it night on the Moon:
+the sunlight is gone, the lander and pad are lit only by their own
+lights. The four corner lamp posts glow warm white and throw soft pools of
+light on the pad; small navigation lights on the lander blink red and
+green; the loading ramp has a warm light over it. The gold foil catches
+the lamp light. Everything else falls into cool dark shade.
+
+Same style as the reference. Background: a single flat solid colour,
+#0C1633 dark navy, filling the whole frame. No gradient, no glow on the
+background.
+```
