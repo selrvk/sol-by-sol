@@ -140,7 +140,7 @@ export function Game() {
           />
           </div>
           <div className={`order-6 lg:order-none ${inPane('base')}`}>
-            <MissionLog log={game.log} />
+            <MissionLog log={game.log} started={game.lastReport !== null} />
           </div>
           <details className={`group order-7 rounded-2xl border border-slate-800 bg-slate-900/50 p-3 lg:order-none ${inPane('trends')}`} open={history.length > 1}>
             <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-300">

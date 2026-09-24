@@ -42,8 +42,9 @@ function LogLine({ entry, dim = false }: { entry: GameEvent; dim?: boolean }) {
 }
 
 // Newest first. The latest sol is highlighted so it is clear what just
-// happened after pressing Advance.
-export function MissionLog({ log }: { log: GameEvent[] }) {
+// happened after pressing Advance. Quiet sols add nothing, so an empty log
+// can mean the mission has not started or only that nothing has happened.
+export function MissionLog({ log, started }: { log: GameEvent[]; started: boolean }) {
   const entries = log.slice(-15).reverse()
   const latestSol = entries[0]?.sol
   return (
@@ -52,7 +53,9 @@ export function MissionLog({ log }: { log: GameEvent[] }) {
         <ScrollText size={16} className="text-sky-300" aria-hidden /> Mission log
       </h2>
       {entries.length === 0 ? (
-        <p className="text-sm text-slate-500">Nothing to report yet. Press Advance sol to begin.</p>
+        <p className="text-sm text-slate-500">
+          {started ? 'Nothing out of the ordinary so far.' : 'Nothing to report yet. Press Advance sol to begin.'}
+        </p>
       ) : (
         <ol className="max-h-44 space-y-1 overflow-y-auto pr-1 text-sm">
           {entries.map((e, i) => {
