@@ -2,18 +2,15 @@
 
     python3 art/process.py        (needs Pillow: pip install pillow)
 
-- Buildings: two sheets, day and night, each holding the same five
-  buildings in the same places. The exported alpha is soft (the bodies sit
-  around 250, with a wide faint halo), so it is thresholded to a clean
-  edge. Day and night share one crop box per building, so nothing shifts
-  when night falls.
-- Buildings, second set: one image per building, stage and time of day,
-  in buildings/moon and buildings/mars (see cut_building_sets).
+- Buildings: one image per building, stage and time of day, in
+  buildings/moon and buildings/mars (see cut_building_sets), and the cargo
+  pad and lander (see make_lander).
 - Terrain: re-encoded as WebP, which is a fraction of the PNG's size.
 - Crew: two portrait sheets, bare-headed and helmeted, split into discs.
 
-Output goes to public/art/, which is what the game loads. The previous
-generation of art is kept in art/source/v1 and is no longer processed.
+Output goes to public/art/, which is what the game loads. Retired art (the
+first buildings and map, and the building sheets that followed them) is
+kept in art/source/v1 and is no longer processed.
 """
 
 import collections
@@ -24,65 +21,6 @@ from PIL import Image, ImageChops, ImageFilter
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / 'source'
 OUT = ROOT.parent / 'public' / 'art'
-
-# The five buildings on each sheet, in reading order: top row then bottom.
-BUILDING_NAMES = ['habitat', 'reactor', 'solar', 'greenhouse', 'lab']
-BUILDING_SHEETS = {'day': 'buildings-day.png', 'night': 'buildings-night.png'}
-
-
-def sharpen_alpha(im: Image.Image) -> Image.Image:
-    """Turn the soft exported alpha into a clean edge with a 1px feather.
-
-    The building bodies come out around alpha 250 and the halo below 60,
-    so a ramp between the two keeps the shapes and drops the haze that
-    would otherwise glow against the dark ground.
-    """
-    im = im.convert('RGBA')
-    a = im.split()[3].point(lambda v: 0 if v < 120 else (255 if v > 200 else int((v - 120) * 255 / 80)))
-    im.putalpha(a)
-    return im
-
-
-def sprite_boxes(im: Image.Image, min_pixels: int = 20000) -> list[tuple[int, int, int, int]]:
-    """Bounding boxes of the separate shapes on a sheet, in reading order."""
-    a = im.split()[3].load()
-    w, h = im.size
-    seen = [[False] * h for _ in range(w)]
-    found = []
-    for sy in range(0, h, 3):
-        for sx in range(0, w, 3):
-            if seen[sx][sy] or a[sx, sy] < 128:
-                continue
-            queue = collections.deque([(sx, sy)])
-            seen[sx][sy] = True
-            box = [sx, sy, sx, sy]
-            count = 0
-            while queue:
-                x, y = queue.popleft()
-                count += 1
-                box = [min(box[0], x), min(box[1], y), max(box[2], x), max(box[3], y)]
-                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
-                    if 0 <= nx < w and 0 <= ny < h and not seen[nx][ny] and a[nx, ny] >= 128:
-                        seen[nx][ny] = True
-                        queue.append((nx, ny))
-            if count > min_pixels:
-                found.append(tuple(box))
-    return sorted(found, key=lambda b: (b[1] // 300, b[0]))  # top row, then bottom
-
-
-def cut_buildings() -> None:
-    (OUT / 'buildings').mkdir(parents=True, exist_ok=True)
-    sheets = {k: sharpen_alpha(Image.open(SRC / 'buildings' / f)) for k, f in BUILDING_SHEETS.items()}
-    boxes = {k: sprite_boxes(im) for k, im in sheets.items()}
-    for k, b in boxes.items():
-        if len(b) != len(BUILDING_NAMES):
-            raise SystemExit(f'{k} sheet: found {len(b)} buildings, expected {len(BUILDING_NAMES)}')
-    # One box per building, covering both sheets, so the night version sits
-    # exactly where the day one does. The night lamps glow a little wider.
-    for i, name in enumerate(BUILDING_NAMES):
-        box = union(boxes['day'][i], boxes['night'][i])
-        for k, im in sheets.items():
-            save(im.crop(box), OUT / 'buildings' / f'{name}-{k}.webp')
 
 
 def save(im: Image.Image, dst: Path) -> None:
@@ -158,19 +96,6 @@ def crop_crew() -> None:
             half = max(x1 - x0, y1 - y0) // 2
             disc = im.crop((cx - half, cy - half, cx + half, cy + half)).resize((256, 256), Image.LANCZOS)
             save(disc, OUT / 'crew' / f'{name}{suffix}.webp')
-
-
-# Art that already arrives with clean transparency: no cut-out to do, just
-# trim the empty margin and re-encode.
-def copy_cutout(src: Path, dst: Path, box: tuple = ()) -> None:
-    if not src.exists():
-        return
-    im = Image.open(src).convert('RGBA')
-    im = im.crop(im.getbbox())
-    if box:
-        im.thumbnail(box, Image.LANCZOS)
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    save(im, dst)
 
 
 # The team's patch: the badge in the top bar, and the site icon.
@@ -280,12 +205,12 @@ def make_lander() -> None:
     print(f'lander box in the pad image: {box}; x{LANDER_SHIP} for the shipped files')
 
 
-# The second set of buildings (art/ART-GUIDE.md): one building per image,
-# each built on a copy of the cargo pad, so every platform is the same size
-# and in the same place, on each world's folder (buildings/moon,
-# buildings/mars). A building's images, its stages and its day and night,
-# are cut to one shared box, so the game can swap and cross-fade them in
-# place. The printed size and anchor go into SPRITES in BaseView.tsx.
+# The buildings (art/ART-GUIDE.md): one building per image, each built on a
+# copy of the cargo pad, so every platform is the same size and in the same
+# place, in each world's folder (buildings/moon, buildings/mars). A
+# building's images, its stages and its day and night, are cut to one
+# shared box, so the game can swap and cross-fade them in place. The
+# printed size and anchor go into BUILDING_ART in BaseView.tsx.
 PLATFORM_CENTRE = (628, 714)  # the platform's middle, in the 1254px renders
 BUILDING_SHIP = 0.5  # drawn ~250px wide in the game, like the cargo pad
 
@@ -404,10 +329,7 @@ def cut_building_sets() -> None:
 
 
 def main() -> None:
-    cut_buildings()
     cut_building_sets()
-    # The O2 plant came separately, and already has its own transparency.
-    copy_cutout(SRC / 'buildings' / 'co2maker.png', OUT / 'buildings' / 'co2maker.webp')
     make_lander()
     make_patch()
     crop_crew()

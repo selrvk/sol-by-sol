@@ -54,8 +54,8 @@ building**: each building prompt below starts from it (see Buildings).
   light its map is painted in: harsh, clear light with crisp shadows on
   the Moon; warm light with Mars's butterscotch cast and softer shadows on
   Mars. (The first buildings were painted once in Moon light, and the
-  game tinted them for Mars with `MARS_LIGHT` in `src/ui/BaseView.tsx`.
-  The second Mars set is painted in Mars light, so the tint is gone.)
+  game had to tint them orange for Mars; painting each world's own set
+  in its own light made that unnecessary.)
 - No night versions of the maps are needed. The game darkens the ground
   itself. Moon buildings do need a night version (below). **Mars has no
   night in the game** (its daylight is averaged over the sol), so Mars
@@ -65,9 +65,8 @@ building**: each building prompt below starts from it (see Buildings).
 
 Stylized 3D render of a game asset: a clean diorama look, soft ambient
 occlusion, gentle bevels, no outlines. The cargo landing pad
-(`art/source/buildings/lander-pad.png`) is the reference. The first
-building sheets (`buildings-day.png`, `buildings-night.png`) are kept
-until the new buildings replace them.
+(`art/source/buildings/lander-pad.png`) is the reference. Retired art,
+including the first building sheets, is kept in `art/source/v1`.
 
 ## Background (every image)
 
@@ -226,11 +225,10 @@ puts them on the same frame as the day images.
    (`terrain/moon-terrain.png`, `terrain/mars-terrain.png`, ...).
 2. Run `python3 art/process.py` (needs Pillow).
 3. Re-measure each slab's corners (`TERRAIN` in `src/ui/BaseView.tsx`),
-   and the scene crop (`VIEW`) and building anchors (`SPRITES`) if the
-   framing or building art changed.
+   and the scene crop (`VIEW`) if the framing changed.
 
-For the second building set, `process.py` prints each building's size and
-anchor for `MOON_SET` in `BaseView.tsx`. It also scales and moves any
+For the buildings, `process.py` prints each building's size and anchor
+for `BUILDING_ART` in `BaseView.tsx`. It also scales and moves any
 render whose platform came out off the pad's back into place (the first
 solar stages came out 31px high; the lab's night image 4.5% too big, on a
 1312 x 1199 canvas), and prints when it does. A night image then takes

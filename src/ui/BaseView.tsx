@@ -71,10 +71,6 @@ const PADS = {
 } as const
 type PadId = keyof typeof PADS
 
-// One world scale for every building, so their painted sizes stay in
-// proportion to each other and to the ground.
-const BUILDING_SCALE = 0.45
-
 // The solar glint's colour: sunlight, and on Mars sunlight warmed by the
 // dust in its air.
 const GLINT = { moon: '#e0f2fe', mars: '#e7dec4' } as const
@@ -84,11 +80,11 @@ const BADGE_R = 26
 
 // Crew stand under the name of the place they are working, like a map
 // marker's caption, so a name and the people there read as one. The name
-// pill is 48 units tall on a wide screen, and the crew sit a 10-unit gap
-// below it. On a phone the pill is 78 units (its text is larger, to stay
-// legible when the map is shrunk), so the crew are nudged down 15 more there
+// pill is 38 units tall on a wide screen, and the crew sit a 10-unit gap
+// below it. On a phone the pill is 65 units (its text is larger, to stay
+// legible when the map is shrunk), so the crew are nudged down 14 more there
 // -- see CrewBadges.
-const CREW_UNDER_LABEL = 48 / 2 + 10 + BADGE_R
+const CREW_UNDER_LABEL = 38 / 2 + 10 + BADGE_R
 
 // Buildings that light the ground at night, and the switch that decides
 // whether they are lit at all. The habitat and the reactor are never
@@ -102,69 +98,58 @@ const LIT_PADS: { pad: PadId; load?: Exclude<PowerLoad, 'lifeSupport'> }[] = [
   { pad: 'landing' },
 ]
 
-// Each building image: its natural size, and where the centre of its stone
-// platform sits inside that image (measured from the art by
-// art/process.py's sibling measurements). The platform centre is what gets
-// placed on the ground point.
+// Each building image: its size as shipped, and where the middle of its
+// stone platform sits inside it, as fractions of that size (both printed by
+// art/process.py). The platform's middle is what gets placed on the ground
+// point.
 interface Sprite {
   name: string
   px: [number, number]
   anchor: [number, number]
   single?: boolean // one image, no separate night art
-  scale?: number // when the image was shipped at a different size
   glint?: string // the solar cells alone, where the sunlight glint may fall
   daylight?: string // a filter for the day image: the world's light (MOON_LIGHT)
 }
-// The scale of the art built on the cargo pad (the pad itself, the lander,
-// the second set of buildings): its platform is drawn about 280 units wide,
-// a fifth of the slab.
-const SECOND_SET_SCALE = 0.456
+type SpriteSize = Pick<Sprite, 'px' | 'anchor'>
 
-// The four lamp posts at the corners of every platform built on the cargo
-// pad: offsets from the platform's middle, in pixels of the 1254px renders
-// (measured on the habitat's night image; the platform is the same in
-// every render). The renders ship at half size, hence the 0.5. Their light
-// is drawn on the ground a little below the lamp's foot, which stands on
-// the raised platform.
+// Every building is built on a copy of the cargo pad's platform
+// (art/ART-GUIDE.md), so one scale draws them all in proportion to each
+// other and to the ground: a platform is about 280 units wide, a fifth of
+// the slab.
+const BUILDING_SCALE = 0.456
+
+// The four lamp posts at the corners of every platform: offsets from the
+// platform's middle, in pixels of the 1254px renders (measured on the
+// habitat's night image; the platform is the same in every render). The
+// renders ship at half size, hence the 0.5. Their light is drawn on the
+// ground a little below the lamp's foot, which stands on the raised
+// platform.
 const LAMP_POSTS = [[-569, 0], [0, -317], [569, 0], [0, 317]] as const
-const RENDER_TO_MAP = 0.5 * SECOND_SET_SCALE
+const RENDER_TO_MAP = 0.5 * BUILDING_SCALE
 const PLATFORM_DEPTH = 25 // the platform's height above the ground, in render pixels
 const LAMP_POOL_RX = 62
 
-const SPRITES: Record<Exclude<PadId, 'landing'> | 'isru' | 'landerPad' | 'landerPod', Sprite> = {
-  habitat: { name: 'habitat', px: [539, 419], anchor: [0.519, 0.57] },
-  reactor: { name: 'reactor', px: [393, 423], anchor: [0.496, 0.738] },
-  solar: { name: 'solar', px: [510, 314], anchor: [0.558, 0.548] },
-  greenhouse: { name: 'greenhouse', px: [557, 345], anchor: [0.48, 0.565] },
-  lab: { name: 'lab', px: [471, 361], anchor: [0.486, 0.62] },
-  // The O₂ plant stands on the reactor's pad, which Mars leaves empty. It
-  // ships as one image because Mars has no night to light up for.
-  isru: { name: 'co2maker', px: [515, 339], anchor: [0.538, 0.519], single: true },
-  // The cargo pad and the lander on it share one image box (art/process.py
-  // lines them up), anchored on the landing circle's centre.
-  landerPad: { name: 'lander-pad', px: [619, 482], anchor: [0.501, 0.622], single: true, scale: SECOND_SET_SCALE },
-  landerPod: { name: 'lander-pod', px: [619, 482], anchor: [0.501, 0.622], single: true, scale: SECOND_SET_SCALE },
-}
+// The cargo pad and the lander on it share one image box (art/process.py
+// lines them up), anchored on the landing circle's centre.
+const LANDER: SpriteSize = { px: [619, 482], anchor: [0.501, 0.622] }
 
-// Moon daylight, for the art built on the cargo pad. The generator painted
-// the pad's stone warm and tan, and the Moon's ground is a cool grey, so
-// the platforms looked laid on the map rather than set in it. Measured on
-// both: the plain tiles average rgb(162, 148, 143) and the open ground
-// rgb(140, 141, 150). This moves the art three quarters of the way from
-// the one colour to the other at the same brightness: red down a little,
-// blue up. Night images are lamp-lit, so they keep their warm light.
+// Moon daylight. The generator painted the platforms' stone warm and tan,
+// and the Moon's ground is a cool grey, so the platforms looked laid on the
+// map rather than set in it. Measured on both: the plain tiles average
+// rgb(162, 148, 143) and the open ground rgb(140, 141, 150). This moves the
+// art three quarters of the way from the one colour to the other at the
+// same brightness: red down a little, blue up. Night images are lamp-lit,
+// so they keep their warm light. (Mars's art is painted in Mars light.)
 const MOON_LIGHT = '0.94 0 0 0 0  0 1.01 0 0 0  0 0 1.09 0 0  0 0 0 1 0'
 
-// The second set of buildings (art/ART-GUIDE.md), one per world. Each is
-// built on a copy of the cargo pad's platform, so all share the pad's
-// scale, and art/process.py cuts a building's stages and its day and night
-// to one box, so they share a size and anchor (printed by process.py).
-// Mars has no reactor (it runs on solar), and only Mars has the O₂ plant,
-// which stands on the pad Mars leaves empty. Mars has no night either, so
+// Each world's buildings. art/process.py cuts a building's stages and its
+// day and night to one box, so they share a size and anchor. Only the Moon
+// has the reactor (Mars runs on solar), and only Mars has the O₂ plant,
+// which stands on the pad the reactor leaves empty. Mars has no night, so
 // its images are day only.
-type BuildingId = 'habitat' | 'solar' | 'reactor' | 'greenhouse' | 'lab' | 'isru'
-type SpriteSize = Pick<Sprite, 'px' | 'anchor'>
-const SECOND_SET: Record<ScenarioId, Partial<Record<BuildingId, SpriteSize>>> = {
+type Everywhere = 'habitat' | 'solar' | 'greenhouse' | 'lab'
+type Buildings<T> = Record<Everywhere, T> & Partial<Record<'reactor' | 'isru', T>>
+const BUILDING_ART: Record<ScenarioId, Buildings<SpriteSize>> = {
   moon: {
     habitat: { px: [620, 410], anchor: [0.5, 0.554] },
     solar: { px: [620, 366], anchor: [0.5, 0.501] },
@@ -194,23 +179,21 @@ function solarStage(game: GameState) {
   return built >= 0.85 ? 3 : built >= 0.6 ? 2 : 1
 }
 
-function buildingSprites(game: GameState): Record<BuildingId, Sprite> {
+function buildingSprites(game: GameState): Buildings<Sprite> {
   const world = game.scenario.id
-  const sprite = (id: BuildingId, file: string): Sprite => {
-    const size = SECOND_SET[world][id]
-    if (!size) return SPRITES[id] // never shown: the reactor on Mars, the O₂ plant on the Moon
-    return world === 'moon'
-      ? { name: `moon/${file}`, ...size, scale: SECOND_SET_SCALE, daylight: 'url(#moon-light)' }
-      : { name: `${world}/${file}-day`, ...size, scale: SECOND_SET_SCALE, single: true }
-  }
+  const sizes = BUILDING_ART[world]
+  const sprite = (size: SpriteSize, file: string): Sprite =>
+    world === 'moon'
+      ? { name: `moon/${file}`, ...size, daylight: 'url(#moon-light)' }
+      : { name: `${world}/${file}-day`, ...size, single: true }
   const solar = `solar-${solarStage(game)}`
   return {
-    habitat: sprite('habitat', `habitat-${habitatStage(game.facilities.condition)}`),
-    solar: { ...sprite('solar', solar), glint: `${world}/${solar}-day-glint` },
-    reactor: sprite('reactor', 'reactor'),
-    greenhouse: sprite('greenhouse', 'greenhouse'),
-    lab: sprite('lab', 'lab'),
-    isru: sprite('isru', 'o2-plant'),
+    habitat: sprite(sizes.habitat, `habitat-${habitatStage(game.facilities.condition)}`),
+    solar: { ...sprite(sizes.solar, solar), glint: `${world}/${solar}-day-glint` },
+    reactor: sizes.reactor && sprite(sizes.reactor, 'reactor'),
+    greenhouse: sprite(sizes.greenhouse, 'greenhouse'),
+    lab: sprite(sizes.lab, 'lab'),
+    isru: sizes.isru && sprite(sizes.isru, 'o2-plant'),
   }
 }
 
@@ -229,10 +212,10 @@ const FIELD_UV = { u: 0.8, v: 0.52 } // open ground between the greenhouse and t
 
 type Status = 'on' | 'off' | 'shed'
 
-function spriteBox(t: Terrain, pad: PadId, s: Sprite) {
+function spriteBox(t: Terrain, pad: PadId, s: SpriteSize) {
   const g = groundAt(t, PADS[pad].u, PADS[pad].v)
-  const width = s.px[0] * (s.scale ?? BUILDING_SCALE)
-  const height = s.px[1] * (s.scale ?? BUILDING_SCALE)
+  const width = s.px[0] * BUILDING_SCALE
+  const height = s.px[1] * BUILDING_SCALE
   return { x: g.x - s.anchor[0] * width, y: g.y - s.anchor[1] * height, width, height }
 }
 
@@ -240,7 +223,8 @@ const art = (s: Sprite, when: 'day' | 'night') => `${ART}/buildings/${s.name}${s
 
 // A building with day and night art stacked and cross-faded, so nightfall
 // is a smooth change and the night image is already loaded when needed.
-// Art with no night version fades to itself, dimmed like the ground.
+// Art with no night version (Mars, which has no night) fades to itself,
+// dimmed like the ground.
 function Building({ terrain, pad, sprite, night, status = 'on', flicker = false }: { terrain: Terrain; pad: PadId; sprite: Sprite; night: boolean; status?: Status; flicker?: boolean }) {
   const box = spriteBox(terrain, pad, sprite)
   const filter = status === 'off' ? 'grayscale(1) brightness(0.55)' : undefined
@@ -352,9 +336,9 @@ function DustDrift() {
 // billow into a cloud, it travels in straight lines and drops, as the Apollo
 // landing films show.
 function CargoPad({ terrain, night, landing }: { terrain: Terrain; night: boolean; landing: boolean }) {
-  const box = spriteBox(terrain, 'landing', SPRITES.landerPad)
+  const box = spriteBox(terrain, 'landing', LANDER)
   // Map units per pixel of the shipped image, for spots measured on it.
-  const k = box.width / SPRITES.landerPad.px[0]
+  const k = box.width / LANDER.px[0]
   const at = (px: number, py: number) => ({ x: box.x + px * k, y: box.y + py * k })
   const centre = at(300, 298) // under the lander's body
   const bell = at(290, 297) // the bottom of the engine bell
@@ -424,8 +408,8 @@ function Pill({
   return (
     <foreignObject x={x - 220} y={y - 28} width={440} height={56} className={quiet ? 'hidden lg:block' : undefined} style={{ overflow: 'visible' }}>
       <div className="flex h-full items-center justify-center">
-        <div className={`flex items-center gap-1.5 whitespace-nowrap rounded-xl border-2 ${border} bg-slate-900/85 px-4 py-1 text-[44px] font-semibold text-white shadow-lg lg:text-[24px]`}>
-          {Icon && <Icon className={`h-[40px] w-[40px] shrink-0 lg:h-[22px] lg:w-[22px] ${iconTone}`} aria-hidden />}
+        <div className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg border-2 ${border} bg-slate-900/85 px-3 py-0.5 text-[38px] font-semibold text-white shadow-lg lg:text-[20px]`}>
+          {Icon && <Icon className={`h-[34px] w-[34px] shrink-0 lg:h-[18px] lg:w-[18px] ${iconTone}`} aria-hidden />}
           {children}
         </div>
       </div>
@@ -445,7 +429,7 @@ function CrewBadges({ x, y, crew, evaIds }: { x: number; y: number; crew: CrewMe
   const start = x - ((crew.length - 1) * (r * 2 + 6)) / 2
   return (
     // Moved down on a phone, where the name pill above is taller.
-    <g className="max-lg:translate-y-[15px]">
+    <g className="max-lg:translate-y-[14px]">
       {crew.map((m, i) => {
         const src = portraitFor(m.id, evaIds.has(m.id))
         return (
@@ -488,7 +472,7 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
 
   // Where a building's label stands: just clear of the building's top. The
   // crew working there stand under it (CREW_UNDER_LABEL).
-  const labelAt = (pad: PadId, s: Sprite) => {
+  const labelAt = (pad: PadId, s: SpriteSize) => {
     const b = spriteBox(terrain, pad, s)
     return { x: groundAt(terrain, PADS[pad].u, PADS[pad].v).x, y: b.y - 6 }
   }
@@ -509,11 +493,11 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
   const lab = labelAt('lab', b.lab)
   const gh = labelAt('greenhouse', b.greenhouse)
   const sol = labelAt('solar', b.solar)
-  const rea = labelAt('reactor', b.reactor)
-  const cargo = labelAt('landing', SPRITES.landerPod)
+  const rea = b.reactor && labelAt('reactor', b.reactor)
+  const cargo = labelAt('landing', LANDER)
   const nextCargo = nextResupplySol(game.scenario, game.sol)
   const worn = f.condition < 0.6
-  const o2 = labelAt('reactor', b.isru) // Mars has no reactor: the O₂ plant uses that pad
+  const o2 = b.isru && labelAt('reactor', b.isru) // Mars has no reactor: the O₂ plant uses that pad
 
   return (
     <svg viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`} className="h-auto w-full bg-[#0c1633]" role="img" aria-label={`The ${isMars ? 'Mars' : 'lunar'} outpost`}>
@@ -605,7 +589,7 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
         </>
       )}
       <Building terrain={terrain} pad="habitat" sprite={b.habitat} night={night} />
-      {f.reactorKW > 0 && <Building terrain={terrain} pad="reactor" sprite={b.reactor} night={night} />}
+      {f.reactorKW > 0 && b.reactor && <Building terrain={terrain} pad="reactor" sprite={b.reactor} night={night} />}
       {f.greenhouseM2 > 0 && (
         <Building terrain={terrain} pad="greenhouse" sprite={b.greenhouse} night={night} status={status('greenhouse')} flicker={effects?.powerCut && status('greenhouse') === 'shed'} />
       )}
@@ -615,7 +599,7 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
       {/* The O₂ plant, on the pad Mars leaves empty. One plant however many
           makers are running: the count is on its label, the same way the
           greenhouse shows its area rather than growing. */}
-      {game.scenario.isruAvailable && f.isruUnits > 0 && (
+      {game.scenario.isruAvailable && f.isruUnits > 0 && b.isru && (
         <Building
           terrain={terrain}
           pad="reactor"
@@ -660,23 +644,23 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
         Habitat
         {worn && (
           <span className="flex items-center gap-1 text-amber-300">
-            <TriangleAlert className="h-[36px] w-[36px] lg:h-[20px] lg:w-[20px]" aria-hidden /> base condition {Math.round(f.condition * 100)}%
+            <TriangleAlert className="h-[30px] w-[30px] lg:h-[17px] lg:w-[17px]" aria-hidden /> base condition {Math.round(f.condition * 100)}%
           </span>
         )}
       </Pill>
       {badgesUnder('habitat', hab.x, hab.y + CREW_UNDER_LABEL)}
 
-      {f.reactorKW > 0 && (
+      {f.reactorKW > 0 && rea && (
         <Pill x={rea.x} y={rea.y} icon={Zap} quiet>
           Reactor {f.reactorKW} kW
         </Pill>
       )}
-      {game.scenario.isruAvailable && f.isruUnits > 0 && (
+      {game.scenario.isruAvailable && f.isruUnits > 0 && o2 && (
         <Pill x={o2.x} y={o2.y} icon={Wind} tone={status('isru') === 'shed' ? 'bad' : 'normal'} quiet={status('isru') === 'on'}>
           O₂ makers ×{f.isruUnits}{status('isru') === 'off' ? ' · off' : status('isru') === 'shed' ? ' · no power' : ''}
         </Pill>
       )}
-      {badgesUnder('o2', o2.x, o2.y + CREW_UNDER_LABEL)}
+      {o2 && badgesUnder('o2', o2.x, o2.y + CREW_UNDER_LABEL)}
 
       {game.scenario.resupply && (
         <Pill x={cargo.x} y={cargo.y} icon={Package} quiet>
