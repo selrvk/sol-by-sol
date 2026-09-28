@@ -100,8 +100,8 @@ const LOSS_INFO: Record<LossReason, LossInfo> = {
         : ''),
     tryNext: (g) =>
       g.scenario.evaDustWear > 0
-        ? 'Keep someone on Maintenance whenever the base condition drops, and more of them while crew are working outside: every trip brings dust in.'
-        : 'Keep someone on Maintenance whenever the base condition drops.',
+        ? 'Keep someone repairing the base whenever its condition drops, and more of them while crew are working outside: every trip brings dust in.'
+        : 'Keep someone repairing the base whenever its condition drops.',
   },
   oxygen: {
     icon: Wind,

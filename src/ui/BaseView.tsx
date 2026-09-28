@@ -456,7 +456,7 @@ function CrewBadges({ x, y, crew, evaIds }: { x: number; y: number; crew: CrewMe
   )
 }
 
-export function BaseView({ game, decisions, effects }: { game: GameState; decisions: Decisions; effects?: SolEffects }) {
+export function BaseView({ game, decisions, effects, className = '' }: { game: GameState; decisions: Decisions; effects?: SolEffects; className?: string }) {
   const f = game.facilities
   const env = game.environment
   const isMars = game.scenario.id === 'mars'
@@ -500,7 +500,7 @@ export function BaseView({ game, decisions, effects }: { game: GameState; decisi
   const o2 = b.isru && labelAt('reactor', b.isru) // Mars has no reactor: the O₂ plant uses that pad
 
   return (
-    <svg viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`} className="h-auto w-full bg-[#0c1633]" role="img" aria-label={`The ${isMars ? 'Mars' : 'lunar'} outpost`}>
+    <svg viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`} className={`h-auto w-full bg-[#0c1633] ${className}`} role="img" aria-label={`The ${isMars ? 'Mars' : 'lunar'} outpost`}>
       <defs>
         {/* Round mask for the crew portraits on the map. */}
         <clipPath id="crew-badge-clip">
@@ -738,7 +738,7 @@ export function BaseSummary({ game }: { game: GameState }) {
       </li>
       <li className={`${item} ${worn ? 'text-amber-300' : ''}`}>
         <Home size={13} aria-hidden /> <span className={worn ? '' : name}>Base condition</span> {Math.round(f.condition * 100)}%
-        {worn && <span className="sr-only">, worn: needs maintenance</span>}
+        {worn && <span className="sr-only">, worn: needs repairs</span>}
       </li>
     </ul>
   )

@@ -1,12 +1,12 @@
 import { Play, TriangleAlert } from 'lucide-react'
 import type { CrewTask, Decisions, GameState } from '../sim/types.ts'
-import { OPENINGS, TASK_ICONS, TASK_LABELS } from './labels.ts'
+import { openingFixed, OPENINGS, TASK_ICONS, TASK_LABELS } from './labels.ts'
 
 // The first-90-seconds guide. One problem, one fix, shown in place: no
 // tutorial to read. It disappears once the player has seen the fix work.
 export function OpeningBriefing({ game, decisions, onDismiss }: { game: GameState; decisions: Decisions; onDismiss: () => void }) {
   const opening = OPENINGS[game.scenario.id]
-  const fixed = Object.values(decisions.assignments).includes(opening.fixTask)
+  const fixed = openingFixed(game, decisions)
   const firstSol = game.sol === game.scenario.start.sol
 
   if (!firstSol && fixed) {

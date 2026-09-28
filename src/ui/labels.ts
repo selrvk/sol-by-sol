@@ -5,7 +5,7 @@ import { c, type ConstantKey, type CurveKey } from '../sim/constants.ts'
 import { EVA_TASKS } from '../sim/advanceSol.ts'
 import { BALANCE } from '../sim/balance.ts'
 import type { ResourceRates, TaskEffects } from '../sim/effects.ts'
-import type { CrewTask, GameState, PowerLoad, Scenario, ScenarioId } from '../sim/types.ts'
+import type { CrewTask, Decisions, GameState, PowerLoad, Scenario, ScenarioId } from '../sim/types.ts'
 
 // What each task is called. What it does is worked out live: see describeTask.
 export const TASK_LABELS: Record<CrewTask, { label: string; short: string }> = {
@@ -16,7 +16,9 @@ export const TASK_LABELS: Record<CrewTask, { label: string; short: string }> = {
   // Named for what it builds, so it matches "Shielding" wherever the base
   // shows it. What it is -- soil piled on the habitat -- is in its line.
   shielding: { label: 'Build shielding', short: 'Shield' },
-  maintenance: { label: 'Maintenance', short: 'Repair' },
+  // One word on the button and in the briefing, so a player told to pick
+  // it can find it.
+  maintenance: { label: 'Repair base', short: 'Repair' },
   isru: { label: 'Build O₂ maker', short: 'O₂' },
   rest: { label: 'Rest', short: 'Rest' },
 }
@@ -334,7 +336,7 @@ export const METER_RULES: Record<string, (g: GameState, r: ResourceRates) => Why
     note:
       `The base condition wears ${pct(r.wear)} a sol` +
       (g.scenario.evaDustWear > 0 ? `, and ${pct(g.scenario.evaDustWear)} more for every shift outside: dust comes back in on suits and tools` : '') +
-      '. Maintenance repairs it.',
+      '. Repairing the base fixes it.',
   }),
   food: (_g, r) => ({
     up: `The greenhouse grows ${one(r.greenhouseKg)} kg a sol while it has power.${cargoLine(r, 'foodKg', 'kg')}`,
@@ -366,6 +368,11 @@ export interface Opening {
   // task it names, so the screen can show that task's own icon and label.
   fix: { before: string; after: string }
   fixTask: CrewTask
+  // Whose job the briefing asks to change: the fix only counts, and only
+  // their buttons pulse, when one of the astronauts on these tasks takes it.
+  // On the Moon that is someone working outside, because the dust they
+  // bring in would otherwise cancel the repair.
+  fixFrom: CrewTask[]
   afterFix: string
 }
 
@@ -375,11 +382,15 @@ export const OPENINGS: Record<ScenarioId, Opening> = {
     meter: 'water',
     title: 'You are the new commander. Water is running out.',
     problem:
-      'Your predecessor put everyone on science and skipped repairs. The base is worn out, so the water recycler is losing most of the water the crew uses.',
-    fix: { before: 'Give one astronaut the', after: 'task and watch the base condition in the Water box go up. Then press Advance sol.' },
+      'Your predecessor put everyone on science and skipped repairs. The base is worn out, so the water recycler is losing most of the water the crew uses. The two astronauts working outside make it worse: they bring in dust that wears the base.',
+    fix: {
+      before: 'Bring one of the two astronauts working outside (helmet on) back in: give them the',
+      after: 'task and watch the base condition in the Water box go up. Then press Advance sol.',
+    },
     fixTask: 'maintenance',
+    fixFrom: ['fieldScience'],
     afterFix:
-      'Maintenance repairs the base, so the recycler wins back more water each sol. It takes a few sols to recover, and two astronauts on maintenance fix it faster. But every shift spent on repairs is a shift not spent on science. That trade-off is the whole game. Night is coming, and the top bar shows when: in the dark, work outside stops.',
+      'Repairs fix the base, so the recycler wins back more water each sol. It takes a few sols to recover, and two astronauts on repairs fix it faster. But every shift spent on repairs is a shift not spent on science. That trade-off is the whole game. Night is coming, and the top bar shows when: in the dark, work outside stops.',
   },
   mars: {
     inheritedTasks: ['maintenance', 'fieldScience', 'labScience', 'fieldScience'],
@@ -389,7 +400,17 @@ export const OPENINGS: Record<ScenarioId, Opening> = {
       'Only one O₂ maker is running, and the crew breathes more than it makes. Your predecessor kept the base repaired but spent every other shift on science.',
     fix: { before: 'Move one of the scientists to the', after: 'task and watch the number of O₂ makers in the Oxygen box go up. Then press Advance sol.' },
     fixTask: 'isru',
+    fixFrom: ['labScience', 'fieldScience'],
     afterFix:
       'Each O₂ maker splits carbon dioxide from the Martian air, but it runs on solar power and wears the base. Once oxygen is going up each sol, move them back to science. The dust season is coming, and the top bar shows when: in a storm you may not have power for every O₂ maker, so build panels before it starts.',
   },
+}
+
+// The briefing's fix is made when one of the astronauts it points at (those
+// who started on one of opening.fixFrom) takes the fix task. On the Moon,
+// giving it to someone else would leave both field scientists outside, and
+// the dust they bring in cancels the repair: the base would not get better.
+export function openingFixed(game: GameState, decisions: Decisions): boolean {
+  const opening = OPENINGS[game.scenario.id]
+  return game.crew.some((m, i) => opening.fixFrom.includes(opening.inheritedTasks[i]) && decisions.assignments[m.id] === opening.fixTask)
 }

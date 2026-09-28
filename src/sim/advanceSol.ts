@@ -325,11 +325,14 @@ export function advanceSol(state: GameState, decisions: Decisions): GameState {
     }
   }
 
-  // 7. Random event
+  // 7. Random event. None in the quiet start (BALANCE.QUIET_START_SOLS),
+  // but the dice are still rolled then, so the random sequence after it is
+  // the same as it would have been.
   let pendingEvent: PendingEvent | null = null
   const rolled = rollEvent({ scenario, facilities: fac, environment: env, crew, sol }, rng)
   rng = rolled.rng
-  if (rolled.event) {
+  const quietStart = sol < scenario.start.sol + BALANCE.QUIET_START_SOLS
+  if (rolled.event && !quietStart) {
     pendingEvent = rolled.event
     log.push({ sol, kind: 'eventStart', message: rolled.event.title })
   }

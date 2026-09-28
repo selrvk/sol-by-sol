@@ -32,6 +32,10 @@ export const BALANCE = {
   MAINTENANCE_PER_SHIFT: 0.08,
 
   // Events
+  // No random alerts in the first sols of the player's command: the opening
+  // briefing has the stage, and an alert on top of it buried its lesson (a
+  // third of games had one in the first three sols).
+  QUIET_START_SOLS: 3,
   SPE_SHELTER_SOLS: 2,
   // Solar particle event size, as a fraction of the August 1972 event
   // (one of the largest ever recorded). Rolled when the event happens.

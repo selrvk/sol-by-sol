@@ -14,9 +14,10 @@ interface Props {
   previous: GameState | null
   decisions: Decisions
   highlight?: string // meter name to draw attention to
+  quiet?: boolean // hold the power forecasts back while the opening briefing has the stage
 }
 
-export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
+export function ResourcePanel({ game, previous, decisions, highlight, quiet = false }: Props) {
   const r = game.resources
   const start = game.scenario.start.resources
   // Before the first sol there is nothing to compare with, so show a
@@ -50,7 +51,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
   // support has to come out of the battery.
   const ahead = nightAhead(game, decisions)
   const battery = game.facilities.batteryCapacityKWh
-  const nightWarning = !ahead || ahead.inSols > 5
+  const nightWarning = quiet || !ahead || ahead.inSols > 5
     ? null
     : ahead.plannedKWh > battery
       ? `Night in ${ahead.inSols} sol${ahead.inSols === 1 ? '' : 's'}: this plan needs ~${Math.ceil(ahead.plannedKWh)} kWh through ${ahead.nightSols} dark sols, ` +
@@ -63,7 +64,7 @@ export function ResourcePanel({ game, previous, decisions, highlight }: Props) {
   const inStorm = stormPower(game)
   const stormShort = inStorm.stormKWh < inStorm.essentialKWh
   const seasonWarning =
-    !season || storming || season.inSols > 8
+    quiet || !season || storming || season.inSols > 8
       ? null
       : `${season.now ? `Dust season until sol ${season.toSol}` : `Dust season in ${season.inSols} sol${season.inSols === 1 ? '' : 's'}`}: ` +
         `in a storm the panels would make ~${Math.round(inStorm.stormKWh)} kWh a sol` +

@@ -6,7 +6,7 @@ import { AdvanceButton, PowerSwitches } from './ControlPanel.tsx'
 import { CrewPanel } from './CrewPanel.tsx'
 import { EventModal } from './EventModal.tsx'
 import { loadSavedUiState, reducer, saveUiState, SCENARIOS } from './gameReducer.ts'
-import { OPENINGS } from './labels.ts'
+import { openingFixed, OPENINGS } from './labels.ts'
 import { LastSol, MissionLog } from './MissionLog.tsx'
 import { OpeningBriefing } from './OpeningBriefing.tsx'
 import { PhoneTabs, type Attention, type Pane } from './PhoneTabs.tsx'
@@ -50,8 +50,12 @@ export function Game() {
   // The opening guide belongs to this game (keyed by seed) until dismissed.
   const opening = OPENINGS[game.scenario.id]
   const showBriefing = briefingDismissedFor !== game.rng.seed && game.outcome.status === 'playing'
-  const fixChosen = Object.values(decisions.assignments).includes(opening.fixTask)
+  const fixChosen = openingFixed(game, decisions)
   const onFirstSol = game.sol === game.scenario.start.sol
+  // The first two sols belong to the briefing and its follow-up: tips and
+  // the power forecasts wait, so there is one thing to read at a time. The
+  // top bar still counts down to the night or the dust season.
+  const settling = showBriefing && game.sol < game.scenario.start.sol + 2
   const answered = game.pendingEvent !== null && decisions.eventChoiceId !== undefined
 
   // A phone only shows one pane at a time; a wide screen shows the lot.
@@ -92,13 +96,10 @@ export function Game() {
           pb-64 leaves room for an answer that wraps to a fourth line. */}
       <main className={`flex flex-1 flex-col gap-4 p-4 ${answered ? 'pb-64' : 'pb-40'} lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_22rem] lg:overflow-hidden lg:pb-4 xl:grid-cols-[minmax(0,1fr)_24rem]`}>
         <div className="contents lg:block lg:h-full lg:min-h-0 lg:min-w-0 lg:space-y-4 lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
-          {showBriefing && (
-            <div className="order-1 lg:order-none">
-            <OpeningBriefing game={game} decisions={decisions} onDismiss={() => setBriefingDismissedFor(game.rng.seed)} />
-            </div>
-          )}
           <div className={`relative order-2 overflow-hidden rounded-2xl border border-slate-800 lg:order-none ${inPane('base')}`}>
-            <BaseView game={game} decisions={decisions} effects={solEffects} />
+            {/* Capped so the first row of crew cards fits under the map on a
+                laptop screen: the crew is what the player changes each sol. */}
+            <BaseView game={game} decisions={decisions} effects={solEffects} className="lg:max-h-[calc(100vh-22rem)]" />
             <BaseSummary game={game} />
             <BaseCondition game={game} />
             <label className="absolute left-3 top-3 flex items-center">
@@ -133,8 +134,8 @@ export function Game() {
             game={game}
             decisions={decisions}
             dispatch={dispatch}
-            highlightTask={showBriefing && !fixChosen ? opening.fixTask : undefined}
-            showAdvice={!(showBriefing && onFirstSol)}
+            highlight={showBriefing && !fixChosen ? { task: opening.fixTask, from: opening.fixFrom } : undefined}
+            showAdvice={!settling}
             pickerFor={pickerFor}
             onPickerChange={setPickerFor}
           />
@@ -158,9 +159,17 @@ export function Game() {
             Advance button is held at its foot so it is always in reach. */}
         <div className="contents lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:gap-4">
           <div className="contents lg:block lg:min-h-0 lg:flex-1 lg:space-y-4 lg:overflow-y-auto lg:overscroll-contain">
+            {/* The briefing sits beside the meter it points at on a wide
+                screen, leaving the map and the crew their room; on a phone
+                it comes first. */}
+            {showBriefing && (
+              <div className="order-1 lg:order-none">
+                <OpeningBriefing game={game} decisions={decisions} onDismiss={() => setBriefingDismissedFor(game.rng.seed)} />
+              </div>
+            )}
             <div className={`order-3 space-y-4 lg:order-none ${inPane('mission')}`}>
               <LastSol game={game} />
-              <ResourcePanel game={game} previous={previous} decisions={decisions} highlight={showBriefing && onFirstSol ? opening.meter : undefined} />
+              <ResourcePanel game={game} previous={previous} decisions={decisions} highlight={showBriefing && onFirstSol ? opening.meter : undefined} quiet={settling} />
             </div>
             <div className={`order-5 lg:order-none ${inPane('mission')}`}>
               <PowerSwitches game={game} decisions={decisions} dispatch={dispatch} />

@@ -9,7 +9,7 @@ The game is about **trade-offs**, not meters. Every shift spent on repairs or sh
 ## How to play
 
 1. Pick a world. You inherit a base with one urgent problem. The briefing tells you what it is and which task fixes it.
-2. Give each astronaut one task for the sol: science, maintenance, building, shielding and so on. Tasks marked **EVA** happen outside and add radiation dose.
+2. Give each astronaut one task for the sol: science, repairing the base, building, shielding and so on. Tasks marked **EVA** happen outside and add radiation dose.
 3. Switch the lab, greenhouse and (on Mars) O₂ makers on or off.
 4. Press **Advance sol** and watch the meters. Every meter has a **why?** button showing the real NASA figures behind it.
 5. Answer alerts as they come. Every event is a choice with a cost.

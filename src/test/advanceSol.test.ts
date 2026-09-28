@@ -12,7 +12,8 @@ import { newGame } from '../sim/newGame.ts'
 import { mars } from '../sim/scenarios/mars.ts'
 import { moon } from '../sim/scenarios/moon.ts'
 import type { Decisions, GameState, Scenario } from '../sim/types.ts'
-import { OPENINGS } from '../ui/labels.ts'
+import { BALANCE } from '../sim/balance.ts'
+import { openingFixed, OPENINGS } from '../ui/labels.ts'
 
 // A scenario with parts of its starting state replaced.
 function withStart(base: Scenario, start: Partial<Scenario['start']>, extra: Partial<Scenario> = {}): Scenario {
@@ -162,7 +163,53 @@ describe('opening crisis', () => {
         assert.equal(playOpening(scenario, seed, false, 30).outcome.status, 'lost', `seed ${seed}`)
       }
     })
+
+    // The briefing says what to watch go up; it has to go up on the very
+    // first sol, whichever of the astronauts it points at the player picks.
+    it(`${scenario.id}: the briefing's promise shows on the first sol`, () => {
+      const opening = OPENINGS[scenario.id]
+      for (let seed = 1; seed <= 30; seed++) {
+        const state = newGame(scenario, seed)
+        opening.inheritedTasks.forEach((from, k) => {
+          if (!opening.fixFrom.includes(from)) return
+          const tasks = opening.inheritedTasks.map((t, i) => (i === k ? opening.fixTask : t))
+          const decisions: Decisions = {
+            assignments: Object.fromEntries(state.crew.map((m, i) => [m.id, tasks[i]])),
+            power: { lab: true, greenhouse: true, isru: true },
+          }
+          assert.ok(openingFixed(state, decisions), `seed ${seed}, crew ${k}: counts as the fix`)
+          const next = advanceSol(state, decisions)
+          if (scenario.id === 'moon') assert.ok(next.facilities.condition > state.facilities.condition, `seed ${seed}, crew ${k}: base condition`)
+          else assert.ok(next.facilities.isruUnits > state.facilities.isruUnits, `seed ${seed}, crew ${k}: O2 makers`)
+        })
+      }
+    })
   }
+
+  // On the Moon, repairing with someone who was not outside leaves both
+  // field scientists bringing dust in, which cancels the repair. So that
+  // pick does not count as following the briefing, which keeps asking.
+  it('moon: repairing with an indoor astronaut is not the briefing\'s fix', () => {
+    const state = newGame(moon, 1)
+    const tasks = ['maintenance', ...OPENINGS.moon.inheritedTasks.slice(1)]
+    const decisions: Decisions = {
+      assignments: Object.fromEntries(state.crew.map((m, i) => [m.id, tasks[i]])),
+      power: { lab: true, greenhouse: true, isru: true },
+    }
+    assert.equal(openingFixed(state, decisions), false)
+  })
+
+  it('no random alerts in the quiet start', () => {
+    for (const scenario of [moon, mars]) {
+      for (let seed = 1; seed <= 100; seed++) {
+        let state = newGame(scenario, seed)
+        for (let i = 0; i < BALANCE.QUIET_START_SOLS; i++) {
+          state = advanceSol(state, plan(state))
+          assert.equal(state.pendingEvent, null, `${scenario.id} seed ${seed}, sol ${state.sol - 1}`)
+        }
+      }
+    }
+  })
 
   // The Moon's second lesson: the long night has to be planned for. The
   // game must warn while there is still daylight to act in, and switching

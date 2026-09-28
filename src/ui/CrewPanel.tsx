@@ -13,13 +13,14 @@ interface Props {
   game: GameState
   decisions: Decisions
   dispatch: Dispatch<Action>
-  highlightTask?: CrewTask // pulse this task's buttons (opening guide)
+  // The opening guide: pulse this task's button for the crew on these tasks.
+  highlight?: { task: CrewTask; from: CrewTask[] }
   showAdvice?: boolean     // hold back tips while the opening briefing has the stage
   pickerFor?: string | null
   onPickerChange?: (crewId: string | null) => void
 }
 
-export function CrewPanel({ game, decisions, dispatch, highlightTask, showAdvice = true, pickerFor = null, onPickerChange }: Props) {
+export function CrewPanel({ game, decisions, dispatch, highlight, showAdvice = true, pickerFor = null, onPickerChange }: Props) {
   const tasks = (Object.keys(TASK_LABELS) as CrewTask[]).filter((t) => t !== 'isru' || game.scenario.isruAvailable)
   const sheltering = game.environment.shelterSolsLeft > 0
   const repairShifts = game.environment.busyShifts + game.environment.busyEvaShifts
@@ -125,7 +126,7 @@ export function CrewPanel({ game, decisions, dispatch, highlightTask, showAdvice
                   aria-haspopup="dialog"
                   aria-label={`Change ${m.name}’s task: ${TASK_LABELS[task].label}${EVA_TASKS.has(task) ? ', outside' : ''}`}
                   className={`flex w-full items-center gap-2 rounded-lg border border-slate-700 px-2.5 py-2 text-left text-sm hover:border-slate-500 transition active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 ${
-                    highlightTask && (task === 'labScience' || task === 'fieldScience') ? 'animate-pulse ring-2 ring-yellow-300' : ''
+                    highlight?.from.includes(task) ? 'animate-pulse ring-2 ring-yellow-300' : ''
                   }`}
                 >
                   <CurrentTask task={task} />
@@ -144,7 +145,7 @@ export function CrewPanel({ game, decisions, dispatch, highlightTask, showAdvice
                   task={task}
                   tasks={tasks}
                   dispatch={dispatch}
-                  highlightTask={highlightTask}
+                  highlight={highlight}
                   lines={lines}
                 />
                 <p className="mt-1.5 text-xs text-slate-300">
@@ -231,7 +232,7 @@ function TaskButtons({
   tasks,
   lines,
   dispatch,
-  highlightTask,
+  highlight,
   big = false,
   onPicked,
 }: {
@@ -241,7 +242,7 @@ function TaskButtons({
   tasks: CrewTask[]
   lines: Record<CrewTask, TaskLine>
   dispatch: Dispatch<Action>
-  highlightTask?: CrewTask
+  highlight?: { task: CrewTask; from: CrewTask[] }
   big?: boolean
   onPicked?: () => void
 }) {
@@ -250,7 +251,7 @@ function TaskButtons({
       {tasks.map((t) => {
         const Icon = TASK_ICONS[t]
         const selected = task === t
-        const pulse = highlightTask === t && (task === 'labScience' || task === 'fieldScience')
+        const pulse = highlight?.task === t && highlight.from.includes(task)
         return (
           <button
             key={t}
