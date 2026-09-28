@@ -40,18 +40,26 @@ export function StartScreen({ dispatch }: { dispatch: Dispatch<Action> }) {
               key={id}
               type="button"
               onClick={() => start(id)}
-              className="rounded-2xl border border-slate-700 bg-slate-900 p-5 text-left transition hover:border-yellow-300 active:scale-[0.99] motion-reduce:transition-none motion-reduce:active:scale-100"
+              className="flex flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 text-left transition hover:border-yellow-300 active:scale-[0.99] motion-reduce:transition-none motion-reduce:active:scale-100"
             >
-              {id === 'moon' ? (
-                <Moon size={36} className="text-amber-200" aria-hidden />
-              ) : (
-                <Globe size={36} className="text-red-400" aria-hidden />
-              )}
-              <h2 className="mt-2 text-xl font-bold">{sc.name}</h2>
-              <p className="mt-1 text-sm text-slate-300">{SCENARIO_BLURBS[id]}</p>
-              <p className="mt-3 text-sm text-violet-300">
-                You take command on sol {sc.start.sol}. Goal: {sc.scienceTarget} science by sol {sc.missionLengthSols}.
-              </p>
+              {/* The base as you will find it on taking command (made by
+                  art/preview.py). The words beside it say the same, so it is
+                  left out for a screen reader. */}
+              <img src={`/art/start-${id}.webp`} alt="" width={720} height={360} className="block aspect-[2/1] w-full bg-[#0c1633] object-cover" />
+              <div className="p-5 pt-4">
+                <h2 className="flex items-center gap-2 text-xl font-bold">
+                  {id === 'moon' ? (
+                    <Moon size={22} className="text-amber-200" aria-hidden />
+                  ) : (
+                    <Globe size={22} className="text-red-400" aria-hidden />
+                  )}
+                  {sc.name}
+                </h2>
+                <p className="mt-1 text-sm text-slate-300">{SCENARIO_BLURBS[id]}</p>
+                <p className="mt-3 text-sm text-violet-300">
+                  You take command on sol {sc.start.sol}. Goal: {sc.scienceTarget} science by sol {sc.missionLengthSols}.
+                </p>
+              </div>
             </button>
           )
         })}

@@ -2,6 +2,8 @@
 
 By **Team ARCHSPACE**. A browser game for the 2026 NASA Space Apps Challenge, "Build a Junior Astronaut Mission Trainer", aimed at learners aged about 10 to 16.
 
+![The lunar outpost on sol 42: the base map with the crew at work, the crew's task buttons below it, and the mission status meters warning that night is three sols away.](docs/screenshot.jpg)
+
 You take command of a four-person outpost on the **Moon** or **Mars** on sol 40 of a 120-sol mission. Reach the science target before the mission clock runs out, without letting oxygen, water, food or power run out, and without any astronaut passing NASA's career radiation limit.
 
 The game is about **trade-offs**, not meters. Every shift spent on repairs or shielding is a shift not spent on science. Every kilowatt the greenhouse uses is one the lab can't have. A cautious player survives with a poor score. A greedy player loses the crew. That gap is the lesson.
@@ -35,7 +37,7 @@ npm run balance -- --seeds 1000
 npm run fixed-plans
 ```
 
-A link to the game shows a preview picture (`public/og-image.jpg`, made by `python3 art/preview.py` from the game's own art). Chat apps and social sites need the picture's full address, which the build fills in from Vercel's or Netlify's deploy address; for any other host, or a custom domain, build with `SITE_URL=https://your.address npm run build`.
+A link to the game shows a preview picture (`public/og-image.jpg`), and the start screen shows each world's base (`public/art/start-*.webp`): `python3 art/preview.py` makes all three from the game's own art and layout. Chat apps and social sites need the picture's full address, which the build fills in from Vercel's or Netlify's deploy address; for any other host, or a custom domain, build with `SITE_URL=https://your.address npm run build`.
 
 `sim` prints a sol-by-sol table of every resource for one scripted player. `balance` runs every scripted player on both worlds (100 seeds unless told otherwise), summarises who wins and what kills them, and fails if any of them stops doing what it is meant to. `fixed-plans` tries every crew plan that never changes, looking for a lazy way to win; none should come close to a careful player.
 
