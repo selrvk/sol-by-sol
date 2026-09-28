@@ -35,6 +35,8 @@ npm run balance -- --seeds 1000
 npm run fixed-plans
 ```
 
+A link to the game shows a preview picture (`public/og-image.jpg`, made by `python3 art/preview.py` from the game's own art). Chat apps and social sites need the picture's full address, which the build fills in from Vercel's or Netlify's deploy address; for any other host, or a custom domain, build with `SITE_URL=https://your.address npm run build`.
+
 `sim` prints a sol-by-sol table of every resource for one scripted player. `balance` runs every scripted player on both worlds (100 seeds unless told otherwise), summarises who wins and what kills them, and fails if any of them stops doing what it is meant to. `fixed-plans` tries every crew plan that never changes, looking for a lazy way to win; none should come close to a careful player.
 
 ## Architecture

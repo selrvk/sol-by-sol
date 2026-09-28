@@ -11,7 +11,7 @@ import { dustSeason, lightInfo, nightAhead, stormChance, stormPower } from '../s
 import { newGame } from '../sim/newGame.ts'
 import { mars } from '../sim/scenarios/mars.ts'
 import { moon } from '../sim/scenarios/moon.ts'
-import type { Decisions, GameState, Scenario } from '../sim/types.ts'
+import type { CrewTask, Decisions, GameState, Scenario } from '../sim/types.ts'
 import { BALANCE } from '../sim/balance.ts'
 import { openingFixed, OPENINGS } from '../ui/labels.ts'
 
@@ -191,7 +191,7 @@ describe('opening crisis', () => {
   // pick does not count as following the briefing, which keeps asking.
   it('moon: repairing with an indoor astronaut is not the briefing\'s fix', () => {
     const state = newGame(moon, 1)
-    const tasks = ['maintenance', ...OPENINGS.moon.inheritedTasks.slice(1)]
+    const tasks: CrewTask[] = ['maintenance', ...OPENINGS.moon.inheritedTasks.slice(1)]
     const decisions: Decisions = {
       assignments: Object.fromEntries(state.crew.map((m, i) => [m.id, tasks[i]])),
       power: { lab: true, greenhouse: true, isru: true },

@@ -41,29 +41,57 @@ function LogLine({ entry, dim = false }: { entry: GameEvent; dim?: boolean }) {
   )
 }
 
+// One row of the log: an entry, and the run of sols it was repeated on.
+interface LogRow {
+  entry: GameEvent
+  from: number
+  to: number
+}
+
+// The same message sol after sol -- the lab and greenhouse switched off
+// through a whole lunar night -- is one row with its span, not a row a sol,
+// which filled the log with copies and pushed everything else out of it.
+// Newest first: a run that is still going moves up with its latest sol.
+function logRows(log: GameEvent[]): LogRow[] {
+  const rows: LogRow[] = []
+  const runs = new Map<string, LogRow>()
+  for (const entry of log) {
+    const key = `${entry.kind}|${entry.message}`
+    const run = runs.get(key)
+    if (run && run.to === entry.sol - 1) {
+      run.to = entry.sol
+      continue
+    }
+    const row = { entry, from: entry.sol, to: entry.sol }
+    rows.push(row)
+    runs.set(key, row)
+  }
+  return rows.reverse().sort((a, b) => b.to - a.to)
+}
+
 // Newest first. The latest sol is highlighted so it is clear what just
 // happened after pressing Advance. Quiet sols add nothing, so an empty log
 // can mean the mission has not started or only that nothing has happened.
 export function MissionLog({ log, started }: { log: GameEvent[]; started: boolean }) {
-  const entries = log.slice(-15).reverse()
-  const latestSol = entries[0]?.sol
+  const rows = logRows(log).slice(0, 15)
+  const latestSol = rows[0]?.to
   return (
     <section aria-label="Mission log" className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
       <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-300">
         <ScrollText size={16} className="text-sky-300" aria-hidden /> Mission log
       </h2>
-      {entries.length === 0 ? (
+      {rows.length === 0 ? (
         <p className="text-sm text-slate-500">
           {started ? 'Nothing out of the ordinary so far.' : 'Nothing to report yet. Press Advance sol to begin.'}
         </p>
       ) : (
         <ol className="max-h-44 space-y-1 overflow-y-auto pr-1 text-sm">
-          {entries.map((e, i) => {
-            const recent = e.sol === latestSol
+          {rows.map(({ entry, from, to }, i) => {
+            const recent = to === latestSol
             return (
-              <li key={`${e.sol}-${i}`} className={`flex gap-2 ${recent ? 'text-slate-100' : 'text-slate-500'} ${i === 0 ? 'log-in' : ''}`}>
-                <span className="w-14 shrink-0 tabular-nums text-slate-500">Sol {e.sol}</span>
-                <LogLine entry={e} dim={!recent} />
+              <li key={`${from}-${entry.kind}-${entry.message}`} className={`flex gap-2 ${recent ? 'text-slate-100' : 'text-slate-500'} ${i === 0 ? 'log-in' : ''}`}>
+                <span className="w-20 shrink-0 tabular-nums text-slate-500">{from === to ? `Sol ${from}` : `Sols ${from}–${to}`}</span>
+                <LogLine entry={entry} dim={!recent} />
               </li>
             )
           })}
