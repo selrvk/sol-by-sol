@@ -500,7 +500,14 @@ export function BaseView({ game, decisions, effects, className = '' }: { game: G
   const o2 = b.isru && labelAt('reactor', b.isru) // Mars has no reactor: the O₂ plant uses that pad
 
   return (
-    <svg viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`} className={`h-auto w-full bg-[#0c1633] ${className}`} role="img" aria-label={`The ${isMars ? 'Mars' : 'lunar'} outpost`}>
+    // "slice": when the page caps the map's height (see Game), the map keeps
+    // filling the width and loses a strip of sky and cliff from its top and
+    // bottom, rather than shrinking. Uncapped, it is exactly the map.
+    <svg
+      viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`}
+      preserveAspectRatio="xMidYMid slice"
+      className={`h-auto w-full bg-[#0c1633] ${className}`}
+      role="img" aria-label={`The ${isMars ? 'Mars' : 'lunar'} outpost`}>
       <defs>
         {/* Round mask for the crew portraits on the map. */}
         <clipPath id="crew-badge-clip">

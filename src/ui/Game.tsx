@@ -96,10 +96,14 @@ export function Game() {
           pb-64 leaves room for an answer that wraps to a fourth line. */}
       <main className={`flex flex-1 flex-col gap-4 p-4 ${answered ? 'pb-64' : 'pb-40'} lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_22rem] lg:overflow-hidden lg:pb-4 xl:grid-cols-[minmax(0,1fr)_24rem]`}>
         <div className="contents lg:block lg:h-full lg:min-h-0 lg:min-w-0 lg:space-y-4 lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
-          <div className={`relative order-2 overflow-hidden rounded-2xl border border-slate-800 lg:order-none ${inPane('base')}`}>
+          <div className={`@container relative order-2 overflow-hidden rounded-2xl border border-slate-800 lg:order-none ${inPane('base')}`}>
             {/* Capped so the first row of crew cards fits under the map on a
-                laptop screen: the crew is what the player changes each sol. */}
-            <BaseView game={game} decisions={decisions} effects={solEffects} className="lg:max-h-[calc(100vh-22rem)]" />
+                laptop screen: the crew is what the player changes each sol.
+                The map still fills the width; the cap trims sky and cliff
+                from its top and bottom (BaseView), but never more than 60
+                map units from each: 48.1cqw is the map's height with 120 of
+                its 760 units trimmed, and the cap stops there. */}
+            <BaseView game={game} decisions={decisions} effects={solEffects} className="lg:max-h-[max(calc(100vh-22rem),48.1cqw)]" />
             <BaseSummary game={game} />
             <BaseCondition game={game} />
             <label className="absolute left-3 top-3 flex items-center">
