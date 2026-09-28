@@ -102,21 +102,21 @@ function taskLine(task: CrewTask, fx: TaskEffects): TaskLine {
   }
 }
 
-// Crew portraits, cut from the two art sheets by art/process.py. Each
-// astronaut has an indoor face and a helmeted one; the game shows the
-// helmet whenever they are working outside. Keyed by crew id, so swapping
-// who looks like whom is a one-line change.
+// Crew portraits, cropped to the face by art/process.py. Each astronaut has
+// an indoor face and a helmeted one; the game shows the helmet whenever
+// they are working outside. Keyed by crew id, so swapping who looks like
+// whom is a one-line change.
 interface Portrait {
   inside: string
   eva: string
-  accent: string // the disc colour painted behind them, for rings and dots
+  accent: string // the flat colour painted behind them, for their ring
 }
 
 export const CREW_PORTRAITS: Record<string, Portrait> = {
-  ada: { inside: '/art/crew/crew-1.webp', eva: '/art/crew/crew-1-eva.webp', accent: '#2f72d9' },
-  kofi: { inside: '/art/crew/crew-2.webp', eva: '/art/crew/crew-2-eva.webp', accent: '#31ac90' },
-  mei: { inside: '/art/crew/crew-3.webp', eva: '/art/crew/crew-3-eva.webp', accent: '#f8a24b' },
-  luis: { inside: '/art/crew/crew-4.webp', eva: '/art/crew/crew-4-eva.webp', accent: '#6665e3' },
+  ada: { inside: '/art/crew/ada.webp', eva: '/art/crew/ada-eva.webp', accent: '#08a2a6' },
+  kofi: { inside: '/art/crew/kofi.webp', eva: '/art/crew/kofi-eva.webp', accent: '#df415e' },
+  mei: { inside: '/art/crew/mei.webp', eva: '/art/crew/mei-eva.webp', accent: '#5c35c5' },
+  luis: { inside: '/art/crew/luis.webp', eva: '/art/crew/luis-eva.webp', accent: '#fbb21c' },
 }
 
 export const portraitFor = (crewId: string, onEva: boolean): string | undefined => {

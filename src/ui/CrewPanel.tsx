@@ -79,35 +79,22 @@ export function CrewPanel({ game, decisions, dispatch, highlight, showAdvice = t
         <p className="text-[11px] text-slate-400">
           <span className="mr-1 inline-block h-2 w-2 rounded-full bg-orange-400 align-middle" /> helmet on = outside (EVA), extra radiation
         </p>
-        <p className="w-full text-[11px] text-slate-500">
-          Radiation per sol: indoors +{indoorDose.toFixed(1)} mSv, on a spacewalk +{evaDose.toFixed(1)} mSv.
-        </p>
+        {/* A notice that changes this sol's work takes the place of the
+            radiation line while it lasts, rather than a line of its own
+            above the cards, so the task buttons never move. */}
+        {sheltering ? (
+          <p className="w-full text-xs font-semibold text-amber-300">Sheltering from a solar storm: no work this sol.</p>
+        ) : repairShifts > 0 ? (
+          <p className="flex w-full items-center gap-1.5 text-xs font-semibold text-amber-300">
+            <Wrench size={13} className="shrink-0" aria-hidden /> {repairShifts} shift{repairShifts > 1 ? 's' : ''} owed to repairs
+            {game.environment.busyEvaShifts > 0 ? ', some outside' : ''}: taken from science first.
+          </p>
+        ) : (
+          <p className="w-full text-[11px] text-slate-500">
+            Radiation per sol: indoors +{indoorDose.toFixed(1)} mSv, on a spacewalk +{evaDose.toFixed(1)} mSv.
+          </p>
+        )}
       </div>
-      {sheltering && <p className="mb-2 text-sm text-amber-300">Sheltering from a solar storm: no work this sol.</p>}
-      {!sheltering && repairShifts > 0 && (
-        <p className="mb-2 flex items-center gap-1.5 text-sm text-amber-300">
-          <Wrench size={15} className="shrink-0" aria-hidden /> {repairShifts} shift{repairShifts > 1 ? 's' : ''} owed to repairs
-          {game.environment.busyEvaShifts > 0 ? ', some outside' : ''}: taken from science first.
-        </p>
-      )}
-      {showAdvice && swapAdvice && (
-        <div className="mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-sky-400/50 bg-sky-950/40 px-3 py-2 text-sm">
-          <Lightbulb size={18} className="shrink-0 text-sky-300" aria-hidden />
-          <span className="flex-1">
-            {name(swapAdvice.out)} is outside with only {Math.round(headroom(swapAdvice.out))} mSv of radiation to spare.{' '}
-            {name(swapAdvice.in)} has {Math.round(headroom(swapAdvice.in))} mSv to spare and is working indoors. Whoever is outside takes the
-            biggest dose if a solar storm hits.
-          </span>
-          <button
-            type="button"
-            onClick={() => dispatch({ type: 'swapTasks', a: swapAdvice!.out, b: swapAdvice!.in })}
-            className="flex items-center gap-1 rounded-lg bg-sky-300 px-2.5 py-1 text-xs font-semibold text-slate-900 hover:bg-sky-200 transition active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
-          >
-            <ArrowLeftRight size={14} aria-hidden /> Swap their jobs
-          </button>
-        </div>
-      )}
-
       <div className="grid gap-2 sm:grid-cols-2">
         {game.crew.map((m, index) => {
           const task = decisions.assignments[m.id] ?? 'rest'
@@ -159,6 +146,25 @@ export function CrewPanel({ game, decisions, dispatch, highlight, showAdvice = t
                   )}
                 </p>
               </div>
+              {/* The swap tip sits in the card of the astronaut it is about,
+                  under their task buttons, so it moves no one's buttons: as
+                  a banner above the cards it pushed them below the fold. */}
+              {showAdvice && swapAdvice?.out === m.id && (
+                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-lg border border-sky-400/50 bg-sky-950/40 px-2.5 py-2 text-xs">
+                  <Lightbulb size={16} className="shrink-0 text-sky-300" aria-hidden />
+                  <span className="min-w-0 flex-1">
+                    Outside with only {Math.round(headroom(m.id))} mSv of radiation to spare. {name(swapAdvice.in)} has{' '}
+                    {Math.round(headroom(swapAdvice.in))} mSv to spare and is indoors. Whoever is outside takes the biggest dose if a solar storm hits.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: 'swapTasks', a: swapAdvice!.out, b: swapAdvice!.in })}
+                    className="flex items-center gap-1 rounded-lg bg-sky-300 px-2.5 py-1 text-xs font-semibold text-slate-900 hover:bg-sky-200 transition active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
+                  >
+                    <ArrowLeftRight size={14} aria-hidden /> Swap jobs with {name(swapAdvice.in)}
+                  </button>
+                </div>
+              )}
             </div>
           )
         })}

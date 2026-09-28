@@ -6,11 +6,11 @@
   buildings/moon and buildings/mars (see cut_building_sets), and the cargo
   pad and lander (see make_lander).
 - Terrain: re-encoded as WebP, which is a fraction of the PNG's size.
-- Crew: two portrait sheets, bare-headed and helmeted, split into discs.
+- Crew: a portrait per astronaut, bare-headed and helmeted, cropped to the face.
 
 Output goes to public/art/, which is what the game loads. Retired art (the
-first buildings and map, and the building sheets that followed them) is
-kept in art/source/v1 and is no longer processed.
+first buildings and map, the building sheets that followed them, and the
+first crew portraits) is kept in art/source/v1 and is no longer processed.
 """
 
 import collections
@@ -37,65 +37,26 @@ def union(a, b):
     return (min(a[0], b[0]), min(a[1], b[1]), max(a[2], b[2]), max(a[3], b[3]))
 
 
-# The portrait sheet: four discs on a flat background.
-# Two sheets of the same four astronauts in the same accent colours: one
-# bare-headed, one with helmets on. The game shows the helmet when that
-# astronaut is assigned outside, so the crew card says at a glance who is
-# on a spacewalk.
-CREW_SHEETS = {
-    '': SRC / 'people' / 'crewpeeps.png',
-    '-eva': SRC / 'people' / 'crewpeeps-w-helmet.png',
-}
-CREW_NAMES = ['crew-1', 'crew-2', 'crew-3', 'crew-4']
-
-
-def crew_discs(im: Image.Image) -> list[tuple[int, int, int, int]]:
-    """Find the portrait discs, as (left, top, right, bottom) boxes."""
-    w, h = im.size
-    px = im.load()
-    bg = px[5, 5]
-    is_bg = lambda p: all(abs(p[i] - bg[i]) < 24 for i in range(3))
-    seen = [[False] * h for _ in range(w)]
-    found = []
-    for sy in range(0, h, 4):
-        for sx in range(0, w, 4):
-            if seen[sx][sy] or is_bg(px[sx, sy]):
-                continue
-            queue = collections.deque([(sx, sy)])
-            seen[sx][sy] = True
-            box = [sx, sy, sx, sy]
-            count = 0
-            while queue:
-                x, y = queue.popleft()
-                count += 1
-                box = [min(box[0], x), min(box[1], y), max(box[2], x), max(box[3], y)]
-                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
-                    if 0 <= nx < w and 0 <= ny < h and not seen[nx][ny] and not is_bg(px[nx, ny]):
-                        seen[nx][ny] = True
-                        queue.append((nx, ny))
-            if count > 5000:
-                found.append(tuple(box))
-    return sorted(found, key=lambda b: (b[1] // 100, b[0]))  # reading order
+# The crew portraits: one square picture per astronaut bare-headed, and one
+# with the helmet on, in crew/ as <id>-icon.png and <id>-helmet-icon.png.
+# The game shows the helmet when that astronaut is assigned outside, so the
+# crew card says at a glance who is on a spacewalk. Each is painted on its
+# own flat colour, which the game uses for their ring (CREW_PORTRAITS in
+# src/ui/labels.ts).
+#
+# The game shows them in circles, as small as 52px on the map, so the crop
+# is centred on the face and leaves out most of the background around it.
+CREW_IDS = ['ada', 'kofi', 'mei', 'luis']
+PORTRAIT_CROP = (220, 50, 1120, 950)  # in the 1254px pictures
 
 
 def crop_crew() -> None:
-    """Cut each sheet into four square avatars.
-
-    These suits carry no agency insignia, so the whole disc is kept rather
-    than a tight crop of the face. The square is centred on the disc and
-    sized to its larger side, so the round CSS mask in the game lands
-    exactly on the painted circle.
-    """
     (OUT / 'crew').mkdir(parents=True, exist_ok=True)
-    for suffix, sheet in CREW_SHEETS.items():
-        if not sheet.exists():
-            continue
-        im = Image.open(sheet).convert('RGB')
-        for name, (x0, y0, x1, y1) in zip(CREW_NAMES, crew_discs(im)):
-            cx, cy = (x0 + x1) // 2, (y0 + y1) // 2
-            half = max(x1 - x0, y1 - y0) // 2
-            disc = im.crop((cx - half, cy - half, cx + half, cy + half)).resize((256, 256), Image.LANCZOS)
-            save(disc, OUT / 'crew' / f'{name}{suffix}.webp')
+    for crew_id in CREW_IDS:
+        for src, suffix in ((f'{crew_id}-icon.png', ''), (f'{crew_id}-helmet-icon.png', '-eva')):
+            im = Image.open(SRC / 'crew' / src).convert('RGB')
+            save(im.crop(PORTRAIT_CROP).resize((256, 256), Image.LANCZOS), OUT / 'crew' / f'{crew_id}{suffix}.webp')
+            print(f'  {src}: background {im.getpixel((8, 8))}')
 
 
 # The team's patch: the badge in the top bar, and the site icon.
