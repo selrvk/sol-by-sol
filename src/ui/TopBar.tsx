@@ -69,11 +69,7 @@ export function TopBar({ game, onQuit }: { game: GameState; onQuit: () => void }
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-4 sm:gap-y-3">
       <div className="flex items-center gap-2.5 pr-1 sm:pr-2">
         <img src="/art/archspace-logo.webp" alt="ARCHSPACE" width={32} height={32} className="shrink-0" />
-        <p className="hidden text-sm font-extrabold uppercase leading-tight tracking-wide sm:block">
-          Junior Astronaut
-          <br />
-          Mission Trainer
-        </p>
+        <p className="hidden whitespace-nowrap text-lg font-extrabold leading-none tracking-tight sm:block">Sol by Sol</p>
       </div>
       {/* Sol x of y already says how long is left, so the old "sols left"
           reading was the same number twice. It comes back only when the

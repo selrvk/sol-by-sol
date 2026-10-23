@@ -3,7 +3,7 @@
     python3 art/preview.py        (needs Pillow; run art/process.py first)
 
 - public/og-image.jpg, 1200 x 630: the link preview. The Moon base in
-  daylight, fully built, with the title in the empty sky at the top left.
+  daylight, fully built, with the game's name in the top left.
 - public/art/start-moon.webp, start-mars.webp: the start screen's two world
   cards. Each base as the player finds it on taking command: the Moon's worn
   out, with its first row of panels; Mars's in repair, with one O2 plant.
@@ -109,13 +109,14 @@ def link_preview() -> None:
     out.paste(Image.new('RGB', size, SKY), (0, 0), fade)
 
     draw = ImageDraw.Draw(out)
-    title = ImageFont.truetype(FONT, 46, index=0)
-    tagline = ImageFont.truetype(FONT, 26, index=5)
+    title = ImageFont.truetype(FONT, 64, index=0)
+    tagline = ImageFont.truetype(FONT, 26, index=2)
     edge = {'stroke_width': 2, 'stroke_fill': SKY}
-    draw.text((44, 36), 'Junior Astronaut', font=title, fill=(255, 255, 255), **edge)
-    draw.text((44, 88), 'Mission Trainer', font=title, fill=(255, 255, 255), **edge)
-    draw.text((46, 150), 'Keep your crew alive.', font=tagline, fill=(186, 230, 253), **edge)
-    draw.text((46, 184), 'Do the science.', font=tagline, fill=(186, 230, 253), **edge)
+    subtitle = ImageFont.truetype(FONT, 22, index=2)
+    draw.text((42, 30), 'Sol by Sol', font=title, fill=(255, 255, 255), **edge)
+    draw.text((46, 108), 'A JUNIOR ASTRONAUT MISSION TRAINER', font=subtitle, fill=(125, 211, 252), **edge)
+    draw.text((46, 150), 'Keep your crew alive.', font=tagline, fill=(255, 255, 255), **edge)
+    draw.text((46, 184), 'Do the science.', font=tagline, fill=(255, 255, 255), **edge)
     save(out, ROOT / 'public' / 'og-image.jpg', format='JPEG', quality=86, optimize=True, progressive=True)
 
 

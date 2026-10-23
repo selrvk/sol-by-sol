@@ -24,8 +24,9 @@ export function StartScreen({ dispatch }: { dispatch: Dispatch<Action> }) {
       <div className="flex items-start gap-4">
         <img src="/art/archspace-logo.webp" alt="ARCHSPACE" width={72} height={72} className="hidden shrink-0 sm:block" />
         <div>
-        <p className="text-sm uppercase tracking-widest text-sky-300">Junior Astronaut Mission Trainer</p>
-        <h1 className="mt-1 text-3xl font-bold">Keep your crew alive. Do the science.</h1>
+        <h1 className="text-4xl font-extrabold tracking-tight">Sol by Sol</h1>
+        <p className="mt-1 text-sm uppercase tracking-widest text-sky-300">A Junior Astronaut Mission Trainer</p>
+        <p className="mt-3 text-xl font-bold">Keep your crew alive. Do the science.</p>
         <p className="mt-2 text-slate-300">
           Four astronauts, one outpost. Every hour and every kilowatt you spend on safety is one you can't spend on science.
         </p>

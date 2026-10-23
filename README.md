@@ -1,4 +1,6 @@
-# Junior Astronaut Mission Trainer
+# Sol by Sol
+
+*A Junior Astronaut Mission Trainer.*
 
 By **Team ARCHSPACE**. A browser game for the 2026 NASA Space Apps Challenge, "Build a Junior Astronaut Mission Trainer", aimed at learners aged about 10 to 16.
 
