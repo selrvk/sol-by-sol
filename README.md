@@ -41,6 +41,8 @@ npm run fixed-plans
 
 A link to the game shows a preview picture (`public/og-image.jpg`), and the start screen shows each world's base (`public/art/start-*.webp`): `python3 art/preview.py` makes all three from the game's own art and layout. Chat apps and social sites need the picture's full address, which the build fills in from Vercel's or Netlify's deploy address; for any other host, or a custom domain, build with `SITE_URL=https://your.address npm run build`.
 
+`vercel.json` lets browsers keep the game's files: the built code (whose file names change with every build) for good, and the art for a day, after which a returning player gets any changed picture in the background. The start screen also fetches both worlds' art while it is being read, so a world's map appears whole rather than a picture at a time.
+
 `sim` prints a sol-by-sol table of every resource for one scripted player. `balance` runs every scripted player on both worlds (100 seeds unless told otherwise), summarises who wins and what kills them, and fails if any of them stops doing what it is meant to. `fixed-plans` tries every crew plan that never changes, looking for a lazy way to win; none should come close to a careful player.
 
 ## Architecture

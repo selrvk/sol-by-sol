@@ -10,6 +10,8 @@ import { openingFixed, OPENINGS } from './labels.ts'
 import { LastSol, MissionLog } from './MissionLog.tsx'
 import { OpeningBriefing } from './OpeningBriefing.tsx'
 import { PhoneTabs, type Attention, type Pane } from './PhoneTabs.tsx'
+import { useArtReady } from './preload.ts'
+import { everyImageOf, imagesFor } from './sprites.ts'
 import { useSolEffects } from './useSolEffects.ts'
 import { ResourcePanel } from './ResourcePanel.tsx'
 import { EndScreen, StartScreen } from './Screens.tsx'
@@ -45,6 +47,11 @@ export function Game() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [ui])
+  // The map waits for the pictures it shows, then appears whole (preload.ts).
+  // Once it is up, everything else the world can show -- the other time of
+  // day, every stage of every building -- is fetched quietly, so a picture
+  // that changes later does not blink.
+  const artReady = useArtReady(game?.scenario.id ?? 'none', game ? imagesFor(game) : [], game ? everyImageOf(game) : [])
   if (!game) return <StartScreen dispatch={dispatch} />
 
   // The opening guide belongs to this game (keyed by seed) until dismissed.
@@ -103,7 +110,12 @@ export function Game() {
                 from its top and bottom (BaseView), but never more than 60
                 map units from each: 48.1cqw is the map's height with 120 of
                 its 760 units trimmed, and the cap stops there. */}
-            <BaseView game={game} decisions={decisions} effects={solEffects} className="lg:max-h-[max(calc(100vh-22rem),48.1cqw)]" />
+            <div className={`transition-opacity duration-500 motion-reduce:transition-none ${artReady ? 'opacity-100' : 'opacity-0'}`}>
+              <BaseView game={game} decisions={decisions} effects={solEffects} className="lg:max-h-[max(calc(100vh-22rem),48.1cqw)]" />
+            </div>
+            {!artReady && (
+              <p className="absolute inset-0 flex animate-pulse items-center justify-center text-sm font-semibold text-slate-400">Landing at the outpost…</p>
+            )}
             <BaseSummary game={game} />
             <BaseCondition game={game} />
             <label className="absolute left-3 top-3 flex items-center">

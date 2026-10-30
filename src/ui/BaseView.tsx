@@ -12,11 +12,11 @@ import { BALANCE } from '../sim/balance.ts'
 import { lightInfo, nextResupplySol } from '../sim/forecast.ts'
 import type { CrewMember, CrewTask, Decisions, GameState, PowerLoad, ScenarioId } from '../sim/types.ts'
 import { portraitFor } from './labels.ts'
+import { art, ART, buildingSprites, LANDER, terrainUrl, type Sprite, type SpriteSize } from './sprites.ts'
 import type { SolEffects } from './useSolEffects.ts'
 
 const W = 1536
 const H = 1024
-const ART = '/art'
 // The slab fills the frame: its left and right corners run off the sides,
 // with just enough sky above the back corner for the stars.
 const VIEW = { x: 103, y: 12, w: 1330, h: 760 }
@@ -36,15 +36,14 @@ const VIEW = { x: 103, y: 12, w: 1330, h: 760 }
 // serve both worlds. Measured by fitting lines to each slab's back edges,
 // ignoring the rocks along them: both edges slope at 28.5 degrees.
 interface Terrain {
-  art: string
   north: readonly [number, number]
   west: readonly [number, number]
   east: readonly [number, number]
 }
 
 const TERRAIN: Record<ScenarioId, Terrain> = {
-  moon: { art: 'moon-terrain.webp', north: [764, 31], west: [37, 426], east: [1495, 429] },
-  mars: { art: 'mars-terrain.webp', north: [761, 29], west: [34, 425], east: [1496, 427] },
+  moon: { north: [764, 31], west: [37, 426], east: [1495, 429] },
+  mars: { north: [761, 29], west: [34, 425], east: [1496, 427] },
 }
 
 function groundAt(t: Terrain, u: number, v: number) {
@@ -98,20 +97,6 @@ const LIT_PADS: { pad: PadId; load?: Exclude<PowerLoad, 'lifeSupport'> }[] = [
   { pad: 'landing' },
 ]
 
-// Each building image: its size as shipped, and where the middle of its
-// stone platform sits inside it, as fractions of that size (both printed by
-// art/process.py). The platform's middle is what gets placed on the ground
-// point.
-interface Sprite {
-  name: string
-  px: [number, number]
-  anchor: [number, number]
-  single?: boolean // one image, no separate night art
-  glint?: string // the solar cells alone, where the sunlight glint may fall
-  daylight?: string // a filter for the day image: the world's light (MOON_LIGHT)
-}
-type SpriteSize = Pick<Sprite, 'px' | 'anchor'>
-
 // Every building is built on a copy of the cargo pad's platform
 // (art/ART-GUIDE.md), so one scale draws them all in proportion to each
 // other and to the ground: a platform is about 280 units wide, a fifth of
@@ -129,10 +114,6 @@ const RENDER_TO_MAP = 0.5 * BUILDING_SCALE
 const PLATFORM_DEPTH = 25 // the platform's height above the ground, in render pixels
 const LAMP_POOL_RX = 62
 
-// The cargo pad and the lander on it share one image box (art/process.py
-// lines them up), anchored on the landing circle's centre.
-const LANDER: SpriteSize = { px: [619, 482], anchor: [0.501, 0.622] }
-
 // Moon daylight. The generator painted the platforms' stone warm and tan,
 // and the Moon's ground is a cool grey, so the platforms looked laid on the
 // map rather than set in it. Measured on both: the plain tiles average
@@ -141,61 +122,6 @@ const LANDER: SpriteSize = { px: [619, 482], anchor: [0.501, 0.622] }
 // same brightness: red down a little, blue up. Night images are lamp-lit,
 // so they keep their warm light. (Mars's art is painted in Mars light.)
 const MOON_LIGHT = '0.94 0 0 0 0  0 1.01 0 0 0  0 0 1.09 0 0  0 0 0 1 0'
-
-// Each world's buildings. art/process.py cuts a building's stages and its
-// day and night to one box, so they share a size and anchor. Only the Moon
-// has the reactor (Mars runs on solar), and only Mars has the O₂ plant,
-// which stands on the pad the reactor leaves empty. Mars has no night, so
-// its images are day only.
-type Everywhere = 'habitat' | 'solar' | 'greenhouse' | 'lab'
-type Buildings<T> = Record<Everywhere, T> & Partial<Record<'reactor' | 'isru', T>>
-const BUILDING_ART: Record<ScenarioId, Buildings<SpriteSize>> = {
-  moon: {
-    habitat: { px: [620, 410], anchor: [0.5, 0.554] },
-    solar: { px: [620, 366], anchor: [0.5, 0.501] },
-    reactor: { px: [619, 461], anchor: [0.501, 0.604] },
-    greenhouse: { px: [619, 364], anchor: [0.501, 0.499] },
-    lab: { px: [619, 410], anchor: [0.501, 0.553] },
-  },
-  mars: {
-    habitat: { px: [619, 418], anchor: [0.501, 0.563] },
-    solar: { px: [620, 368], anchor: [0.5, 0.503] },
-    greenhouse: { px: [619, 366], anchor: [0.501, 0.501] },
-    lab: { px: [620, 410], anchor: [0.5, 0.554] },
-    isru: { px: [619, 452], anchor: [0.501, 0.596] },
-  },
-}
-
-// Two buildings change with the game: the habitat shows the base's
-// condition, and the solar field gains rows of panels as it is built.
-// Where the stages change is a display choice, not a game rule; damaged
-// starts where the habitat's label turns amber (see `worn` below).
-function habitatStage(condition: number) {
-  return condition >= 0.85 ? 'good' : condition >= 0.6 ? 'worn' : 'damaged'
-}
-
-function solarStage(game: GameState) {
-  const built = game.facilities.solarArrayM2 / game.scenario.maxSolarArrayM2
-  return built >= 0.85 ? 3 : built >= 0.6 ? 2 : 1
-}
-
-function buildingSprites(game: GameState): Buildings<Sprite> {
-  const world = game.scenario.id
-  const sizes = BUILDING_ART[world]
-  const sprite = (size: SpriteSize, file: string): Sprite =>
-    world === 'moon'
-      ? { name: `moon/${file}`, ...size, daylight: 'url(#moon-light)' }
-      : { name: `${world}/${file}-day`, ...size, single: true }
-  const solar = `solar-${solarStage(game)}`
-  return {
-    habitat: sprite(sizes.habitat, `habitat-${habitatStage(game.facilities.condition)}`),
-    solar: { ...sprite(sizes.solar, solar), glint: `${world}/${solar}-day-glint` },
-    reactor: sizes.reactor && sprite(sizes.reactor, 'reactor'),
-    greenhouse: sprite(sizes.greenhouse, 'greenhouse'),
-    lab: sprite(sizes.lab, 'lab'),
-    isru: sizes.isru && sprite(sizes.isru, 'o2-plant'),
-  }
-}
 
 // Where astronauts are shown for each task: a pad, or the crater field.
 const TASK_PLACE: Record<CrewTask, PadId | 'field' | 'o2'> = {
@@ -218,8 +144,6 @@ function spriteBox(t: Terrain, pad: PadId, s: SpriteSize) {
   const height = s.px[1] * BUILDING_SCALE
   return { x: g.x - s.anchor[0] * width, y: g.y - s.anchor[1] * height, width, height }
 }
-
-const art = (s: Sprite, when: 'day' | 'night') => `${ART}/buildings/${s.name}${s.single ? '' : `-${when}`}.webp`
 
 // A building with day and night art stacked and cross-faded, so nightfall
 // is a smooth change and the night image is already loaded when needed.
@@ -252,8 +176,8 @@ interface Star {
 // worked out once per terrain and kept.
 const starFields = new Map<string, Star[]>()
 
-function starsFor(t: Terrain): Star[] {
-  const cached = starFields.get(t.art)
+function starsFor(world: ScenarioId, t: Terrain): Star[] {
+  const cached = starFields.get(world)
   if (cached) return cached
   const [nx, ny] = t.north
   const [wx, wy] = t.west
@@ -267,7 +191,7 @@ function starsFor(t: Terrain): Star[] {
     const y = VIEW.y + 85 + ((i * 137) % 300)
     if (above(x, y)) out.push({ x, y, r: i % 4 === 0 ? 3 : 2, delay: (i % 7) * 0.45 })
   }
-  starFields.set(t.art, out)
+  starFields.set(world, out)
   return out
 }
 
@@ -542,7 +466,7 @@ export function BaseView({ game, decisions, effects, className = '' }: { game: G
       {/* Sky first, then the slab. The terrain art is cut out, so the rust
           filter for Mars lands on the ground and nowhere else. */}
       <rect x={VIEW.x} y={VIEW.y} width={VIEW.w} height={VIEW.h} fill="#0c1633" />
-      <image href={`${ART}/${terrain.art}`} width={W} height={H} />
+      <image href={terrainUrl(game.scenario.id)} width={W} height={H} />
 
       {/* Night: darken the ground and the panels; buildings light up. */}
       <rect width={W} height={H} fill="#0a1433" style={{ opacity: night ? 0.55 : 0, transition: 'opacity 1.2s', mixBlendMode: 'multiply' }} />
@@ -575,7 +499,7 @@ export function BaseView({ game, decisions, effects, className = '' }: { game: G
         })}
       </g>
       <g style={{ opacity: night ? 1 : 0, transition: 'opacity 1.6s' }}>
-        {starsFor(terrain).map((s, i) => (
+        {starsFor(game.scenario.id, terrain).map((s, i) => (
           <circle key={i} className="twinkle" cx={s.x} cy={s.y} r={s.r} fill="#e2e8f0" style={{ animationDelay: `${s.delay}s` }} />
         ))}
       </g>

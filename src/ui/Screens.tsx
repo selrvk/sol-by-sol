@@ -1,11 +1,14 @@
 import { Apple, Clock, Droplet, Globe, Moon, Radiation, Trophy, Wind, Zap, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, type Dispatch } from 'react'
+import { newGame } from '../sim/newGame.ts'
 import { c } from '../sim/constants.ts'
 import { resourceRates } from '../sim/effects.ts'
 import type { GameState, LossReason, ScenarioId } from '../sim/types.ts'
 import type { Action } from './gameReducer.ts'
 import { SCENARIOS } from './gameReducer.ts'
 import { SCENARIO_BLURBS } from './labels.ts'
+import { preloadAll } from './preload.ts'
+import { everyImageOf, imagesFor } from './sprites.ts'
 
 // A fresh seed per game. The sim itself never calls Math.random: the seed
 // is shown on the end screen so a game can be replayed exactly. Passing
@@ -19,6 +22,14 @@ function newSeed(): number {
 
 export function StartScreen({ dispatch }: { dispatch: Dispatch<Action> }) {
   const start = (scenarioId: ScenarioId) => dispatch({ type: 'start', scenarioId, seed: newSeed() })
+  // While the player reads this screen, fetch what each world shows when it
+  // opens (the seed does not change what the base looks like at the start),
+  // then everything else it can show. Online, without this, the map drew
+  // itself a building at a time.
+  useEffect(() => {
+    const openings = (Object.keys(SCENARIOS) as ScenarioId[]).map((w) => newGame(SCENARIOS[w], 1))
+    Promise.all(openings.map((g) => preloadAll(imagesFor(g)))).then(() => Promise.all(openings.map((g) => preloadAll(everyImageOf(g)))))
+  }, [])
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-6 p-6">
       <div className="flex items-start gap-4">
