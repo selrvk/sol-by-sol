@@ -31,7 +31,7 @@ export function StartScreen({ dispatch }: { dispatch: Dispatch<Action> }) {
     Promise.all(openings.map((g) => preloadAll(imagesFor(g)))).then(() => Promise.all(openings.map((g) => preloadAll(everyImageOf(g)))))
   }, [])
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-6 p-6">
+    <main className="screen-in mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-6 p-6">
       <div className="flex items-start gap-4">
         <img src="/art/archspace-logo.webp" alt="ARCHSPACE" width={72} height={72} className="hidden shrink-0 sm:block" />
         <div>
@@ -45,19 +45,29 @@ export function StartScreen({ dispatch }: { dispatch: Dispatch<Action> }) {
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        {(Object.keys(SCENARIOS) as ScenarioId[]).map((id) => {
+        {(Object.keys(SCENARIOS) as ScenarioId[]).map((id, i) => {
           const sc = SCENARIOS[id]
           return (
+            // The cards arrive just after the heading, one then the other,
+            // and lift a little under the pointer, their picture drawing
+            // closer.
             <button
               key={id}
               type="button"
               onClick={() => start(id)}
-              className="flex flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 text-left transition hover:border-yellow-300 active:scale-[0.99] motion-reduce:transition-none motion-reduce:active:scale-100"
+              style={{ animationDelay: `${120 + i * 90}ms` }}
+              className="screen-in group flex flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 text-left transition duration-300 hover:-translate-y-1 hover:border-yellow-300 hover:shadow-xl hover:shadow-black/40 active:scale-[0.99] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
             >
               {/* The base as you will find it on taking command (made by
                   art/preview.py). The words beside it say the same, so it is
                   left out for a screen reader. */}
-              <img src={`/art/start-${id}.webp`} alt="" width={720} height={360} className="block aspect-[2/1] w-full bg-[#0c1633] object-cover" />
+              <img
+                src={`/art/start-${id}.webp`}
+                alt=""
+                width={720}
+                height={360}
+                className="block aspect-[2/1] w-full bg-[#0c1633] object-cover transition-transform duration-500 group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+              />
               <div className="p-5 pt-4">
                 <h2 className="flex items-center gap-2 text-xl font-bold">
                   {id === 'moon' ? (

@@ -1,7 +1,9 @@
 import { ChartLine, Globe, Moon } from 'lucide-react'
-import { lazy, Suspense, useEffect, useReducer, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useReducer, useState } from 'react'
 import type { ScenarioId } from '../sim/types.ts'
+import { Arrival } from './Arrival.tsx'
 import { BaseCondition, BaseSummary, BaseView } from './BaseView.tsx'
+import { ConfirmDialog } from './ConfirmDialog.tsx'
 import { AdvanceButton, PowerSwitches } from './ControlPanel.tsx'
 import { CrewPanel } from './CrewPanel.tsx'
 import { EventModal } from './EventModal.tsx'
@@ -29,7 +31,14 @@ export function Game() {
   // Which group of panels a phone is showing. Desktop ignores this and
   // shows everything at once.
   const [pane, setPane] = useState<Pane>('mission')
+  // An "are you sure?" waiting for an answer: quitting, or switching worlds.
+  const [confirming, setConfirming] = useState<{ kind: 'quit' } | { kind: 'switch'; to: ScenarioId } | null>(null)
   const { game, previous, decisions, history } = ui
+  // Each new mission (keyed by its seed) opens with the arrival screen.
+  const [arrivedFor, setArrivedFor] = useState<number | null>(null)
+  const seed = game?.rng.seed
+  const arriving = seed !== undefined && arrivedFor !== seed
+  const onArrived = useCallback(() => setArrivedFor(seed ?? null), [seed])
   const solEffects = useSolEffects(game)
 
   useEffect(() => saveUiState(ui), [ui])
@@ -37,7 +46,7 @@ export function Game() {
   // Enter advances the sol, unless an alert is waiting or a control has focus.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Enter' || e.repeat) return
+      if (e.key !== 'Enter' || e.repeat || arriving) return
       const target = e.target as HTMLElement
       if (target.closest('button, input, select, textarea, [role=dialog]')) return
       if (!ui.game || ui.game.outcome.status !== 'playing') return
@@ -46,7 +55,7 @@ export function Game() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [ui])
+  }, [ui, arriving])
   // The map waits for the pictures it shows, then appears whole (preload.ts).
   // Once it is up, everything else the world can show -- the other time of
   // day, every stage of every building -- is fetched quietly, so a picture
@@ -87,11 +96,15 @@ export function Game() {
     // column scrolls inside itself. That keeps the Advance button and the
     // meters on screen on a short laptop, instead of below the fold. Phones
     // keep ordinary page scrolling.
-    <div className="flex min-h-screen flex-col lg:h-screen lg:overflow-hidden">
+    // The game fades in as the arrival screen fades out. Opacity only: a
+    // transform here would unpin the phone's fixed Advance bar.
+    <>
+    <div className={`flex min-h-screen flex-col transition-opacity duration-500 motion-reduce:transition-none lg:h-screen lg:overflow-hidden ${arriving ? 'opacity-0' : 'opacity-100'}`}>
       <TopBar
         game={game}
         onQuit={() => {
-          if (game.outcome.status !== 'playing' || window.confirm('Quit this mission? Your progress will be lost.')) dispatch({ type: 'quit' })
+          if (game.outcome.status !== 'playing') dispatch({ type: 'quit' })
+          else setConfirming({ kind: 'quit' })
         }}
       />
       {/* Two columns on large screens. On phones the columns dissolve
@@ -110,7 +123,7 @@ export function Game() {
                 from its top and bottom (BaseView), but never more than 60
                 map units from each: 48.1cqw is the map's height with 120 of
                 its 760 units trimmed, and the cap stops there. */}
-            <div className={`transition-opacity duration-500 motion-reduce:transition-none ${artReady ? 'opacity-100' : 'opacity-0'}`}>
+            <div className={`transition-opacity duration-500 motion-reduce:transition-none ${artReady ? 'opacity-100' : 'opacity-0'} ${arriving ? '' : 'map-in'}`}>
               <BaseView game={game} decisions={decisions} effects={solEffects} className="lg:max-h-[max(calc(100vh-22rem),48.1cqw)]" />
             </div>
             {!artReady && (
@@ -133,10 +146,7 @@ export function Game() {
                 value={game.scenario.id}
                 onChange={(e) => {
                   const next = e.target.value as ScenarioId
-                  if (next === game.scenario.id) return
-                  if (window.confirm(`Start a new mission on ${SCENARIOS[next].name}? This mission will be lost.`)) {
-                    dispatch({ type: 'start', scenarioId: next, seed: (game.rng.seed * 1103515245 + 12345) >>> 0 })
-                  }
+                  if (next !== game.scenario.id) setConfirming({ kind: 'switch', to: next })
                 }}
                 className="appearance-none rounded-lg border border-slate-600 bg-slate-900/90 py-0.5 pl-7 pr-6 text-xs font-semibold text-white shadow-lg sm:rounded-xl sm:py-1.5 sm:text-sm"
               >
@@ -213,6 +223,36 @@ export function Game() {
         <EventModal event={game.pendingEvent} dispatch={dispatch} />
       )}
       {game.outcome.status !== 'playing' && <EndScreen game={game} dispatch={dispatch} />}
+      {confirming && (
+        <ConfirmDialog
+          title={confirming.kind === 'quit' ? 'Quit this mission?' : `Start a new mission on ${confirming.to === 'moon' ? 'the Moon' : 'Mars'}?`}
+          body={
+            confirming.kind === 'quit'
+              ? 'Your progress will be lost, and you will go back to choosing a world.'
+              : `This mission ends here and its progress will be lost. You take command of ${confirming.to === 'moon' ? 'the lunar outpost' : 'the Mars outpost'} on sol ${SCENARIOS[confirming.to].start.sol}.`
+          }
+          confirmLabel={confirming.kind === 'quit' ? 'Quit mission' : `Go to ${confirming.to === 'moon' ? 'the Moon' : 'Mars'}`}
+          cancelLabel="Keep playing"
+          onConfirm={() => {
+            if (confirming.kind === 'quit') dispatch({ type: 'quit' })
+            else dispatch({ type: 'start', scenarioId: confirming.to, seed: (game.rng.seed * 1103515245 + 12345) >>> 0 })
+            setConfirming(null)
+          }}
+          onCancel={() => setConfirming(null)}
+        />
+      )}
     </div>
+    {arriving && (
+      <Arrival
+        key={game.rng.seed}
+        world={game.scenario.id}
+        name={game.scenario.name}
+        sol={game.sol}
+        missionLength={game.scenario.missionLengthSols}
+        ready={artReady}
+        onDone={onArrived}
+      />
+    )}
+    </>
   )
 }
